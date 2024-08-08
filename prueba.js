@@ -4,7 +4,7 @@ const path = require('path');
 const oracledb = require('oracledb');
 const { Document, Packer, Paragraph, TextRun } = require('docx');
 
-const logDirectoryPath = 'C:\\Users\\igs_llupacca\\Documents\\backup_1'; // Directorio donde están los archivos de log
+const logDirectoryPath = '---------'; // Directorio donde están los archivos de log
 let logOutput = ''; // Variable para almacenar el contenido de la consola
 
 // Función para obtener el archivo .log más reciente
@@ -102,9 +102,9 @@ async function storeLogDetails(logDetails) {
   try {
     // Conexión a la base de datos
     connection = await oracledb.getConnection({
-      user: 'USRMONBK', // Reemplaza con tu usuario de Oracle
-      password: 'USRMONBK_2024', // Reemplaza con tu contraseña de Oracle
-      connectString: '10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe' // Reemplaza con tu cadena de conexión a Oracle
+      user: '-----', // Reemplaza con tu usuario de Oracle
+      password: '-----', // Reemplaza con tu contraseña de Oracle
+      connectString: '----------' // Reemplaza con tu cadena de conexión a Oracle
     });
 
     // Verificar si ya existe un registro con el mismo dateTime
