@@ -3,8 +3,13 @@ const path = require('path');
 const oracledb = require('oracledb');
 const { Document, Packer, Paragraph, TextRun } = require('docx');
 
+<<<<<<< HEAD:pruebas/prueba.js
 const logDirectoryPath = 'C:\\Users\\igs_llupacca\\Documents\\backup_1';
 let logOutput = '';
+=======
+const logDirectoryPath = '---------'; // Directorio donde están los archivos de log
+let logOutput = ''; // Variable para almacenar el contenido de la consola
+>>>>>>> d75db1d6e4306dfc792f5c0c9eea0c7619796d58:prueba.js
 
 // Función para obtener el archivo .log más reciente
 function getLatestLogFile(directoryPath) {
@@ -144,9 +149,15 @@ async function storeLogDetails(logDetails, dumpFileSize) {
 
   try {
     connection = await oracledb.getConnection({
+<<<<<<< HEAD:pruebas/prueba.js
       user: 'USRMONBK',
       password: 'USRMONBK_2024',
       connectString: '10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe'
+=======
+      user: '-----', // Reemplaza con tu usuario de Oracle
+      password: '-----', // Reemplaza con tu contraseña de Oracle
+      connectString: '----------' // Reemplaza con tu cadena de conexión a Oracle
+>>>>>>> d75db1d6e4306dfc792f5c0c9eea0c7619796d58:prueba.js
     });
 
     const checkExistQuery = `SELECT COUNT(*) as count FROM LogBackup WHERE dateTime = :dateTime`;
