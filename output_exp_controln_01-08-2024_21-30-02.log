@@ -174,4 +174,5 @@ Master table "SYSTEM"."SYS_EXPORT_FULL_01" successfully loaded/unloaded
 ******************************************************************************
 Dump file set for SYSTEM.SYS_EXPORT_FULL_01 is:
   C:\BK_DIARIO_INFO7034\CONTROLN\CONTROLN.DMP
+  
 Job "SYSTEM"."SYS_EXPORT_FULL_01" successfully completed at Thu Aug 7 22:34:12 2024 elapsed 0 00:04:06
