@@ -2,7 +2,7 @@ const { Client } = require('ssh2');
 
 // Configuración de conexión SSH para Solaris
 const connectionConfig = {
-  host: '10.0.212.81', // Reemplaza con la IP o hostname del servidor Solaris
+  host: '10.0.212.211', // Reemplaza con la IP o hostname del servidor Solaris
   port: 22, 
   username: 'solaris_user', // Reemplaza con tu usuario
   password: 'solaris_password' // Reemplaza con tu contraseña

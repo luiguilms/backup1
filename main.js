@@ -1,14 +1,14 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const { Client } = require("ssh2");
-const oracledb = require("oracledb"); 
-
+const oracledb = require("oracledb");
+const { Console } = require("console");
 
 // Función para normalizar rutas según el sistema operativo
 function normalizePath(inputPath, targetOS) {
-  let normalizedPath = inputPath.replace(/\\/g, '/');
-  if (targetOS === 'windows') {
-    normalizedPath = normalizedPath.replace(/\//g, '\\');
+  let normalizedPath = inputPath.replace(/\\/g, "/");
+  if (targetOS === "windows") {
+    normalizedPath = normalizedPath.replace(/\//g, "\\");
   }
   return normalizedPath;
 }
@@ -28,18 +28,13 @@ function joinPath(directoryPath, filename, targetOS) {
   return normalizedPath;
 }
 
-
-
-
-
-
 // Configuración de conexión a la base de datos
 const dbConfig = {
   user: "USRMONBK",
   password: "USRMONBK_2024",
   connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
 };
-
+let mainWindow;
 // Crea una ventana de aplicación
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -54,6 +49,7 @@ function createWindow() {
   });
 
   mainWindow.loadFile("index.html");
+  
 }
 
 app.whenReady().then(() => {
@@ -72,7 +68,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle(
     "get-log-details",
-    async (event, { directoryPath, ip, port, username, password, targetOS }) => {
+    async (
+      event,
+      { directoryPath, ip, port, username, password, targetOS }
+    ) => {
       let logDetails = null;
       let dumpFileInfo = null;
 
@@ -101,7 +100,9 @@ app.whenReady().then(() => {
               console.error("Readdir error:", err);
               sftp.end();
               conn.end();
-              return reject(new Error(`Failed to read directory: ${err.message}`));
+              return reject(
+                new Error(`Failed to read directory: ${err.message}`)
+              );
             }
             console.log("Files in directory:", files); // Log of files in the directory
             resolve(files);
@@ -123,7 +124,11 @@ app.whenReady().then(() => {
         const latestLogFile = logFiles.reduce((latest, file) =>
           file.attrs.mtime > latest.attrs.mtime ? file : latest
         );
-        const logFilePath = joinPath(directoryPath, latestLogFile.filename, targetOS);
+        const logFilePath = joinPath(
+          directoryPath,
+          latestLogFile.filename,
+          targetOS
+        );
         console.log("Attempting to read log file:", logFilePath); // Log of the log file path
 
         // Check if the log file exists
@@ -133,7 +138,11 @@ app.whenReady().then(() => {
               console.error("Stat error:", err);
               sftp.end();
               conn.end();
-              return reject(new Error(`Failed to stat log file at ${logFilePath}: ${err.message}`));
+              return reject(
+                new Error(
+                  `Failed to stat log file at ${logFilePath}: ${err.message}`
+                )
+              );
             }
             resolve(stats);
           });
@@ -146,15 +155,22 @@ app.whenReady().then(() => {
               console.error("ReadFile error:", err);
               sftp.end();
               conn.end();
-              return reject(new Error(`Failed to read log file at ${logFilePath}: ${err.message}`));
+              return reject(
+                new Error(
+                  `Failed to read log file at ${logFilePath}: ${err.message}`
+                )
+              );
             }
             resolve(data);
           });
         });
+        // Parse the log file
+        logDetails = parseLogLine(logData);
+        //console.log(logData)
 
-        const logLines = logData.trim().split("\n");
-        const lastLine = logLines[logLines.length - 1];
-        logDetails = parseLogLine(lastLine);
+        //const logLines = logData.trim().split("\n");
+        //const lastLine = logLines[logLines.length - 1];
+        //logDetails = parseLogLine(lastLine);
 
         // Get dump file info
         dumpFileInfo = await new Promise((resolve, reject) => {
@@ -163,11 +179,17 @@ app.whenReady().then(() => {
               console.error("Readdir error:", err);
               sftp.end();
               conn.end();
-              return reject(new Error(`Failed to read directory for dump file: ${err.message}`));
+              return reject(
+                new Error(
+                  `Failed to read directory for dump file: ${err.message}`
+                )
+              );
             }
 
-            const dumpFiles = files.filter(
-              (file) => [".DMP", ".dmp"].includes(path.extname(file.filename).toUpperCase())
+            const dumpFiles = files.filter((file) =>
+              [".DMP", ".dmp"].includes(
+                path.extname(file.filename).toUpperCase()
+              )
             );
 
             if (dumpFiles.length === 0) {
@@ -176,14 +198,22 @@ app.whenReady().then(() => {
               const latestDumpFile = dumpFiles.reduce((latest, file) =>
                 file.attrs.mtime > latest.attrs.mtime ? file : latest
               );
-              const dumpFilePath = joinPath(directoryPath, latestDumpFile.filename, targetOS);
+              const dumpFilePath = joinPath(
+                directoryPath,
+                latestDumpFile.filename,
+                targetOS
+              );
 
               sftp.stat(dumpFilePath, (err, stats) => {
                 if (err) {
                   console.error("Stat error:", err);
                   sftp.end();
                   conn.end();
-                  return reject(new Error(`Failed to stat dump file at ${dumpFilePath}: ${err.message}`));
+                  return reject(
+                    new Error(
+                      `Failed to stat dump file at ${dumpFilePath}: ${err.message}`
+                    )
+                  );
                 }
 
                 const dumpFileSizeInBytes = stats.size;
@@ -200,7 +230,7 @@ app.whenReady().then(() => {
             }
           });
         });
-
+        
         sftp.end();
         conn.end();
       } catch (error) {
@@ -214,28 +244,29 @@ app.whenReady().then(() => {
       };
     }
   );
-  
-  async function saveLogToDatabase(logDetails, dumpFileInfo) {
+
+  async function saveLogToDatabase(logDetails, dumpFileInfo,targetOS) {
     let connection;
-  
+
     try {
       connection = await oracledb.getConnection(dbConfig);
-  
+
       if (!logDetails) {
         throw new Error("Log details are missing.");
       }
-  
+
       const result = await connection.execute(
-        `INSERT INTO LogBackup (dateTime, duration, success, dumpFileSize_MB) VALUES (:dateTime, :duration, :success, :dumpFileSize)`,
+        `INSERT INTO LogBackup (dateTime, duration, success, dumpFileSize_MB,serverName) VALUES (:dateTime, :duration, :success, :dumpFileSize,:serverName)`,
         {
           dateTime: logDetails.dateTime,
           duration: logDetails.duration,
           success: logDetails.success ? 1 : 0, // Convert boolean to number
           dumpFileSize: dumpFileInfo ? dumpFileInfo.fileSize : null,
+          serverName: targetOS // Guarda el nombre del servidor
         },
         { autoCommit: true }
       );
-  
+
       console.log("Log details saved to database:", result);
     } catch (err) {
       console.error("Error saving log details to database:", err);
@@ -249,16 +280,12 @@ app.whenReady().then(() => {
       }
     }
   }
-  
-
-  
-  
 
   ipcMain.handle(
     "save-log-to-database",
-    async (event, { logDetails, dumpFileInfo }) => {
+    async (event, { logDetails, dumpFileInfo, targetOS  }) => {
       try {
-        await saveLogToDatabase(logDetails, dumpFileInfo);
+        await saveLogToDatabase(logDetails, dumpFileInfo, targetOS );
         return { success: true };
       } catch (error) {
         console.error("Error saving log details to database:", error);
@@ -285,12 +312,12 @@ function createSSHClient(ip, port, username, password) {
     const conn = new Client();
 
     conn
-      .on('ready', () => {
-        console.log('SSH Connection established');
+      .on("ready", () => {
+        console.log("SSH Connection established");
         resolve(conn);
       })
-      .on('error', (err) => {
-        console.error('SSH Connection error:', err);
+      .on("error", (err) => {
+        console.error("SSH Connection error:", err);
         reject(new Error(`SSH Connection failed: ${err.message}`));
       })
       .connect({
@@ -299,10 +326,10 @@ function createSSHClient(ip, port, username, password) {
         username: username,
         password: password,
         algorithms: {
-          kex: ['diffie-hellman-group14-sha1', 'diffie-hellman-group14-sha256'],
-          cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr'],
-          hmac: ['hmac-sha1', 'hmac-sha2-256', 'hmac-sha2-512']
-        }
+          kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
+          cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
+          hmac: ["hmac-sha1", "hmac-sha2-256", "hmac-sha2-512"],
+        },
       });
   });
 }
@@ -312,26 +339,29 @@ function checkConnection(ip, port, username, password) {
     const conn = new Client();
 
     conn
-      .on('ready', () => {
-        console.log('Initial connection successful');
+      .on("ready", () => {
+        console.log("Initial connection successful");
         conn.exec('echo "Connection test"', (err, stream) => {
           if (err) {
-            console.error('Exec error:', err);
+            console.error("Exec error:", err);
             conn.end();
             reject(new Error(`Exec failed: ${err.message}`));
           }
-          stream.on('close', (code, signal) => {
-            conn.end();
-            resolve(true);
-          }).on('data', (data) => {
-            console.log('Received:', data.toString());
-          }).stderr.on('data', (data) => {
-            console.error('STDERR:', data.toString());
-          });
+          stream
+            .on("close", (code, signal) => {
+              conn.end();
+              resolve(true);
+            })
+            .on("data", (data) => {
+              console.log("Received:", data.toString());
+            })
+            .stderr.on("data", (data) => {
+              console.error("STDERR:", data.toString());
+            });
         });
       })
-      .on('error', (err) => {
-        reject(new Error(`Connection failed: ${err.message}`));
+      .on("error", (err) => {
+        resolve(false);
       })
       .connect({
         host: ip,
@@ -339,10 +369,10 @@ function checkConnection(ip, port, username, password) {
         username: username,
         password: password,
         algorithms: {
-          kex: ['diffie-hellman-group14-sha1', 'diffie-hellman-group14-sha256'],
-          cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr'],
-          hmac: ['hmac-sha1', 'hmac-sha2-256', 'hmac-sha2-512']
-        }
+          kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
+          cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
+          hmac: ["hmac-sha1", "hmac-sha2-256", "hmac-sha2-512"],
+        },
       });
   });
 }
@@ -415,39 +445,46 @@ function getDumpFileSize(directoryPath, ip, port, username, password) {
         username: username,
         password: password,
         algorithms: {
-          kex: ['diffie-hellman-group14-sha1', 'diffie-hellman-group14-sha256'],
-          cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr'],
-          hmac: ['hmac-sha1', 'hmac-sha2-256', 'hmac-sha2-512']
-        }
+          kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
+          cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
+          hmac: ["hmac-sha1", "hmac-sha2-256", "hmac-sha2-512"],
+        },
       });
   });
 }
 
-function parseLogLine(logLine) {
-  if (!logLine) {
-    return {
-      dateTime: "N/A",
-      duration: "N/A",
-      success: false,
-    };
-  }
-  const datePattern = /\w{3} \w{3} \d{1,2} \d{2}:\d{2}:\d{2} \d{4}/;
-  const match = logLine.match(datePattern);
-  const dateTime = match ? match[0] : "N/A";
+function parseLogLine(logContent) {
+  // Define regex patterns
+  const oraErrorPattern = /ORA-\d{5}/g; // Matches all ORA errors
+  const oraSpecificErrorPattern = /ORA-39327/; // Matches specific ORA error
+  const successPattern = /successfully completed/i; // Matches success message
 
-  // Patrón para la duración
-  const durationPattern = /elapsed \d{1,2} \d{2}:\d{2}:\d{2}/;
-  const durationMatch = logLine.match(durationPattern);
-  const duration = durationMatch ? durationMatch[0].replace("elapsed ", "") : "N/A";
+  // Check for specific ORA error and success message
+  const hasOraSpecificError = oraSpecificErrorPattern.test(logContent);
+  const hasSuccessMessage = successPattern.test(logContent);
 
-  const success = logLine.includes("successfully completed");
+  // Determine if the backup is successful
+  const isSuccess = hasOraSpecificError || hasSuccessMessage;
 
+  // Extract date and duration
+  const datePattern = /(\w{3} \w{3} \d{1,2} \d{2}:\d{2}:\d{2} \d{4})/;
+  const dateMatch = logContent.match(datePattern);
+  const dateTime = dateMatch ? dateMatch[0] : "N/A";
+
+  const durationPattern = /elapsed (\d{1,2} \d{2}:\d{2}:\d{2})/;
+  const durationMatch = logContent.match(durationPattern);
+  const duration = durationMatch ? durationMatch[1] : "N/A";
+
+  // Return the parsed log details
   return {
     dateTime,
     duration,
-    success,
+    success: isSuccess ? 1 : 0,
   };
 }
+
+
+
 
 async function saveLogToDatabase(logDetails, dumpFileInfo) {
   let connection;
