@@ -8,12 +8,35 @@ document.addEventListener("DOMContentLoaded", () => {
   const successSpan = document.getElementById("success");
   const dumpPathSpan = document.getElementById("dump-path");
   const dumpSizeSpan = document.getElementById("dump-size");
+  const logFileNameSpan = document.getElementById("log-file-name"); // Añadido
 
   const ipAddresses = {
     windows: ["10.0.212.172", "10.0.98.22"],
     linux: ["10.0.212.4"],
     solaris: ["10.0.212.211"],
   };
+  function showAuthErrorModal(errorMessage) {
+    const modal = document.getElementById("authErrorModal");
+    const message = document.getElementById("errorMessage");
+    message.textContent =
+      errorMessage || "Error de autenticación. Por favor, inténtelo de nuevo.";
+    modal.style.display = "block";
+
+    document.getElementById("retryButton").onclick = function () {
+      modal.style.display = "none";
+      // Aquí puedes resetear el formulario de autenticación para intentar nuevamente
+    };
+
+    document.getElementById("closeModal").onclick = function () {
+      modal.style.display = "none";
+    };
+
+    window.onclick = function (event) {
+      if (event.target == modal) {
+        modal.style.display = "none";
+      }
+    };
+  }
 
   function clearResultView() {
     resultDiv.style.display = "none";
@@ -23,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dumpPathSpan.textContent = "";
     dumpSizeSpan.textContent = "";
     serverIpSpan.textContent = "";
+    logFileNameSpan.textContent = ""; // Limpiar nombre del archivo
   }
 
   function updateIPOptions() {
@@ -88,18 +112,17 @@ document.addEventListener("DOMContentLoaded", () => {
             directoryPath = "F:\\bk_info7021_USRGCN\\2022_07_13";
             break;
           case "solaris":
-            directoryPath =
-              "/temporal2T/BK_BANTPROD_DIARIO/DTPUMP/BK_ANTES_2024_08_15_2105/";
+            directoryPath = "/temporal2T/BK_BANTPROD_DIARIO/DTPUMP/";
             break;
           default:
             resultDiv.innerHTML = "<br>Unsupported Operating System.";
-            resultDiv.style.display = 'block';
+            resultDiv.style.display = "block";
             return;
         }
 
         try {
           console.log("Fetching log details...");
-          const { logDetails, dumpFileInfo } =
+          const { logDetails, dumpFileInfo, logFileName } =
             await window.electron.getLogDetails(
               directoryPath,
               ip,
@@ -122,25 +145,30 @@ document.addEventListener("DOMContentLoaded", () => {
           dumpSizeSpan.textContent = dumpFileInfo
             ? `${dumpFileInfo.fileSize} MB`
             : "N/A";
+          logFileNameSpan.textContent = logFileName || "N/A"; // Mostrar nombre del archivo
 
           console.log("Saving log details to database...");
-          await window.electron.saveLogToDatabase(logDetails, dumpFileInfo, os);
+          await window.electron.saveLogToDatabase(
+            logDetails,
+            dumpFileInfo,
+            os,
+            logFileName
+          );
 
           // Forzar actualización de la vista después de obtener los resultados
-          resultDiv.style.display = 'block';
+          resultDiv.style.display = "block";
         } catch (error) {
           resultDiv.innerHTML = `<br>Error obtaining log details: ${error.message}`;
-          resultDiv.style.display = 'block';
+          resultDiv.style.display = "block";
         }
       } else {
         console.log("Connection failed");
-        resultDiv.innerHTML = `<br>Could not connect to ${ip}:${port}.`;
-        resultDiv.style.display = 'block';
+        showAuthErrorModal(`Could not connect to ${ip}:${port}.`);
       }
     } catch (error) {
-      console.log("Connection error",error);
-      resultDiv.innerHTML = `<br>Connection error: ${error.message}`;
-      resultDiv.style.display = 'block';
+      console.log("Connection error", error);
+      console.log("Connection error", error);
+      showAuthErrorModal("Usuario o contraseña incorrectos.");
     }
   });
 });

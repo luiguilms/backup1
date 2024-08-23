@@ -74,6 +74,8 @@ app.whenReady().then(() => {
     ) => {
       let logDetails = null;
       let dumpFileInfo = null;
+      let logFileName = null;
+
 
       try {
         console.log(`Fetching log details from directory: ${directoryPath}`);
@@ -124,9 +126,12 @@ app.whenReady().then(() => {
         const latestLogFile = logFiles.reduce((latest, file) =>
           file.attrs.mtime > latest.attrs.mtime ? file : latest
         );
+        logFileName = latestLogFile.filename;
+        console.log(logFileName)  // Save the name of the latest log file
+
         const logFilePath = joinPath(
           directoryPath,
-          latestLogFile.filename,
+          logFileName,
           targetOS
         );
         console.log("Attempting to read log file:", logFilePath); // Log of the log file path
@@ -241,11 +246,12 @@ app.whenReady().then(() => {
       return {
         logDetails,
         dumpFileInfo,
+        logFileName
       };
     }
   );
 
-  async function saveLogToDatabase(logDetails, dumpFileInfo,targetOS) {
+  async function saveLogToDatabase(logDetails, dumpFileInfo,targetOS,logFileName) {
     let connection;
 
     try {
@@ -256,13 +262,14 @@ app.whenReady().then(() => {
       }
 
       const result = await connection.execute(
-        `INSERT INTO LogBackup (dateTime, duration, success, dumpFileSize_MB,serverName) VALUES (:dateTime, :duration, :success, :dumpFileSize,:serverName)`,
+        `INSERT INTO LogBackup (dateTime, duration, success, dumpFileSize_MB,serverName,logFileName) VALUES (:dateTime, :duration, :success, :dumpFileSize,:serverName,:logFileName)`,
         {
           dateTime: logDetails.dateTime,
           duration: logDetails.duration,
           success: logDetails.success ? 1 : 0, // Convert boolean to number
           dumpFileSize: dumpFileInfo ? dumpFileInfo.fileSize : null,
-          serverName: targetOS // Guarda el nombre del servidor
+          serverName: targetOS,// Guarda el nombre del servidor
+          logFileName: logFileName  
         },
         { autoCommit: true }
       );
@@ -283,9 +290,9 @@ app.whenReady().then(() => {
 
   ipcMain.handle(
     "save-log-to-database",
-    async (event, { logDetails, dumpFileInfo, targetOS  }) => {
+    async (event, { logDetails, dumpFileInfo, targetOS , logFileName  }) => {
       try {
-        await saveLogToDatabase(logDetails, dumpFileInfo, targetOS );
+        await saveLogToDatabase(logDetails, dumpFileInfo, targetOS , logFileName);
         return { success: true };
       } catch (error) {
         console.error("Error saving log details to database:", error);
@@ -484,35 +491,3 @@ function parseLogLine(logContent) {
 }
 
 
-
-
-async function saveLogToDatabase(logDetails, dumpFileInfo) {
-  let connection;
-
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-
-    const result = await connection.execute(
-      `INSERT INTO LogBackup (dateTime, duration, success, dumpFileSize_MB) VALUES (:dateTime, :duration, :success, :dumpFileSize)`,
-      {
-        dateTime: logDetails.dateTime,
-        duration: logDetails.duration,
-        success: logDetails.success ? 1 : 0, // Convert boolean to number
-        dumpFileSize: dumpFileInfo ? dumpFileInfo.fileSize : null,
-      },
-      { autoCommit: true }
-    );
-
-    console.log("Log details saved to database:", result);
-  } catch (err) {
-    console.error("Error saving log details to database:", err);
-  } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
-        console.error("Error closing database connection:", err);
-      }
-    }
-  }
-}
