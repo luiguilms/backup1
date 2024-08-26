@@ -1,3 +1,4 @@
+<!--index.html-->
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -22,7 +23,7 @@
         padding: 20px;
         background: #fff;
         border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 0 10px rgba(5, 5, 5, 0.1);
       }
 
       label {
@@ -61,7 +62,9 @@
       button:hover {
         background-color: #0056b3;
       }
-
+      #log-entries {
+  display: block;
+}
       #result {
         max-width: 600px;
         margin: 20px auto;
@@ -120,6 +123,47 @@
         text-decoration: none;
         cursor: pointer;
       }
+      #loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
+
+  .loader {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  #loading-overlay p {
+    color: white;
+    margin-top: 10px;
+    font-size: 18px;
+  }
+  .log-entry.failed {
+    background-color: #ffebee; /* Un rojo muy claro */
+    border: 1px solid #ffcdd2; /* Borde rojo claro */
+  }
+
+  .log-entry.failed strong {
+    color: #d32f2f; /* Rojo más oscuro para el texto en negrita */
+  }
     </style>
     <script src="renderer.js"></script>
   </head>
@@ -159,16 +203,9 @@
       <button type="submit">Conectar</button>
     </form>
 
-    <div id="result">
+    <div id="result"  style="overflow-y: auto; max-height: 500px;">
       <h2>Resultados de la verificación:</h2>
-      <p><strong>Server IP:</strong> <span id="server-ip"></span></p>
-      <p><strong>Log Date:</strong> <span id="log-date"></span></p>
-      <p><strong>Duration:</strong> <span id="duration"></span></p>
-      <p><strong>Success:</strong> <span id="success"></span></p>
-      <p><strong>Dump File Path:</strong> <span id="dump-path"></span></p>
-      <p><strong>Dump File Size:</strong> <span id="dump-size"></span></p>
-      <p><strong>Log File Name:</strong> <span id="log-file-name"></span></p>
-    </div>
+      <div id="log-entries"></div>
     <!-- Modal -->
     <div id="authErrorModal" class="modal">
       <div class="modal-content">
@@ -179,5 +216,10 @@
         <button id="retryButton">Volver a intentar</button>
       </div>
     </div>
+    <!-- Coloca el loading overlay aquí, justo antes de cerrar el body -->
+    <div id="loading-overlay" style="display: none;">
+      <div class="loader"></div>
+      <p>Cargando...</p>
+  </div>
   </body>
 </html>

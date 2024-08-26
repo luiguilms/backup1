@@ -1,3 +1,4 @@
+//main.js
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const { Client } = require("ssh2");
@@ -68,21 +69,18 @@ app.whenReady().then(() => {
 
   ipcMain.handle(
     "get-log-details",
-    async (
-      event,
-      { directoryPath, ip, port, username, password, targetOS }
-    ) => {
+    async (event, { directoryPath, ip, port, username, password, targetOS }) => {
+      const allLogDetails = []; // Array para guardar todos los detalles de los logs procesados
       let logDetails = null;
       let dumpFileInfo = null;
       let logFileName = null;
-
-
+  
       try {
         console.log(`Fetching log details from directory: ${directoryPath}`);
-
+  
         // Initialize SSH connection
         const conn = await createSSHClient(ip, port, username, password);
-
+  
         // Initialize SFTP connection
         const sftp = await new Promise((resolve, reject) => {
           conn.sftp((err, sftp) => {
@@ -94,162 +92,246 @@ app.whenReady().then(() => {
             resolve(sftp);
           });
         });
-
-        // Read directory and files
-        const files = await new Promise((resolve, reject) => {
-          sftp.readdir(directoryPath, (err, files) => {
-            if (err) {
-              console.error("Readdir error:", err);
-              sftp.end();
-              conn.end();
-              return reject(
-                new Error(`Failed to read directory: ${err.message}`)
-              );
-            }
-            console.log("Files in directory:", files); // Log of files in the directory
-            resolve(files);
+  
+        if (targetOS === "solaris") {
+          const allLogDetails = [];
+          const files = await new Promise((resolve, reject) => {
+            sftp.readdir(directoryPath, (err, files) => {
+              if (err) {
+                console.error("Readdir error:", err);
+                sftp.end();
+                conn.end();
+                return reject(new Error(`Failed to read directory: ${err.message}`));
+              }
+              resolve(files);
+            });
           });
-        });
-
-        // Filter and get the latest log file
-        const logFiles = files.filter(
-          (file) => path.extname(file.filename) === ".log"
-        );
-        console.log("Log files found:", logFiles); // Log of log files found
-
-        if (logFiles.length === 0) {
-          sftp.end();
-          conn.end();
-          return { logDetails: null, dumpFileInfo: null };
-        }
-
-        const latestLogFile = logFiles.reduce((latest, file) =>
-          file.attrs.mtime > latest.attrs.mtime ? file : latest
-        );
-        logFileName = latestLogFile.filename;
-        console.log(logFileName)  // Save the name of the latest log file
-
-        const logFilePath = joinPath(
-          directoryPath,
-          logFileName,
-          targetOS
-        );
-        console.log("Attempting to read log file:", logFilePath); // Log of the log file path
-
-        // Check if the log file exists
-        await new Promise((resolve, reject) => {
-          sftp.stat(logFilePath, (err, stats) => {
-            if (err) {
-              console.error("Stat error:", err);
-              sftp.end();
-              conn.end();
-              return reject(
-                new Error(
-                  `Failed to stat log file at ${logFilePath}: ${err.message}`
-                )
+  
+          for (const file of files) {
+            if (file.attrs.isDirectory()) {
+              const subDirPath = joinPath(directoryPath, file.filename, targetOS);
+  
+              console.log(`Processing subdirectory: ${subDirPath}`);
+  
+              const subDirFiles = await new Promise((resolve, reject) => {
+                sftp.readdir(subDirPath, (err, files) => {
+                  if (err) {
+                    console.error("Readdir error:", err);
+                    sftp.end();
+                    conn.end();
+                    return reject(new Error(`Failed to read subdirectory: ${err.message}`));
+                  }
+                  resolve(files);
+                });
+              });
+  
+              const logFiles = subDirFiles.filter(
+                (file) => path.extname(file.filename) === ".log"
               );
+  
+              for (const logFile of logFiles) {
+                logFileName = logFile.filename;
+                const logFilePath = joinPath(subDirPath, logFileName, targetOS);
+  
+                console.log("Attempting to read log file:", logFilePath);
+  
+                await new Promise((resolve, reject) => {
+                  sftp.stat(logFilePath, (err, stats) => {
+                    if (err) {
+                      console.error("Stat error:", err);
+                      sftp.end();
+                      conn.end();
+                      return reject(new Error(`Failed to stat log file: ${err.message}`));
+                    }
+                    resolve(stats);
+                  });
+                });
+  
+                const logData = await new Promise((resolve, reject) => {
+                  sftp.readFile(logFilePath, "utf8", (err, data) => {
+                    if (err) {
+                      console.error("ReadFile error:", err);
+                      sftp.end();
+                      conn.end();
+                      return reject(new Error(`Failed to read log file: ${err.message}`));
+                    }
+                    resolve(data);
+                  });
+                });
+  
+                logDetails = parseLogLine(logData);
+  
+                dumpFileInfo = await new Promise((resolve, reject) => {
+                  sftp.readdir(subDirPath, (err, files) => {
+                    if (err) {
+                      console.error("Readdir error:", err);
+                      sftp.end();
+                      conn.end();
+                      return reject(new Error(`Failed to read directory for dump file: ${err.message}`));
+                    }
+  
+                    const dumpFiles = files.filter((file) =>
+                      [".DMP", ".dmp"].includes(path.extname(file.filename).toUpperCase())
+                    );
+  
+                    if (dumpFiles.length > 0) {
+                      const latestDumpFile = dumpFiles.reduce((latest, file) =>
+                        file.attrs.mtime > latest.attrs.mtime ? file : latest
+                      );
+                      const dumpFilePath = joinPath(subDirPath, latestDumpFile.filename, targetOS);
+  
+                      sftp.stat(dumpFilePath, (err, stats) => {
+                        if (err) {
+                          console.error("Stat error:", err);
+                          sftp.end();
+                          conn.end();
+                          return reject(new Error(`Failed to stat dump file: ${err.message}`));
+                        }
+  
+                        const dumpFileSizeInBytes = stats.size;
+                        const dumpFileSizeInMB = (dumpFileSizeInBytes / (1024 * 1024)).toFixed(2);
+  
+                        resolve({
+                          filePath: dumpFilePath,
+                          fileSize: parseFloat(dumpFileSizeInMB),
+                        });
+                      });
+                    } else {
+                      resolve(null);
+                    }
+                  });
+                });
+  
+                // Acumular los detalles del log
+                allLogDetails.push({
+                  logDetails,
+                  dumpFileInfo,
+                  logFileName,
+                });
+  
+                // Guardar en la base de datos
+                //await saveLogToDatabase(logDetails, dumpFileInfo, targetOS, logFileName);
+              }
             }
-            resolve(stats);
+          }
+          return allLogDetails;
+        } else {
+          // Existing logic for other OS
+          // Read the directory
+          const files = await new Promise((resolve, reject) => {
+            sftp.readdir(directoryPath, (err, files) => {
+              if (err) {
+                console.error("Readdir error:", err);
+                sftp.end();
+                conn.end();
+                return reject(new Error(`Failed to read directory: ${err.message}`));
+              }
+              resolve(files);
+            });
           });
-        });
-
-        // Read the log file
-        const logData = await new Promise((resolve, reject) => {
-          sftp.readFile(logFilePath, "utf8", (err, data) => {
-            if (err) {
-              console.error("ReadFile error:", err);
-              sftp.end();
-              conn.end();
-              return reject(
-                new Error(
-                  `Failed to read log file at ${logFilePath}: ${err.message}`
-                )
-              );
-            }
-            resolve(data);
-          });
-        });
-        // Parse the log file
-        logDetails = parseLogLine(logData);
-        //console.log(logData)
-
-        //const logLines = logData.trim().split("\n");
-        //const lastLine = logLines[logLines.length - 1];
-        //logDetails = parseLogLine(lastLine);
-
-        // Get dump file info
-        dumpFileInfo = await new Promise((resolve, reject) => {
-          sftp.readdir(directoryPath, (err, files) => {
-            if (err) {
-              console.error("Readdir error:", err);
-              sftp.end();
-              conn.end();
-              return reject(
-                new Error(
-                  `Failed to read directory for dump file: ${err.message}`
-                )
-              );
-            }
-
-            const dumpFiles = files.filter((file) =>
-              [".DMP", ".dmp"].includes(
-                path.extname(file.filename).toUpperCase()
-              )
+  
+          // Filter and get the latest log file
+          const logFiles = files.filter(
+            (file) => path.extname(file.filename) === ".log"
+          );
+  
+          if (logFiles.length > 0) {
+            const latestLogFile = logFiles.reduce((latest, file) =>
+              file.attrs.mtime > latest.attrs.mtime ? file : latest
             );
-
-            if (dumpFiles.length === 0) {
-              resolve(null);
-            } else {
-              const latestDumpFile = dumpFiles.reduce((latest, file) =>
-                file.attrs.mtime > latest.attrs.mtime ? file : latest
-              );
-              const dumpFilePath = joinPath(
-                directoryPath,
-                latestDumpFile.filename,
-                targetOS
-              );
-
-              sftp.stat(dumpFilePath, (err, stats) => {
+            logFileName = latestLogFile.filename;
+            const logFilePath = joinPath(directoryPath, logFileName, targetOS);
+  
+            console.log("Attempting to read log file:", logFilePath);
+  
+            // Check if the log file exists
+            await new Promise((resolve, reject) => {
+              sftp.stat(logFilePath, (err, stats) => {
                 if (err) {
                   console.error("Stat error:", err);
                   sftp.end();
                   conn.end();
-                  return reject(
-                    new Error(
-                      `Failed to stat dump file at ${dumpFilePath}: ${err.message}`
-                    )
-                  );
+                  return reject(new Error(`Failed to stat log file: ${err.message}`));
                 }
-
-                const dumpFileSizeInBytes = stats.size;
-                const dumpFileSizeInMB = (
-                  dumpFileSizeInBytes /
-                  (1024 * 1024)
-                ).toFixed(2);
-
-                resolve({
-                  filePath: dumpFilePath,
-                  fileSize: parseFloat(dumpFileSizeInMB),
-                });
+                resolve(stats);
               });
-            }
-          });
-        });
-        
+            });
+  
+            // Read the log file
+            const logData = await new Promise((resolve, reject) => {
+              sftp.readFile(logFilePath, "utf8", (err, data) => {
+                if (err) {
+                  console.error("ReadFile error:", err);
+                  sftp.end();
+                  conn.end();
+                  return reject(new Error(`Failed to read log file: ${err.message}`));
+                }
+                resolve(data);
+              });
+            });
+  
+            // Parse the log file
+            logDetails = parseLogLine(logData);
+  
+            // Get dump file info
+            dumpFileInfo = await new Promise((resolve, reject) => {
+              sftp.readdir(directoryPath, (err, files) => {
+                if (err) {
+                  console.error("Readdir error:", err);
+                  sftp.end();
+                  conn.end();
+                  return reject(new Error(`Failed to read directory for dump file: ${err.message}`));
+                }
+  
+                const dumpFiles = files.filter((file) =>
+                  [".DMP", ".dmp"].includes(path.extname(file.filename).toUpperCase())
+                );
+  
+                if (dumpFiles.length > 0) {
+                  const latestDumpFile = dumpFiles.reduce((latest, file) =>
+                    file.attrs.mtime > latest.attrs.mtime ? file : latest
+                  );
+                  const dumpFilePath = joinPath(directoryPath, latestDumpFile.filename, targetOS);
+  
+                  sftp.stat(dumpFilePath, (err, stats) => {
+                    if (err) {
+                      console.error("Stat error:", err);
+                      sftp.end();
+                      conn.end();
+                      return reject(new Error(`Failed to stat dump file: ${err.message}`));
+                    }
+  
+                    const dumpFileSizeInBytes = stats.size;
+                    const dumpFileSizeInMB = (dumpFileSizeInBytes / (1024 * 1024)).toFixed(2);
+  
+                    resolve({
+                      filePath: dumpFilePath,
+                      fileSize: parseFloat(dumpFileSizeInMB),
+                    });
+                  });
+                } else {
+                  resolve(null);
+                }
+              });
+            });
+          }
+        }
+  
         sftp.end();
         conn.end();
       } catch (error) {
         console.error("Error fetching log details:", error);
         return { logDetails: null, dumpFileInfo: null };
       }
-
+  
       return {
         logDetails,
         dumpFileInfo,
-        logFileName
+        logFileName,
       };
     }
   );
+  
 
   async function saveLogToDatabase(logDetails, dumpFileInfo,targetOS,logFileName) {
     let connection;
@@ -287,6 +369,7 @@ app.whenReady().then(() => {
       }
     }
   }
+  
 
   ipcMain.handle(
     "save-log-to-database",
@@ -324,7 +407,6 @@ function createSSHClient(ip, port, username, password) {
         resolve(conn);
       })
       .on("error", (err) => {
-        console.error("SSH Connection error:", err);
         reject(new Error(`SSH Connection failed: ${err.message}`));
       })
       .connect({

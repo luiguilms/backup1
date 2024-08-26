@@ -1,52 +1,87 @@
+//renderer.js
 document.addEventListener("DOMContentLoaded", () => {
   const osSelect = document.getElementById("os");
   const ipSelect = document.getElementById("ip");
   const resultDiv = document.getElementById("result");
-  const serverIpSpan = document.getElementById("server-ip");
-  const logDateSpan = document.getElementById("log-date");
-  const durationSpan = document.getElementById("duration");
-  const successSpan = document.getElementById("success");
-  const dumpPathSpan = document.getElementById("dump-path");
-  const dumpSizeSpan = document.getElementById("dump-size");
-  const logFileNameSpan = document.getElementById("log-file-name"); // Añadido
+  const logEntriesContainer = document.getElementById("log-entries");
 
   const ipAddresses = {
     windows: ["10.0.212.172", "10.0.98.22"],
     linux: ["10.0.212.4"],
     solaris: ["10.0.212.211"],
   };
+  function showLoading() {
+    document.getElementById('loading-overlay').style.display = 'flex';
+  }
+  
+  function hideLoading() {
+    document.getElementById('loading-overlay').style.display = 'none';
+  }
+
   function showAuthErrorModal(errorMessage) {
     const modal = document.getElementById("authErrorModal");
     const message = document.getElementById("errorMessage");
-    message.textContent =
-      errorMessage || "Error de autenticación. Por favor, inténtelo de nuevo.";
-    modal.style.display = "block";
+    if (modal && message) {
+      message.textContent =
+        errorMessage ||
+        "Error de autenticación. Por favor, inténtelo de nuevo.";
+      modal.style.display = "block";
 
-    document.getElementById("retryButton").onclick = function () {
-      modal.style.display = "none";
-      // Aquí puedes resetear el formulario de autenticación para intentar nuevamente
-    };
+      const retryButton = document.getElementById("retryButton");
+      const closeModal = document.getElementById("closeModal");
 
-    document.getElementById("closeModal").onclick = function () {
-      modal.style.display = "none";
-    };
-
-    window.onclick = function (event) {
-      if (event.target == modal) {
-        modal.style.display = "none";
+      if (retryButton) {
+        retryButton.onclick = function () {
+          modal.style.display = "none";
+        };
       }
-    };
+
+      if (closeModal) {
+        closeModal.onclick = function () {
+          modal.style.display = "none";
+        };
+      }
+
+      window.onclick = function (event) {
+        if (event.target == modal) {
+          modal.style.display = "none";
+        }
+      };
+    }
   }
 
-  function clearResultView() {
-    resultDiv.style.display = "none";
-    logDateSpan.textContent = "";
-    durationSpan.textContent = "";
-    successSpan.textContent = "";
-    dumpPathSpan.textContent = "";
-    dumpSizeSpan.textContent = "";
-    serverIpSpan.textContent = "";
-    logFileNameSpan.textContent = ""; // Limpiar nombre del archivo
+  function addLogEntry(logData) {
+    if (logEntriesContainer) {
+      const entryDiv = document.createElement("div");
+      entryDiv.className = "log-entry";
+      // Añadir la clase 'failed' si el éxito es "No"
+    if (!logData.logDetails.success) {
+      entryDiv.classList.add("failed");
+    }
+      entryDiv.innerHTML = `
+        <p><strong>Server IP:</strong> ${logData.ip}</p>
+        <p><strong>Log Date:</strong> ${
+          logData.logDetails.dateTime || "N/A"
+        }</p>
+        <p><strong>Duration:</strong> ${
+          logData.logDetails.duration || "N/A"
+        }</p>
+        <p><strong>Success:</strong> ${
+          logData.logDetails.success ? "Yes" : "No"
+        }</p>
+        <p><strong>Dump File Path:</strong> ${
+          logData.dumpFileInfo?.filePath || "N/A"
+        }</p>
+        <p><strong>Dump File Size:</strong> ${
+          logData.dumpFileInfo ? `${logData.dumpFileInfo.fileSize} MB` : "N/A"
+        }</p>
+        <p><strong>Log File Name:</strong> ${logData.logFileName || "N/A"}</p>
+        <hr>
+      `;
+
+      logEntriesContainer.appendChild(entryDiv);
+      if (resultDiv) resultDiv.style.display = "block";
+    }
   }
 
   function updateIPOptions() {
@@ -74,56 +109,54 @@ document.addEventListener("DOMContentLoaded", () => {
   osSelect.addEventListener("change", updateIPOptions);
 
   const form = document.getElementById("server-form");
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  if (form) {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      showLoading();
 
-    const os = osSelect.value;
-    const ip = ipSelect.value;
-    const port = form.port.value;
-    const username = form.username.value;
-    const password = form.password.value;
+      const os = osSelect.value;
+      const ip = ipSelect.value;
+      const port = form.port.value;
+      const username = form.username.value;
+      const password = form.password.value;
 
-    window.localStorage.setItem(
-      "connectionData",
-      JSON.stringify({ os, ip, port, username, password })
-    );
-
-    clearResultView(); // Limpiar la vista antes de intentar la conexión
-    serverIpSpan.textContent = ip; // Mostrar la IP seleccionada
-
-    try {
-      console.log("Attempting to connect...");
-      const isConnected = await window.electron.connectToServer(
-        ip,
-        port,
-        username,
-        password
+      window.localStorage.setItem(
+        "connectionData",
+        JSON.stringify({ os, ip, port, username, password })
       );
 
-      if (isConnected) {
-        console.log("Connection successful");
+      try {
+        console.log("Attempting to connect...");
+        const isConnected = await window.electron.connectToServer(
+          ip,
+          port,
+          username,
+          password
+        );
 
-        let directoryPath = "";
-        switch (os) {
-          case "linux":
-            directoryPath = "/temporal1T/BK_SWITCH/BK_CAJERO_2024_08_16_0425/";
-            break;
-          case "windows":
-            directoryPath = "F:\\bk_info7021_USRGCN\\2022_07_13";
-            break;
-          case "solaris":
-            directoryPath = "/temporal2T/BK_BANTPROD_DIARIO/DTPUMP/";
-            break;
-          default:
-            resultDiv.innerHTML = "<br>Unsupported Operating System.";
-            resultDiv.style.display = "block";
-            return;
-        }
+        if (isConnected) {
+          console.log("Connection successful");
 
-        try {
-          console.log("Fetching log details...");
-          const { logDetails, dumpFileInfo, logFileName } =
-            await window.electron.getLogDetails(
+          let directoryPath = "";
+          switch (os) {
+            case "linux":
+              directoryPath =
+                "/temporal1T/BK_SWITCH/BK_CAJERO_2024_08_16_0425/";
+              break;
+            case "windows":
+              directoryPath = "F:\\bk_info7021_USRGCN\\2022_07_13";
+              break;
+            case "solaris":
+              directoryPath = "/temporal2T/BK_BANTPROD_DIARIO/DTPUMP/";
+              break;
+            default:
+              showAuthErrorModal("Sistema operativo no soportado.");
+              return;
+          }
+
+          try {
+            console.log("Fetching log details...");
+            const logDetailsArray = await window.electron.getLogDetails(
               directoryPath,
               ip,
               port,
@@ -132,43 +165,67 @@ document.addEventListener("DOMContentLoaded", () => {
               os
             );
 
-          if (logDetails) {
-            logDateSpan.textContent = logDetails.dateTime || "N/A";
-            durationSpan.textContent = logDetails.duration || "N/A";
-            successSpan.textContent = logDetails.success ? "Yes" : "No";
-          } else {
-            logDateSpan.textContent = "N/A";
-            durationSpan.textContent = "N/A";
-            successSpan.textContent = "N/A";
+            console.log("Log details fetched:", logDetailsArray);
+
+            if (Array.isArray(logDetailsArray)) {
+              // Procesa y muestra cada log uno por uno (para Solaris y otros si es un array)
+              for (const logData of logDetailsArray) {
+                console.log("Adding log entry:", logData);
+                addLogEntry({ ...logData, ip });
+                // Guardar en la base de datos solo si los datos no están vacíos
+                if (
+                  logData.logDetails &&
+                  Object.keys(logData.logDetails).length > 0
+                ) {
+                  await window.electron.saveLogToDatabase(
+                    logData.logDetails,
+                    logData.dumpFileInfo,
+                    os,
+                    logData.logFileName
+                  );
+                }
+              }
+            } else if (logDetailsArray && typeof logDetailsArray === "object") {
+              // Para casos donde se devuelve un solo objeto de log
+              const logData = { ...logDetailsArray, ip };
+              console.log("Adding log entry:", logData);
+              addLogEntry(logData);
+              // Guardar en la base de datos solo si los datos no están vacíos
+              if (
+                logData.logDetails &&
+                Object.keys(logData.logDetails).length > 0
+              ) {
+                await window.electron.saveLogToDatabase(
+                  logData.logDetails,
+                  logData.dumpFileInfo,
+                  os,
+                  logData.logFileName
+                );
+              }
+            } else {
+              console.log(
+                "No se encontraron detalles de log o formato inesperado:",
+                logDetailsArray
+              );
+              showAuthErrorModal(
+                "No se encontraron detalles de log o el formato es inesperado."
+              );
+            }
+          } catch (error) {
+            showAuthErrorModal(
+              `Error al obtener detalles del log: ${error.message}`
+            );
           }
-          dumpPathSpan.textContent = dumpFileInfo?.filePath || "N/A";
-          dumpSizeSpan.textContent = dumpFileInfo
-            ? `${dumpFileInfo.fileSize} MB`
-            : "N/A";
-          logFileNameSpan.textContent = logFileName || "N/A"; // Mostrar nombre del archivo
-
-          console.log("Saving log details to database...");
-          await window.electron.saveLogToDatabase(
-            logDetails,
-            dumpFileInfo,
-            os,
-            logFileName
-          );
-
-          // Forzar actualización de la vista después de obtener los resultados
-          resultDiv.style.display = "block";
-        } catch (error) {
-          resultDiv.innerHTML = `<br>Error obtaining log details: ${error.message}`;
-          resultDiv.style.display = "block";
+        } else {
+          console.log("Connection failed");
+          showAuthErrorModal(`No se pudo conectar a ${ip}:${port}.`);
         }
-      } else {
-        console.log("Connection failed");
-        showAuthErrorModal(`Could not connect to ${ip}:${port}.`);
+      } catch (error) {
+        console.log("Connection error", error);
+        showAuthErrorModal("Usuario o contraseña incorrectos.");
+      }finally{
+        hideLoading();
       }
-    } catch (error) {
-      console.log("Connection error", error);
-      console.log("Connection error", error);
-      showAuthErrorModal("Usuario o contraseña incorrectos.");
-    }
-  });
+    });
+  }
 });
