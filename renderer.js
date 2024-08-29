@@ -1,4 +1,3 @@
-//renderer.js
 document.addEventListener("DOMContentLoaded", () => {
   const osSelect = document.getElementById("os");
   const ipSelect = document.getElementById("ip");
@@ -10,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     linux: ["10.0.212.4"],
     solaris: ["10.0.212.211"],
   };
+
   function showLoading() {
     document.getElementById('loading-overlay').style.display = 'flex';
   }
@@ -19,65 +19,68 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showAuthErrorModal(errorMessage) {
-    const modal = document.getElementById("authErrorModal");
-    const message = document.getElementById("errorMessage");
-    if (modal && message) {
-      message.textContent =
-        errorMessage ||
-        "Error de autenticación. Por favor, inténtelo de nuevo.";
-      modal.style.display = "block";
+    requestAnimationFrame(() => {
+      const modal = document.getElementById("authErrorModal");
+      const message = document.getElementById("errorMessage");
+      if (modal && message) {
+        message.textContent = errorMessage || "Error de autenticación. Por favor, inténtelo de nuevo.";
+        modal.style.display = "block";
 
-      const retryButton = document.getElementById("retryButton");
-      const closeModal = document.getElementById("closeModal");
+        const retryButton = document.getElementById("retryButton");
+        const closeModal = document.getElementById("closeModal");
 
-      if (retryButton) {
-        retryButton.onclick = function () {
-          modal.style.display = "none";
-        };
-      }
-
-      if (closeModal) {
-        closeModal.onclick = function () {
-          modal.style.display = "none";
-        };
-      }
-
-      window.onclick = function (event) {
-        if (event.target == modal) {
-          modal.style.display = "none";
+        if (retryButton) {
+          retryButton.onclick = function () {
+            modal.style.display = "none";
+          };
         }
-      };
-    }
+
+        if (closeModal) {
+          closeModal.onclick = function () {
+            modal.style.display = "none";
+          };
+        }
+
+        window.onclick = function (event) {
+          if (event.target == modal) {
+            modal.style.display = "none";
+          }
+        };
+      }
+    });
   }
 
   function addLogEntry(logData) {
     if (logEntriesContainer) {
       const entryDiv = document.createElement("div");
       entryDiv.className = "log-entry";
-      // Añadir la clase 'failed' si el éxito es "No"
-    if (!logData.logDetails.success) {
-      entryDiv.classList.add("failed");
-    }
+      if (!logData.logDetails.success) {
+        entryDiv.classList.add("failed");
+      }
       entryDiv.innerHTML = `
-        <p><strong>Server IP:</strong> ${logData.ip}</p>
-        <p><strong>Log Date:</strong> ${
-          logData.logDetails.dateTime || "N/A"
-        }</p>
-        <p><strong>Duration:</strong> ${
-          logData.logDetails.duration || "N/A"
-        }</p>
-        <p><strong>Success:</strong> ${
-          logData.logDetails.success ? "Yes" : "No"
-        }</p>
-        <p><strong>Dump File Path:</strong> ${
-          logData.dumpFileInfo?.filePath || "N/A"
-        }</p>
-        <p><strong>Dump File Size:</strong> ${
-          logData.dumpFileInfo ? `${logData.dumpFileInfo.fileSize} MB` : "N/A"
-        }</p>
-        <p><strong>Log File Name:</strong> ${logData.logFileName || "N/A"}</p>
-        <hr>
-      `;
+      <p><strong>Server IP:</strong> ${logData.ip}</p>
+      <p><strong>Start Time:</strong> ${
+        logData.logDetails.startTime || "N/A"
+      }</p>
+      <p><strong>End Time:</strong> ${
+        logData.logDetails.endTime || "N/A"
+      }</p>
+      <p><strong>Duration:</strong> ${
+        logData.logDetails.duration || "N/A"
+      }</p>
+      <p><strong>Success:</strong> ${
+        logData.logDetails.success ? "Yes" : "No"
+      }</p>
+      <p><strong>Dump File Path:</strong> ${
+        logData.dumpFileInfo?.filePath || "N/A"
+      }</p>
+      <p><strong>Dump File Size:</strong> ${
+        logData.dumpFileInfo ? `${logData.dumpFileInfo.fileSize} MB` : "N/A"
+      }</p>
+      <p><strong>Log File Name:</strong> ${logData.logFileName || "N/A"}</p>
+      <p><strong>Backup Path:</strong> ${logData.backupPath || "N/A"}</p>
+      <hr>
+    `;
 
       logEntriesContainer.appendChild(entryDiv);
       if (resultDiv) resultDiv.style.display = "block";
@@ -112,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (form) {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      showLoading();
+      showLoading(); // Mostrar loading overlay
 
       const os = osSelect.value;
       const ip = ipSelect.value;
@@ -168,11 +171,9 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("Log details fetched:", logDetailsArray);
 
             if (Array.isArray(logDetailsArray)) {
-              // Procesa y muestra cada log uno por uno (para Solaris y otros si es un array)
               for (const logData of logDetailsArray) {
                 console.log("Adding log entry:", logData);
                 addLogEntry({ ...logData, ip });
-                // Guardar en la base de datos solo si los datos no están vacíos
                 if (
                   logData.logDetails &&
                   Object.keys(logData.logDetails).length > 0
@@ -181,16 +182,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     logData.logDetails,
                     logData.dumpFileInfo,
                     os,
-                    logData.logFileName
+                    logData.logFileName,
+                    logData.ip,
+                    logData.backupPath
                   );
                 }
               }
             } else if (logDetailsArray && typeof logDetailsArray === "object") {
-              // Para casos donde se devuelve un solo objeto de log
               const logData = { ...logDetailsArray, ip };
               console.log("Adding log entry:", logData);
               addLogEntry(logData);
-              // Guardar en la base de datos solo si los datos no están vacíos
               if (
                 logData.logDetails &&
                 Object.keys(logData.logDetails).length > 0
@@ -199,7 +200,9 @@ document.addEventListener("DOMContentLoaded", () => {
                   logData.logDetails,
                   logData.dumpFileInfo,
                   os,
-                  logData.logFileName
+                  logData.logFileName,
+                  logData.ip,
+                  logData.backupPath
                 );
               }
             } else {
@@ -218,13 +221,13 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         } else {
           console.log("Connection failed");
-          showAuthErrorModal(`No se pudo conectar a ${ip}:${port}.`);
+          throw new Error("No se pudo conectar al servidor.");
         }
       } catch (error) {
         console.log("Connection error", error);
-        showAuthErrorModal("Usuario o contraseña incorrectos.");
-      }finally{
-        hideLoading();
+        showAuthErrorModal(error.message || "Error de conexión. Por favor, verifique sus credenciales.");
+      } finally {
+        hideLoading(); // Ocultar loading overlay
       }
     });
   }
