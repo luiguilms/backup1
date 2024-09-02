@@ -1,14 +1,17 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const osSelect = document.getElementById("os");
   const ipSelect = document.getElementById("ip");
   const resultDiv = document.getElementById("result");
   const logEntriesContainer = document.getElementById("log-entries");
 
-  const ipAddresses = {
-    windows: ["10.0.212.172", "10.0.98.22"],
-    linux: ["10.0.212.4"],
-    solaris: ["10.0.212.211"],
-  };
+  let servers = [];
+  // Recupera los datos de los servidores desde la base de datos
+  try {
+    servers = await window.electron.getServers();
+  } catch (error) {
+    console.error("Error al recuperar los servidores:", error);
+  }
+
 
   function showLoading() {
     document.getElementById('loading-overlay').style.display = 'flex';
@@ -89,19 +92,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateIPOptions() {
     const os = osSelect.value;
-    const ips = ipAddresses[os] || [];
     ipSelect.innerHTML = ""; // Limpiar opciones existentes
 
-    ips.forEach((ip) => {
+    // Filtrar los servidores por sistema operativo
+    const filteredServers = servers.filter(server => server[1] === os);
+
+    // Agregar las IPs al select
+    filteredServers.forEach((server) => {
       const option = document.createElement("option");
-      option.value = ip;
-      option.textContent = ip;
+      option.value = server[0]; // IP
+      option.textContent = server[0];
       ipSelect.appendChild(option);
     });
 
     // Establecer IP por defecto
-    if (ips.length > 0) {
-      ipSelect.value = ips[0];
+    if (filteredServers.length > 0) {
+      ipSelect.value = filteredServers[0][0];
     }
   }
 
@@ -117,9 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       showLoading(); // Mostrar loading overlay
 
-      const os = osSelect.value;
       const ip = ipSelect.value;
-      const port = form.port.value;
       const username = form.username.value;
       const password = form.password.value;
 
@@ -129,15 +133,12 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       try {
-        console.log("Attempting to connect...");
-        const isConnected = await window.electron.connectToServer(
-          ip,
-          port,
-          username,
-          password
-        );
-
-        if (isConnected) {
+        const result = await window.electron.verifyCredentials(ip, username, password);
+  
+        if (result.success) {
+          const os = result.osType;
+          const port = result.port;
+  
           console.log("Connection successful");
 
           let directoryPath = "";
@@ -220,8 +221,8 @@ document.addEventListener("DOMContentLoaded", () => {
             );
           }
         } else {
-          console.log("Connection failed");
-          throw new Error("No se pudo conectar al servidor.");
+          console.log(result.message);
+          throw new Error(result.message);
         }
       } catch (error) {
         console.log("Connection error", error);

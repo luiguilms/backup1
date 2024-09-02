@@ -4,8 +4,16 @@
   const { Client } = require("ssh2");
   const oracledb = require("oracledb");
   const { Console } = require("console");
+  const crypto = require('crypto');
 
-
+  function decrypt(encrypted) {
+    let iv = Buffer.from(encrypted.iv, 'hex');
+    let encryptedText = Buffer.from(encrypted.encryptedData, 'hex');
+    let decipher = crypto.createDecipheriv('aes-256-cbc', encryptionKey, iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  }
   // Función para normalizar rutas según el sistema operativo
   function normalizePath(inputPath, targetOS) {
     let normalizedPath = inputPath.replace(/\\/g, "/");
@@ -395,6 +403,131 @@
         }
       }
     );
+    // Función para recuperar los datos de los servidores
+ipcMain.handle('get-servers', async () => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection({
+      user: "USRMONBK",
+      password: "USRMONBK_2024",
+      connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
+    });
+
+    const result = await connection.execute(`SELECT IP, OS_Type, Port FROM ServerInfo`);
+    return result.rows; // Devuelve las filas recuperadas
+  } catch (err) {
+    console.error("Error al recuperar datos de la base de datos:", err);
+    throw err;
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error al cerrar la conexión a la base de datos:", err);
+      }
+    }
+  }
+});
+function readLob(lob) {
+  return new Promise((resolve, reject) => {
+    if (!lob) {
+      return reject(new Error("Lob is undefined"));
+    }
+
+    let data = [];
+
+    lob.on('data', (chunk) => {
+      data.push(chunk);
+    });
+
+    lob.on('end', () => {
+      resolve(Buffer.concat(data));
+    });
+
+    lob.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+const encryptionKey = Buffer.from('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', 'hex');
+function decrypt(encryptedData) {
+  const data = JSON.parse(encryptedData.toString()); // Convertir el Buffer a cadena y luego parsear el JSON
+  let iv = Buffer.from(data.iv, 'hex');
+  let encryptedText = Buffer.from(data.encryptedData, 'hex');
+  let decipher = crypto.createDecipheriv('aes-256-cbc', encryptionKey, iv);
+  let decrypted = decipher.update(encryptedText);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
+  return decrypted.toString();
+}
+
+ipcMain.handle('verify-credentials', async (event, { ip, username, password }) => {
+  let connection;
+
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    const result = await connection.execute(
+      `SELECT EncryptedUser, EncryptedPassword, OS_Type, Port FROM ServerInfo WHERE IP = :ip`,
+      { ip: ip }
+    );
+
+    if (result.rows.length > 0) {
+      const encryptedUserLob = result.rows[0][0];
+      const encryptedPasswordLob = result.rows[0][1];
+      const osType = result.rows[0][2];
+      const port = result.rows[0][3];
+
+      if (!encryptedUserLob || !encryptedPasswordLob) {
+        throw new Error("Encrypted User or Password Lob is undefined");
+      }
+
+      // Leer los Lobs
+      const encryptedUser = await readLob(encryptedUserLob);
+      const encryptedPassword = await readLob(encryptedPasswordLob);
+
+      console.log("Encrypted User Buffer:", encryptedUser);
+      console.log("Encrypted Password Buffer:", encryptedPassword);
+
+      if (!encryptedUser || !encryptedPassword) {
+        throw new Error("Failed to read Lob data");
+      }
+
+      // Desencriptar los datos
+      let storedUser, storedPassword;
+      try {
+        storedUser = decrypt(encryptedUser);
+        storedPassword = decrypt(encryptedPassword);
+      } catch (decryptionError) {
+        console.error("Error al desencriptar los datos:", decryptionError);
+        return { success: false, message: 'Error al desencriptar los datos.' };
+      }
+
+      // Comparar las credenciales
+      if (storedUser === username && storedPassword === password) {
+        return { success: true, osType, port };
+      } else {
+        return { success: false, message: 'Usuario o contraseña incorrectos.' };
+      }
+    } else {
+      return { success: false, message: 'Servidor no encontrado.' };
+    }
+  } catch (err) {
+    console.error("Error al verificar las credenciales:", err);
+    return { success: false, message: 'Error en la verificación de credenciales.' };
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error al cerrar la conexión a la base de datos:", err);
+      }
+    }
+  }
+});
+
+
+
+
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -557,15 +690,6 @@
       if (!startTime || !endTime) {
         throw new Error("Fechas inválidas en los detalles del log");
       }
-      console.log("Original dates:", {
-        startTime: logDetails.startDateTime,
-        endTime: logDetails.endDateTime
-      });
-
-      console.log("Formatted dates:", {
-        startTime: startTime,
-        endTime: endTime
-      });
 
       console.log("Valores a insertar:", {
         horaINI: startTime,
