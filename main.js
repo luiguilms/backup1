@@ -242,6 +242,7 @@
                     logFileName,
                     ip,
                     backupPath: subDirPath,
+                    os: targetOS
                   });
                 }
               }

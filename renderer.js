@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const logEntriesContainer = document.getElementById("log-entries");
 
   let servers = [];
+  let currentOS = ''; // Variable para almacenar el OS actual mostrado
   // Recupera los datos de los servidores desde la base de datos
   try {
     servers = await window.electron.getServers();
@@ -52,7 +53,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
-
+  function clearLogEntries() {
+    logEntriesContainer.innerHTML = ''; // Limpiar los logs anteriores
+  }
   function addLogEntry(logData) {
     if (logEntriesContainer) {
       const entryDiv = document.createElement("div");
@@ -110,7 +113,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       ipSelect.value = filteredServers[0][0];
     }
   }
-
+  
+ 
   // Actualiza las opciones de IP al cargar la página
   updateIPOptions();
 
@@ -138,6 +142,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (result.success) {
           const os = result.osType;
           const port = result.port;
+          // Si el OS ha cambiado, limpiamos los logs anteriores
+          if (currentOS !== os) {
+            clearLogEntries();
+            currentOS = os; // Actualizamos el OS actual
+          }
   
           console.log("Connection successful");
 
