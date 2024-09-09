@@ -1,21 +1,31 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const currentPage = window.location.pathname;
-  
+  const backButton = document.getElementById("back-button");
 
   // Obtener los elementos del DOM
   const osSelect = document.getElementById("os");
   const ipSelect = document.getElementById("ip");
   const editServerBtn = document.getElementById("edit-server-btn");
   const addServerBtn = document.getElementById("add-server-btn");
-  const modalEditServer = document.getElementById("editServerModal");
-  const closeEditModal = document.getElementById("closeEditModal");
-  const serverListDiv = document.getElementById("server-list");
-  const selectServerBtn = document.getElementById("select-server-btn");
-  const logEntriesContainer = document.getElementById('log-entries');
+  const logEntriesContainer = document.getElementById("log-entries");
   const resultDiv = document.getElementById("result");
 
-  let currentOS = ''; // Variable para el sistema operativo actual
+  let currentOS = ""; // Variable para el sistema operativo actual
   let selectedServer = null;
+  if (backButton) {
+    backButton.addEventListener("click", () => {
+      const serverData = JSON.parse(window.localStorage.getItem('selectedServer'));
+
+      // Si hay un servidor seleccionado, es una edición, por lo que volvemos a la lista de servidores
+      if (serverData) {
+        window.localStorage.removeItem('selectedServer'); // Limpiamos la selección
+        window.location.href = "select-server.html"; // Redirigimos a la selección de servidores
+      } else {
+        // Si no hay servidor seleccionado, estamos agregando uno nuevo, por lo que volvemos a la vista principal
+        window.location.href = "index.html";
+      }
+    });
+  }
   // *** Función para cargar servidores ***
   async function loadServers() {
     try {
@@ -29,6 +39,39 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   let servers = await loadServers(); // Cargamos los servidores al inicio
+  // *** Página de selección de servidores ***
+  if (currentPage.includes('select-server.html')) {
+    const serverListDiv = document.getElementById("server-list");
+    const selectServerBtn = document.getElementById("select-server-btn");
+
+    // Si hay servidores, los mostramos
+    if (servers.length > 0) {
+      servers.forEach((server) => {
+        const serverItem = document.createElement("div");
+        serverItem.className = "server-item";
+        serverItem.textContent = `Nombre: ${server.name} - IP: ${server.ip}`;
+
+        serverItem.addEventListener("click", () => {
+          document.querySelectorAll(".server-item").forEach((item) => item.classList.remove("selected"));
+          serverItem.classList.add("selected");
+          selectedServer = server;
+          selectServerBtn.disabled = false; // Habilitar el botón cuando se seleccione un servidor
+        });
+
+        serverListDiv.appendChild(serverItem); // Añadir los servidores a la lista
+      });
+    } else {
+      serverListDiv.textContent = "No se encontraron servidores.";
+    }
+
+    // Redirigir a la página de edición cuando se seleccione un servidor
+    selectServerBtn.addEventListener("click", () => {
+      if (selectedServer) {
+        window.localStorage.setItem('selectedServer', JSON.stringify(selectedServer)); // Guardar el servidor seleccionado
+        window.location.href = 'add-server.html'; // Redirigir a la página de edición
+      }
+    });
+  }
 
   // *** Botón para agregar servidor ***
   if (addServerBtn) {
@@ -38,8 +81,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // *** Lógica para agregar un servidor (sin editar) ***
+  // *** Lógica para agregar o editar un servidor ***
   if (currentPage.includes('add-server.html')) {
+    const serverData = JSON.parse(window.localStorage.getItem('selectedServer'));
+
+    // Si estamos editando, cargamos los datos del servidor seleccionado
+    if (serverData) {
+      document.getElementById('server-id').value = serverData.id || '';
+      document.getElementById('server-name').value = serverData.name || '';
+      document.getElementById('ip').value = serverData.ip || '';
+      document.getElementById('os').value = serverData.os || '';
+      document.getElementById('port').value = serverData.port || '';
+      document.getElementById('username').value = serverData.username || '';
+      document.getElementById('password').value = serverData.password || '';
+
+      // Cambiar el título del formulario
+      document.getElementById("form-title").textContent = "Editar Servidor";
+    }
+
     const addServerForm = document.getElementById("add-server-form");
 
     if (addServerForm) {
@@ -56,24 +115,36 @@ document.addEventListener("DOMContentLoaded", async () => {
           password: document.getElementById("password").value,
         };
 
-        try {
-          const result = await window.electron.addServer(serverData); // Llamada para agregar servidor
+        // Si el serverData.id existe, estamos editando; si no, estamos agregando
+  try {
+    let result;
+    if (serverData.id) {
+      result = await window.electron.updateServer(serverData); // Llamada para editar
+    } else {
+      result = await window.electron.addServer(serverData); // Llamada para agregar
+    }
 
-          if (result.success) {
-            alert("Servidor agregado correctamente");
-            window.location.href = "index.html"; // Redirigir a la página principal
-          } else {
-            alert("Error al agregar el servidor.");
-          }
-        } catch (error) {
-          console.error("Error al agregar el servidor:", error);
-          alert("Hubo un error al agregar el servidor.");
-        }
+    if (result.success) {
+      alert("Servidor guardado correctamente");
+      window.localStorage.removeItem('selectedServer'); // Eliminar el servidor seleccionado del localStorage
+      window.location.href = "index.html"; // Redirigir a la página principal
+    } else {
+      alert("Error al guardar el servidor.");
+    }
+  } catch (error) {
+    console.error("Error al guardar el servidor:", error);
+    alert("Hubo un error al guardar el servidor.");
+  }
       });
     }
   }
 
-
+  // *** Redirigir al selector de servidores cuando se hace clic en Editar ***
+  if (editServerBtn) {
+    editServerBtn.addEventListener("click", () => {
+      window.location.href = "select-server.html"; // Redirigir a la nueva página de selección de servidores
+    });
+  }
   async function updateIPOptions() {
     try {
       const servers = await window.electron.getServers(); // Asegúrate de que esta función devuelve los servidores correctamente

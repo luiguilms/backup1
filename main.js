@@ -444,6 +444,8 @@ ipcMain.handle("add-server", async (event, serverData) => {
       }
     }
   );
+  
+  
   ipcMain.handle("get-servers", async () => {
     let connection;
     try {
@@ -477,7 +479,6 @@ ipcMain.handle("add-server", async (event, serverData) => {
       }
     }
   });
-  
   
   function readLob(lob) {
     return new Promise((resolve, reject) => {
@@ -589,7 +590,63 @@ ipcMain.handle("add-server", async (event, serverData) => {
       }
     }
   );
+// Función para actualizar servidor en la base de datos
+async function updateServerInfo(id, name, ip, os, port, username, password) {
+  let connection;
 
+  try {
+    connection = await oracledb.getConnection({
+      user: "USRMONBK",
+      password: "USRMONBK_2024",
+      connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
+    });
+
+    // Actualizar datos del servidor
+    const result = await connection.execute(
+      `UPDATE ServerInfo 
+       SET ServerName = :name, IP = :ip, OS_Type = :os, Port = :port, EncryptedUser = :username, EncryptedPassword = :password
+       WHERE ID = :id`,
+      {
+        id: id,
+        name: name,
+        ip: ip,
+        os: os,
+        port: port,
+        username: Buffer.from(JSON.stringify(username)),  // Encripta el usuario
+        password: Buffer.from(JSON.stringify(password)),  // Encripta la contraseña
+      },
+      { autoCommit: true }
+    );
+
+    console.log("Servidor actualizado correctamente:", result);
+    return result;
+  } catch (err) {
+    console.error("Error al actualizar servidor en la base de datos:", err);
+    throw err;
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error al cerrar la conexión a la base de datos:", err);
+      }
+    }
+  }
+}
+
+// En el IPC handle para editar el servidor
+ipcMain.handle("update-server", async (event, serverData) => {
+  const { id, serverName, ip, os, port, username, password } = serverData;
+
+  try {
+    console.log(`Actualizando servidor: ${serverName}, IP: ${ip}, OS: ${os}`);
+    const result = await updateServerInfo(id, serverName, ip, os, port, username, password);
+    return { success: true };
+  } catch (error) {
+    console.error("Error al actualizar el servidor:", error);
+    return { success: false, error: error.message };
+  }
+});
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();

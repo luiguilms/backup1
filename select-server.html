@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seleccionar Servidor</title>
+  <link rel="stylesheet" href="styles.css"> <!-- Añade tus estilos si es necesario -->
+</head>
+<style>.server-item {
+    padding: 10px;
+    margin: 5px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .server-item:hover {
+    background-color: #f0f0f0;
+  }
+  
+  .server-item.selected {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+  }
+  #back-button {
+  width: 200px; /* Ajusta el ancho según prefieras */
+  padding: 10px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin: 20px auto; /* Centra el botón horizontalmente */
+  display: block;
+}
+
+#back-button:hover {
+  background-color: #5a6268;
+}
+  </style>
+<body>
+  <h1>Seleccionar Servidor para Editar</h1>
+  <div id="server-list"></div>
+  <button id="select-server-btn" disabled>Seleccionar</button>
+  <!-- Botón para retroceder -->
+  <button id="back-button">Volver</button>
+  <script>
+    document.getElementById('back-button').addEventListener('click', function() {
+      window.location.href = 'index.html'; // Cambia 'index.html' por la página a la que quieras redirigir
+    });
+  </script>
+  <script src="renderer.js"></script>
+</body>
+</html>
