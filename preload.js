@@ -17,5 +17,7 @@ contextBridge.exposeInMainWorld('electron', {
   getServers: () => ipcRenderer.invoke('get-servers'),
   addServer: (serverData) => ipcRenderer.invoke('add-server', serverData),
   updateServer: (serverData) => ipcRenderer.invoke('update-server', serverData),
+  deleteServer: (serverId) => ipcRenderer.invoke('delete-server', serverId),
+
   
 });

@@ -9,23 +9,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   const addServerBtn = document.getElementById("add-server-btn");
   const logEntriesContainer = document.getElementById("log-entries");
   const resultDiv = document.getElementById("result");
+  const selectServerBtn = document.getElementById("select-server-btn");
+  const deleteServerBtn = document.getElementById("delete-server-btn");
 
   let currentOS = ""; // Variable para el sistema operativo actual
   let selectedServer = null;
+  // Botón para volver a la página anterior
   if (backButton) {
     backButton.addEventListener("click", () => {
-      const serverData = JSON.parse(window.localStorage.getItem('selectedServer'));
+      const serverData = JSON.parse(
+        window.localStorage.getItem("selectedServer")
+      );
 
-      // Si hay un servidor seleccionado, es una edición, por lo que volvemos a la lista de servidores
+      // Si hay un servidor seleccionado, es una edición
       if (serverData) {
-        window.localStorage.removeItem('selectedServer'); // Limpiamos la selección
+        window.localStorage.removeItem("selectedServer"); // Limpiamos la selección
         window.location.href = "select-server.html"; // Redirigimos a la selección de servidores
       } else {
-        // Si no hay servidor seleccionado, estamos agregando uno nuevo, por lo que volvemos a la vista principal
+        // Si no hay servidor seleccionado, estamos agregando uno nuevo
         window.location.href = "index.html";
       }
     });
   }
+
   // *** Función para cargar servidores ***
   async function loadServers() {
     try {
@@ -39,10 +45,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   let servers = await loadServers(); // Cargamos los servidores al inicio
+
   // *** Página de selección de servidores ***
-  if (currentPage.includes('select-server.html')) {
+  if (currentPage.includes("select-server.html")) {
     const serverListDiv = document.getElementById("server-list");
-    const selectServerBtn = document.getElementById("select-server-btn");
 
     // Si hay servidores, los mostramos
     if (servers.length > 0) {
@@ -52,10 +58,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         serverItem.textContent = `Nombre: ${server.name} - IP: ${server.ip}`;
 
         serverItem.addEventListener("click", () => {
-          document.querySelectorAll(".server-item").forEach((item) => item.classList.remove("selected"));
+          document
+            .querySelectorAll(".server-item")
+            .forEach((item) => item.classList.remove("selected"));
           serverItem.classList.add("selected");
           selectedServer = server;
           selectServerBtn.disabled = false; // Habilitar el botón cuando se seleccione un servidor
+          deleteServerBtn.disabled = false;
         });
 
         serverListDiv.appendChild(serverItem); // Añadir los servidores a la lista
@@ -64,41 +73,72 @@ document.addEventListener("DOMContentLoaded", async () => {
       serverListDiv.textContent = "No se encontraron servidores.";
     }
 
-    // Redirigir a la página de edición cuando se seleccione un servidor
-    selectServerBtn.addEventListener("click", () => {
-      if (selectedServer) {
-        window.localStorage.setItem('selectedServer', JSON.stringify(selectedServer)); // Guardar el servidor seleccionado
-        window.location.href = 'add-server.html'; // Redirigir a la página de edición
+    // Manejar la selección de servidor para editar
+    if (selectServerBtn) {
+      selectServerBtn.addEventListener("click", () => {
+        if (selectedServer) {
+          window.localStorage.setItem(
+            "selectedServer",
+            JSON.stringify(selectedServer)
+          );
+          window.location.href = "edit-server.html"; // Redirigir a la página de edición
+        }
+      });
+      // *** Botón para eliminar servidor ***
+      if (deleteServerBtn) {
+        deleteServerBtn.addEventListener("click", async () => {
+          if (selectedServer) {
+            const confirmDelete = confirm(
+              `¿Estás seguro de que deseas eliminar el servidor ${selectedServer.name}?`
+            );
+            if (confirmDelete) {
+              const result = await window.electron.deleteServer(
+                selectedServer.id
+              );
+              if (result.success) {
+                alert("Servidor eliminado correctamente.");
+                window.location.reload(); // Recargar la página para reflejar los cambios
+              } else {
+                alert("Error al eliminar el servidor: " + result.error);
+              }
+            }
+          }
+        });
       }
-    });
+    }
   }
-
   // *** Botón para agregar servidor ***
   if (addServerBtn) {
     addServerBtn.addEventListener("click", () => {
-      window.localStorage.removeItem('selectedServer'); // Elimina cualquier selección previa de servidor
+      window.localStorage.removeItem("selectedServer"); // Elimina cualquier selección previa de servidor
       window.location.href = "add-server.html"; // Redirigir a la página de agregar servidor
     });
   }
 
-  // *** Lógica para agregar o editar un servidor ***
-  if (currentPage.includes('add-server.html')) {
-    const serverData = JSON.parse(window.localStorage.getItem('selectedServer'));
+  // *** Verifica si estamos en la página de agregar o editar servidor ***
+  if (
+    currentPage.includes("add-server.html") ||
+    currentPage.includes("edit-server.html")
+  ) {
+    const serverData = JSON.parse(
+      window.localStorage.getItem("selectedServer")
+    );
 
-    // Si estamos editando, cargamos los datos del servidor seleccionado
-    if (serverData) {
-      document.getElementById('server-id').value = serverData.id || '';
-      document.getElementById('server-name').value = serverData.name || '';
-      document.getElementById('ip').value = serverData.ip || '';
-      document.getElementById('os').value = serverData.os || '';
-      document.getElementById('port').value = serverData.port || '';
-      document.getElementById('username').value = serverData.username || '';
-      document.getElementById('password').value = serverData.password || '';
+    // Si estamos en la página de edición y hay un servidor seleccionado, cargamos los datos
+    if (currentPage.includes("edit-server.html") && serverData) {
+      document.getElementById("server-id").value = serverData.id || "";
+      document.getElementById("server-name").value = serverData.name || "";
+      document.getElementById("ip").value = serverData.ip || "";
+      document.getElementById("os").value = serverData.os || "";
+      document.getElementById("port").value = serverData.port || "";
+      document.getElementById("username").value = serverData.username || "";
+      document.getElementById("password").value = serverData.password || "";
 
-      // Cambiar el título del formulario
+      // Cambiar el título del formulario a "Editar"
       document.getElementById("form-title").textContent = "Editar Servidor";
     }
 
+    // *** Agregar o editar el servidor al enviar el formulario ***
     const addServerForm = document.getElementById("add-server-form");
 
     if (addServerForm) {
@@ -115,26 +155,27 @@ document.addEventListener("DOMContentLoaded", async () => {
           password: document.getElementById("password").value,
         };
 
-        // Si el serverData.id existe, estamos editando; si no, estamos agregando
-  try {
-    let result;
-    if (serverData.id) {
-      result = await window.electron.updateServer(serverData); // Llamada para editar
-    } else {
-      result = await window.electron.addServer(serverData); // Llamada para agregar
-    }
+        try {
+          let result;
+          if (currentPage.includes("add-server.html")) {
+            // Si estamos en la página de agregar
+            result = await window.electron.addServer(serverData);
+          } else {
+            // Si estamos en la página de edición
+            result = await window.electron.updateServer(serverData);
+          }
 
-    if (result.success) {
-      alert("Servidor guardado correctamente");
-      window.localStorage.removeItem('selectedServer'); // Eliminar el servidor seleccionado del localStorage
-      window.location.href = "index.html"; // Redirigir a la página principal
-    } else {
-      alert("Error al guardar el servidor.");
-    }
-  } catch (error) {
-    console.error("Error al guardar el servidor:", error);
-    alert("Hubo un error al guardar el servidor.");
-  }
+          if (result.success) {
+            alert("Servidor guardado correctamente.");
+            window.localStorage.removeItem("selectedServer"); // Eliminar el servidor seleccionado del localStorage
+            window.location.href = "index.html"; // Redirigir a la página principal
+          } else {
+            alert("Error al guardar el servidor.");
+          }
+        } catch (error) {
+          console.error("Error al guardar el servidor:", error);
+          alert("Hubo un error al guardar el servidor.");
+        }
       });
     }
   }
@@ -145,6 +186,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.location.href = "select-server.html"; // Redirigir a la nueva página de selección de servidores
     });
   }
+
+  // *** Función para actualizar las opciones de IP en base al sistema operativo ***
   async function updateIPOptions() {
     try {
       const servers = await window.electron.getServers(); // Asegúrate de que esta función devuelve los servidores correctamente
@@ -173,10 +216,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  osSelect.addEventListener("change", updateIPOptions); // Cuando cambie el OS, actualiza las IPs
-
-  // Llama a la función al cargar para llenar las IPs del OS seleccionado por defecto
-  updateIPOptions();
+  if (osSelect) {
+    osSelect.addEventListener("change", updateIPOptions); // Cuando cambie el OS, actualiza las IPs
+    updateIPOptions(); // Llama a la función al cargar para llenar las IPs del OS seleccionado por defecto
+  }
 
   function showLoading() {
     document.getElementById("loading-overlay").style.display = "flex";

@@ -128,5 +128,27 @@
         });
       </script>
       <script src="renderer.js"></script>
+      <script>
+        // Verificar si el DOM está listo antes de agregar eventos
+        document.addEventListener("DOMContentLoaded", function () {
+          console.log("DOM completamente cargado");
+
+          const osSelect = document.getElementById("os");
+
+          if (osSelect) {
+            console.log("Elemento con ID 'os' encontrado:", osSelect);
+            osSelect.addEventListener("change", function () {
+              console.log("Sistema operativo cambiado a:", osSelect.value);
+              // Lógica adicional para manejar el cambio del sistema operativo
+            });
+          } else {
+            console.error("Elemento con ID 'os' no encontrado.");
+          }
+        });
+
+        document.getElementById('back-button').addEventListener('click', function() {
+          window.location.href = 'index.html'; // Cambia 'index.html' por la página a la que quieras redirigir
+        });
+    </script>
   </body>
 </html>

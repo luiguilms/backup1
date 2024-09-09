@@ -510,7 +510,46 @@ ipcMain.handle("add-server", async (event, serverData) => {
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
   }
-
+  ipcMain.handle('delete-server', async (event, serverId) => {
+    let connection;
+    try {
+      // Establecer conexión a la base de datos
+      connection = await oracledb.getConnection({
+        user: "USRMONBK",
+        password: "USRMONBK_2024",
+        connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
+      });
+  
+      // Ejecutar la consulta de eliminación
+      const result = await connection.execute(
+        `DELETE FROM ServerInfo WHERE ID = :id`,
+        { id: serverId },
+        { autoCommit: true }
+      );
+  
+      console.log(`Servidor con ID ${serverId} eliminado.`, result);
+  
+      // Verificar si se eliminó algún registro
+      if (result.rowsAffected === 0) {
+        return { success: false, error: `No se encontró el servidor con ID ${serverId}` };
+      }
+  
+      return { success: true };
+    } catch (err) {
+      console.error('Error al eliminar el servidor:', err);
+      return { success: false, error: err.message };
+    } finally {
+      // Cerrar la conexión
+      if (connection) {
+        try {
+          await connection.close();
+        } catch (err) {
+          console.error("Error al cerrar la conexión:", err);
+        }
+      }
+    }
+  });
+  
   ipcMain.handle(
     "verify-credentials",
     async (event, { ip, username, password }) => {
