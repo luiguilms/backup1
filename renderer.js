@@ -1,125 +1,210 @@
 document.addEventListener("DOMContentLoaded", async () => {
+  const currentPage = window.location.pathname;
+  
+
+  // Obtener los elementos del DOM
   const osSelect = document.getElementById("os");
   const ipSelect = document.getElementById("ip");
+  const editServerBtn = document.getElementById("edit-server-btn");
+  const addServerBtn = document.getElementById("add-server-btn");
+  const modalEditServer = document.getElementById("editServerModal");
+  const closeEditModal = document.getElementById("closeEditModal");
+  const serverListDiv = document.getElementById("server-list");
+  const selectServerBtn = document.getElementById("select-server-btn");
+  const logEntriesContainer = document.getElementById('log-entries');
   const resultDiv = document.getElementById("result");
-  const logEntriesContainer = document.getElementById("log-entries");
 
-  let servers = [];
-  let currentOS = ''; // Variable para almacenar el OS actual mostrado
-  // Recupera los datos de los servidores desde la base de datos
-  try {
-    servers = await window.electron.getServers();
-  } catch (error) {
-    console.error("Error al recuperar los servidores:", error);
+  let currentOS = ''; // Variable para el sistema operativo actual
+  let selectedServer = null;
+  // *** Función para cargar servidores ***
+  async function loadServers() {
+    try {
+      const servers = await window.electron.getServers();
+      console.log("Servidores recuperados:", servers);
+      return servers;
+    } catch (error) {
+      console.error("Error al recuperar los servidores:", error);
+      return [];
+    }
   }
 
+  let servers = await loadServers(); // Cargamos los servidores al inicio
+
+  // *** Botón para agregar servidor ***
+  if (addServerBtn) {
+    addServerBtn.addEventListener("click", () => {
+      window.localStorage.removeItem('selectedServer'); // Elimina cualquier selección previa de servidor
+      window.location.href = "add-server.html"; // Redirigir a la página de agregar servidor
+    });
+  }
+
+  // *** Lógica para agregar un servidor (sin editar) ***
+  if (currentPage.includes('add-server.html')) {
+    const addServerForm = document.getElementById("add-server-form");
+
+    if (addServerForm) {
+      addServerForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const serverData = {
+          id: document.getElementById("server-id").value,
+          serverName: document.getElementById("server-name").value,
+          ip: document.getElementById("ip").value,
+          os: document.getElementById("os").value,
+          port: document.getElementById("port").value,
+          username: document.getElementById("username").value,
+          password: document.getElementById("password").value,
+        };
+
+        try {
+          const result = await window.electron.addServer(serverData); // Llamada para agregar servidor
+
+          if (result.success) {
+            alert("Servidor agregado correctamente");
+            window.location.href = "index.html"; // Redirigir a la página principal
+          } else {
+            alert("Error al agregar el servidor.");
+          }
+        } catch (error) {
+          console.error("Error al agregar el servidor:", error);
+          alert("Hubo un error al agregar el servidor.");
+        }
+      });
+    }
+  }
+
+
+  async function updateIPOptions() {
+    try {
+      const servers = await window.electron.getServers(); // Asegúrate de que esta función devuelve los servidores correctamente
+      const selectedOS = osSelect.value;
+
+      ipSelect.innerHTML = ""; // Limpia las opciones previas
+      const filteredServers = servers.filter(
+        (server) => server.os === selectedOS
+      );
+
+      if (filteredServers.length > 0) {
+        filteredServers.forEach((server) => {
+          const option = document.createElement("option");
+          option.value = server.ip;
+          option.textContent = server.ip;
+          ipSelect.appendChild(option);
+        });
+      } else {
+        ipSelect.disabled = true;
+        console.log(
+          "No hay servidores disponibles para este sistema operativo."
+        );
+      }
+    } catch (error) {
+      console.error("Error al actualizar las opciones de IP:", error);
+    }
+  }
+
+  osSelect.addEventListener("change", updateIPOptions); // Cuando cambie el OS, actualiza las IPs
+
+  // Llama a la función al cargar para llenar las IPs del OS seleccionado por defecto
+  updateIPOptions();
 
   function showLoading() {
-    document.getElementById('loading-overlay').style.display = 'flex';
+    document.getElementById("loading-overlay").style.display = "flex";
   }
-  
+
   function hideLoading() {
-    document.getElementById('loading-overlay').style.display = 'none';
+    document.getElementById("loading-overlay").style.display = "none";
   }
 
   function showAuthErrorModal(errorMessage) {
     requestAnimationFrame(() => {
-      const modal = document.getElementById("authErrorModal");
+      const modalAuthError = document.getElementById("authErrorModal");
       const message = document.getElementById("errorMessage");
-      if (modal && message) {
-        message.textContent = errorMessage || "Error de autenticación. Por favor, inténtelo de nuevo.";
-        modal.style.display = "block";
+      if (modalAuthError && message) {
+        message.textContent =
+          errorMessage ||
+          "Error de autenticación. Por favor, inténtelo de nuevo.";
+        modalAuthError.style.display = "block";
 
         const retryButton = document.getElementById("retryButton");
-        const closeModal = document.getElementById("closeModal");
+        const closeAuthModal = document.getElementById("closeModal");
 
         if (retryButton) {
           retryButton.onclick = function () {
-            modal.style.display = "none";
+            modalAuthError.style.display = "none";
           };
         }
 
-        if (closeModal) {
-          closeModal.onclick = function () {
-            modal.style.display = "none";
+        if (closeAuthModal) {
+          closeAuthModal.onclick = function () {
+            modalAuthError.style.display = "none";
           };
         }
 
         window.onclick = function (event) {
-          if (event.target == modal) {
-            modal.style.display = "none";
+          if (event.target == modalAuthError) {
+            modalAuthError.style.display = "none";
           }
         };
       }
     });
   }
+
   function clearLogEntries() {
-    logEntriesContainer.innerHTML = ''; // Limpiar los logs anteriores
+    if (logEntriesContainer) {
+      logEntriesContainer.innerHTML = ""; // Limpiar los logs anteriores
+    }
   }
+
+  function formatFileSize(sizeInMB) {
+    if (sizeInMB >= 1000) {
+      let sizeInGB = (sizeInMB / 1000).toFixed(2);
+      return `${sizeInGB} GB`;
+    } else {
+      return `${sizeInMB.toFixed(2)} MB`;
+    }
+  }
+
   function addLogEntry(logData) {
     if (logEntriesContainer) {
       const entryDiv = document.createElement("div");
       entryDiv.className = "log-entry";
-      if (!logData.logDetails.success) {
-        entryDiv.classList.add("failed");
-      }
+
+      // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
+      const successClass = logData.logDetails.success ? "" : "error";
+
+      const totalDmpSize = logData.dumpFileInfo.reduce(
+        (sum, file) => sum + file.fileSize,
+        0
+      );
+      const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
+
       entryDiv.innerHTML = `
-      <p><strong>Server IP:</strong> ${logData.ip}</p>
-      <p><strong>Start Time:</strong> ${
-        logData.logDetails.startTime || "N/A"
-      }</p>
-      <p><strong>End Time:</strong> ${
-        logData.logDetails.endTime || "N/A"
-      }</p>
-      <p><strong>Duration:</strong> ${
-        logData.logDetails.duration || "N/A"
-      }</p>
-      <p><strong>Success:</strong> ${
+            <p><strong>Server IP:</strong> ${logData.ip}</p>
+            <p><strong>Start Time:</strong> ${
+              logData.logDetails.startTime || "N/A"
+            }</p>
+            <p><strong>End Time:</strong> ${
+              logData.logDetails.endTime || "N/A"
+            }</p>
+            <p><strong>Duration:</strong> ${
+              logData.logDetails.duration || "N/A"
+            }</p>
+            <!-- Aplica la clase 'error' al párrafo si success es No -->
+            <p class="${successClass}"><strong>Success:</strong> ${
         logData.logDetails.success ? "Yes" : "No"
       }</p>
-      <p><strong>Dump File Path:</strong> ${
-        logData.dumpFileInfo?.filePath || "N/A"
-      }</p>
-      <p><strong>Dump File Size:</strong> ${
-        logData.dumpFileInfo ? `${logData.dumpFileInfo.fileSize} MB` : "N/A"
-      }</p>
-      <p><strong>Log File Name:</strong> ${logData.logFileName || "N/A"}</p>
-      <p><strong>Backup Path:</strong> ${logData.backupPath || "N/A"}</p>
-      <hr>
-    `;
+            <p><strong>Total Dump File Size:</strong> ${formattedDmpSize}</p> <!-- Aquí -->
+            <p><strong>Log File Name:</strong> ${
+              logData.logFileName || "N/A"
+            }</p>
+            <p><strong>Backup Path:</strong> ${logData.backupPath || "N/A"}</p>
+            <hr>
+        `;
 
       logEntriesContainer.appendChild(entryDiv);
       if (resultDiv) resultDiv.style.display = "block";
     }
   }
-
-  function updateIPOptions() {
-    const os = osSelect.value;
-    ipSelect.innerHTML = ""; // Limpiar opciones existentes
-
-    // Filtrar los servidores por sistema operativo
-    const filteredServers = servers.filter(server => server[1] === os);
-
-    // Agregar las IPs al select
-    filteredServers.forEach((server) => {
-      const option = document.createElement("option");
-      option.value = server[0]; // IP
-      option.textContent = server[0];
-      ipSelect.appendChild(option);
-    });
-
-    // Establecer IP por defecto
-    if (filteredServers.length > 0) {
-      ipSelect.value = filteredServers[0][0];
-    }
-  }
-  
- 
-  // Actualiza las opciones de IP al cargar la página
-  updateIPOptions();
-
-  // Actualiza las opciones de IP al cambiar el sistema operativo
-  osSelect.addEventListener("change", updateIPOptions);
 
   const form = document.getElementById("server-form");
   if (form) {
@@ -137,8 +222,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
 
       try {
-        const result = await window.electron.verifyCredentials(ip, username, password);
-  
+        const result = await window.electron.verifyCredentials(
+          ip,
+          username,
+          password
+        );
+
         if (result.success) {
           const os = result.osType;
           const port = result.port;
@@ -147,7 +236,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             clearLogEntries();
             currentOS = os; // Actualizamos el OS actual
           }
-  
+
           console.log("Connection successful");
 
           let directoryPath = "";
@@ -235,7 +324,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       } catch (error) {
         console.log("Connection error", error);
-        showAuthErrorModal(error.message || "Error de conexión. Por favor, verifique sus credenciales.");
+        showAuthErrorModal(
+          error.message ||
+            "Error de conexión. Por favor, verifique sus credenciales."
+        );
       } finally {
         hideLoading(); // Ocultar loading overlay
       }
