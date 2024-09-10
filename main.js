@@ -5,15 +5,6 @@ const { Client } = require("ssh2");
 const oracledb = require("oracledb");
 const { Console } = require("console");
 const crypto = require("crypto");
-
-function decrypt(encrypted) {
-  let iv = Buffer.from(encrypted.iv, "hex");
-  let encryptedText = Buffer.from(encrypted.encryptedData, "hex");
-  let decipher = crypto.createDecipheriv("aes-256-cbc", encryptionKey, iv);
-  let decrypted = decipher.update(encryptedText);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
-}
 // Función para normalizar rutas según el sistema operativo
 function normalizePath(inputPath, targetOS) {
   let normalizedPath = inputPath.replace(/\\/g, "/");
@@ -508,8 +499,77 @@ ipcMain.handle("add-server", async (event, serverData) => {
     let decipher = crypto.createDecipheriv("aes-256-cbc", encryptionKey, iv);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
+    // Convertimos a string y eliminamos comillas adicionales
+    let decryptedText = decrypted.toString().replace(/^"|"$/g, '');
+
+    console.log("Datos desencriptados:", decryptedText); // Verificar que se está desencriptando correctamente
+    return decryptedText;
   }
+  ipcMain.handle("get-server-details", async (event, serverId) => {
+    let connection;
+    try {
+      connection = await oracledb.getConnection(dbConfig);
+  
+      const result = await connection.execute(
+        `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword 
+         FROM ServerInfo WHERE ID = :id`,
+        { id: serverId }
+      );
+  
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        const encryptedUserLob = row[5]; // EncryptedUser LOB
+        const encryptedPasswordLob = row[6]; // EncryptedPassword LOB
+  
+        // Leer los LOBs de usuario y contraseña
+        const encryptedUser = await readLob(encryptedUserLob);
+        const encryptedPassword = await readLob(encryptedPasswordLob);
+  
+        // Aquí verificamos si ya está en texto claro
+        let decryptedUser = encryptedUser.toString();
+        let decryptedPassword = encryptedPassword.toString();
+  
+        // Verificamos si los valores están en texto claro o si necesitan desencriptarse
+        if (decryptedUser.startsWith("{") && decryptedUser.includes("encryptedData")) {
+          decryptedUser = decrypt(encryptedUser);  // Desencripta solo si es necesario
+        }
+  
+        if (decryptedPassword.startsWith("{") && decryptedPassword.includes("encryptedData")) {
+          decryptedPassword = decrypt(encryptedPassword);  // Desencripta solo si es necesario
+        }
+  
+        console.log("Decrypted User:", decryptedUser); // Agregar este log
+        console.log("Decrypted Password:", decryptedPassword); // Agregar este log
+  
+        return {
+          id: row[0],
+          serverName: row[1],
+          ip: row[2],
+          os: row[3],
+          port: row[4],
+          username: decryptedUser,  // Usuario desencriptado o en texto claro
+          password: decryptedPassword // Contraseña desencriptada o en texto claro
+        };
+      } else {
+        return { error: "Servidor no encontrado" };
+      }
+    } catch (err) {
+      console.error("Error al obtener los detalles del servidor:", err);
+      return { error: err.message };
+    } finally {
+      if (connection) {
+        try {
+          await connection.close();
+        } catch (err) {
+          console.error("Error al cerrar la conexión:", err);
+        }
+      }
+    }
+  });
+  
+  
+  
+  
   ipcMain.handle('delete-server', async (event, serverId) => {
     let connection;
     try {
@@ -674,18 +734,30 @@ async function updateServerInfo(id, name, ip, os, port, username, password) {
 }
 
 // En el IPC handle para editar el servidor
+// En el manejador para actualizar el servidor
 ipcMain.handle("update-server", async (event, serverData) => {
   const { id, serverName, ip, os, port, username, password } = serverData;
 
   try {
     console.log(`Actualizando servidor: ${serverName}, IP: ${ip}, OS: ${os}`);
-    const result = await updateServerInfo(id, serverName, ip, os, port, username, password);
+
+    // Eliminar comillas innecesarias en el username y password antes de encriptarlos
+    const cleanUsername = username.replace(/^"|"$/g, '');
+    const cleanPassword = password.replace(/^"|"$/g, '');
+
+    const encryptedUser = encrypt(cleanUsername);  // Encripta el usuario limpio
+    const encryptedPassword = encrypt(cleanPassword);  // Encripta la contraseña limpia
+
+    const result = await updateServerInfo(id, serverName, ip, os, port, encryptedUser, encryptedPassword);
+    console.log("Servidor actualizado correctamente:", result);
+
     return { success: true };
   } catch (error) {
     console.error("Error al actualizar el servidor:", error);
     return { success: false, error: error.message };
   }
 });
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();

@@ -33,6 +33,7 @@
 
       .form-group {
         margin-bottom: 12px;
+        position: relative;
       }
 
       input,
@@ -75,6 +76,18 @@
       #back-button:hover {
         background-color: #5a6268;
       }
+      .toggle-password {
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 18px;
+        color: #333;
+      }
+      #password {
+  padding-right: 40px; /* Añade espacio al campo de contraseña para que no se superponga con el ícono */
+}
     </style>
   </head>
   <body>
@@ -111,6 +124,7 @@
       <div class="form-group">
         <label for="password">Contraseña:</label>
         <input type="password" id="password" name="password" required />
+        <span class="toggle-password" id="togglePassword">👁️</span>
       </div>
       <button type="submit">Guardar Cambios</button>
     </form>
@@ -130,60 +144,16 @@
       document.getElementById('back-button').addEventListener('click', function () {
         window.location.href = 'select-server.html'; // Cambia 'select-server.html' por la página a la que quieras redirigir
       });
+      // Código para mostrar u ocultar la contraseña
+      const togglePassword = document.getElementById('togglePassword');
+      const passwordField = document.getElementById('password');
 
-      // Código de inicialización
-      document.addEventListener('DOMContentLoaded', async function () {
-        console.log('DOM completamente cargado');
-
-        const serverData = JSON.parse(window.localStorage.getItem('selectedServer'));
-
-        // Verifica si hay datos del servidor seleccionados
-        if (serverData) {
-          document.getElementById('server-id').value = serverData.id || '';
-          document.getElementById('server-name').value = serverData.name || '';
-          document.getElementById('ip').value = serverData.ip || '';
-          document.getElementById('os').value = serverData.os || '';
-          document.getElementById('port').value = serverData.port || '';
-          document.getElementById('username').value = serverData.username || '';
-          document.getElementById('password').value = serverData.password || '';
-        } else {
-          console.error('No se encontraron datos del servidor. Redirigiendo a la página de selección.');
-          window.location.href = 'select-server.html'; // Si no hay servidor seleccionado, redirige
-        }
-
-        const editServerForm = document.getElementById('edit-server-form');
-
-        if (editServerForm) {
-          editServerForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-
-            const serverData = {
-              id: document.getElementById('server-id').value,
-              serverName: document.getElementById('server-name').value,
-              ip: document.getElementById('ip').value,
-              os: document.getElementById('os').value,
-              port: document.getElementById('port').value,
-              username: document.getElementById('username').value,
-              password: document.getElementById('password').value,
-            };
-
-            try {
-              const result = await window.electron.updateServer(serverData);
-
-              if (result.success) {
-                alert('Servidor actualizado correctamente.');
-                window.localStorage.removeItem('selectedServer'); // Limpiar los datos seleccionados
-                window.location.href = 'index.html'; // Redirigir a la página principal o lista de servidores
-              } else {
-                alert('Error al actualizar el servidor.');
-              }
-            } catch (error) {
-              console.error('Error al actualizar el servidor:', error);
-              alert('Ocurrió un error al actualizar el servidor.');
-            }
-          });
-        }
+      togglePassword.addEventListener('click', function (e) {
+        const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordField.setAttribute('type', type);
+        this.textContent = type === 'password' ? '👁️' : '🙈'; // Cambia el ícono
       });
     </script>
+    <script src="renderer.js"></script>
   </body>
 </html>

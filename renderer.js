@@ -24,10 +24,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Si hay un servidor seleccionado, es una edición
       if (serverData) {
         window.localStorage.removeItem("selectedServer"); // Limpiamos la selección
-        window.location.href = "select-server.html"; // Redirigimos a la selección de servidores
+        window.history.replaceState({}, '', 'select-server.html'); // Reemplazar el estado sin añadir al historial
       } else {
         // Si no hay servidor seleccionado, estamos agregando uno nuevo
-        window.location.href = "index.html";
+        window.history.replaceState({}, '', 'index.html'); // Reemplazar el estado sin añadir al historial
       }
     });
   }
@@ -114,7 +114,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.location.href = "add-server.html"; // Redirigir a la página de agregar servidor
     });
   }
-
   // *** Verifica si estamos en la página de agregar o editar servidor ***
   if (
     currentPage.includes("add-server.html") ||
@@ -124,19 +123,85 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.localStorage.getItem("selectedServer")
     );
 
-    // Si estamos en la página de edición y hay un servidor seleccionado, cargamos los datos
-    if (currentPage.includes("edit-server.html") && serverData) {
-      document.getElementById("server-id").value = serverData.id || "";
-      document.getElementById("server-name").value = serverData.name || "";
-      document.getElementById("ip").value = serverData.ip || "";
-      document.getElementById("os").value = serverData.os || "";
-      document.getElementById("port").value = serverData.port || "";
-      document.getElementById("username").value = serverData.username || "";
-      document.getElementById("password").value = serverData.password || "";
+   // Verifica si estamos en la página de agregar o editar servidor
+   if (currentPage.includes("edit-server.html")) {
+    const selectedServer = JSON.parse(window.localStorage.getItem("selectedServer"));
 
-      // Cambiar el título del formulario a "Editar"
-      document.getElementById("form-title").textContent = "Editar Servidor";
+    // Verificamos si existe un servidor seleccionado
+    if (selectedServer && selectedServer.id) {
+      const serverId = selectedServer.id;
+
+      console.log('Llamando a getServerDetails con el ID:', serverId); // LOG AQUÍ
+
+      try {
+        console.log("Cargando detalles del servidor con ID:", serverId);
+
+        // Llamamos a la función de electron para obtener los detalles del servidor
+        const serverData = await window.electron.getServerDetails(serverId);
+        console.log("Datos del servidor recibidos:", serverData);
+
+        // Agregamos más logs para ver si el servidor está devolviendo los valores correctos
+        console.log("Verificando los valores recibidos: ", serverData.username, serverData.password);
+
+        if (serverData && !serverData.error) {
+          // Llenamos el formulario con los datos recibidos del servidor
+          document.getElementById("server-id").value = serverData.id || "";
+          document.getElementById("server-name").value = serverData.serverName || "";
+          document.getElementById("ip").value = serverData.ip || "";
+          document.getElementById("os").value = serverData.os || "";
+          document.getElementById("port").value = serverData.port || "";
+          document.getElementById("username").value = (serverData.username || "").replace(/^"|"$/g, '');
+          document.getElementById("password").value = (serverData.password || "").replace(/^"|"$/g, '');
+
+          console.log("Formulario actualizado con los datos del servidor.");
+        } else {
+          console.error("No se pudieron cargar los detalles del servidor.");
+        }
+      } catch (error) {
+        console.error("Error al obtener los detalles del servidor:", error);
+      }
+    } else {
+      console.error("No se ha seleccionado ningún servidor.");
+      window.location.href = 'select-server.html'; // Redirigir si no hay servidor seleccionado
     }
+  }
+  // Enviar cambios al editar
+  const editServerForm = document.getElementById("edit-server-form");
+
+  if (editServerForm) {
+    editServerForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const serverData = {
+        id: document.getElementById("server-id").value,
+        serverName: document.getElementById("server-name").value,
+        ip: document.getElementById("ip").value,
+        os: document.getElementById("os").value,
+        port: document.getElementById("port").value,
+        username: document.getElementById("username").value,
+        password: document.getElementById("password").value,
+      };
+
+      console.log('Editando servidor:', serverData);
+
+      try {
+        const result = await window.electron.updateServer(serverData);
+
+        if (result.success) {
+          alert("Servidor actualizado correctamente.");
+          window.localStorage.removeItem("selectedServer");
+          window.location.href = "select-server.html";
+        } else {
+          alert("Error al actualizar el servidor.");
+        }
+      } catch (error) {
+        console.error("Error al actualizar el servidor:", error);
+        alert("Hubo un error al actualizar el servidor.");
+      }
+    });
+  }
+  
+
 
     // *** Agregar o editar el servidor al enviar el formulario ***
     const addServerForm = document.getElementById("add-server-form");
