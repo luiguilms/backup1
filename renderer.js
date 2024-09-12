@@ -370,6 +370,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (logEntriesContainer) {
       const entryDiv = document.createElement("div");
       entryDiv.className = "log-entry";
+      // Añade este log para verificar el valor en el lado del cliente
+      console.log("Tamaño de la carpeta recibido (logData.totalFolderSize):", logData.totalFolderSize);
 
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
       const successClass = logData.logDetails.success ? "" : "error-box";
@@ -379,6 +381,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         0
       );
       const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
+      const formattedFolderSize = logData.totalFolderSize
+        ? formatFileSize(parseFloat(logData.totalFolderSize)) // Si hay tamaño de carpeta, lo formateamos
+        : "N/A"; // Si no hay tamaño de carpeta, mostramos "N/A"
 
       entryDiv.innerHTML = `
             <p><strong>Server IP:</strong> ${logData.ip}</p>
@@ -399,7 +404,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <p><strong>Log File Name:</strong> ${
               logData.logFileName || "N/A"
             }</p>
-            <p><strong>Backup Path:</strong> ${logData.backupPath || "N/A"}</p>
+            <p><strong>Backup Path:</strong> ${logData.backupPath || "N/A"} (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
             <hr>
         `;
 
