@@ -19,6 +19,5 @@ contextBridge.exposeInMainWorld('electron', {
   updateServer: (serverData) => ipcRenderer.invoke('update-server', serverData),
   deleteServer: (serverId) => ipcRenderer.invoke('delete-server', serverId),
   getServerDetails: (id) => ipcRenderer.invoke("get-server-details", id),
-
-  
+  getBackupRoutesByIP: (ip) => ipcRenderer.invoke('getBackupRoutesByIP', ip),
 });

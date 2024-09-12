@@ -757,6 +757,41 @@ ipcMain.handle("update-server", async (event, serverData) => {
     return { success: false, error: error.message };
   }
 });
+ipcMain.handle("getBackupRoutesByIP", async (event, ip) => {
+  console.log("IP recibida para obtener rutas:", ip);
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    const result = await connection.execute(
+      `SELECT br.BackupPath, si.OS_Type 
+       FROM BackupRoutes br 
+       JOIN ServerInfo si ON br.ServerID = si.ID 
+       WHERE si.IP = :ip`,
+      { ip: ip }
+    );
+
+    console.log("Rutas obtenidas de la base de datos:", result.rows); // Añadir log
+    
+    return result.rows.map(row => ({
+      backupPath: row[0],
+      os: row[1],
+    }));
+  } catch (error) {
+    console.error("Error al obtener las rutas de backup:", error);
+    return [];
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error al cerrar la conexión:", err);
+      }
+    }
+  }
+});
+
+
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
