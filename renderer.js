@@ -310,12 +310,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function showLoading() {
-    document.getElementById("loading-overlay").style.display = "flex";
-  }
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+        loadingOverlay.style.display = 'flex';  // Cambiar a 'flex' para respetar las reglas de CSS
+    }
+}
 
-  function hideLoading() {
-    document.getElementById("loading-overlay").style.display = "none";
-  }
+function hideLoading() {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+    }
+}
 
   function showAuthErrorModal(errorMessage) {
     requestAnimationFrame(() => {

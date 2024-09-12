@@ -66,35 +66,38 @@
             background-color: #0056b3;
         }
         #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        #loading-overlay p {
-            color: white;
-            margin-top: 10px;
-            font-size: 18px;
-        }
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;  /* Centrado horizontal */
+    align-items: center;      /* Centrado vertical */
+    z-index: 9999;
+    flex-direction: column;   /* Para que el loader y el texto se coloquen uno debajo del otro */
+}
+
+.loader {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#loading-overlay p {
+    color: white;
+    margin-top: 10px;
+    font-size: 18px;
+}
         /* Estilos para los botones flotantes */
         #add-server-btn, #edit-server-btn {
             position: fixed;
@@ -274,14 +277,13 @@
       <button id="retryButton">Retry</button>
     </div>
   </div>
-  <div id="result"  style="overflow-y: auto; max-height: 500px;">
-    <h2>Resultados de la verificación:</h2>
-    <div id="log-entries"></div>
     <div id="loading-overlay" style="display: none;">
         <div class="loader"></div>
         <p>Cargando...</p>
     </div>
-
+    <div id="result"  style="overflow-y: auto; max-height: 500px;">
+      <h2>Resultados de la verificación:</h2>
+      <div id="log-entries"></div>
     <script src="renderer.js"></script>
 </body>
 </html>
