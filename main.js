@@ -1048,6 +1048,7 @@ function parseLogLine(logContent) {
   const oraSpecificErrorPattern = /ORA-39327/;
   const successPattern = /successfully completed/i;
 
+  const lines = logContent.split('\n');
   const hasOraSpecificError = oraSpecificErrorPattern.test(logContent);
   const hasSuccessMessage = successPattern.test(logContent);
 
@@ -1078,12 +1079,23 @@ function parseLogLine(logContent) {
   }
 
   //console.log("Extracted Data:", { startDateTime, endDateTime, duration });
-
+  let oraError = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].match(oraErrorPattern) && !lines[i].match(oraSpecificErrorPattern)) {
+      oraError = {
+        previousLine: i > 0 ? lines[i-1].trim() : '',
+        errorLine: lines[i].trim(),
+        nextLine: i < lines.length - 1 ? lines[i+1].trim() : ''
+      };
+      break;
+    }
+  }
   return {
     startTime: startDateTime ? formatDateForOracle(startDateTime) : null,
     endTime: endDateTime ? formatDateForOracle(endDateTime) : null,
     duration: duration !== "N/A" ? duration : null,
     success: isSuccess ? 1 : 0,
+    oraError: oraError
   };
 }
 function formatFileSize(sizeInMB) {

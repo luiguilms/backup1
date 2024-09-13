@@ -373,7 +373,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       entryDiv.className = "log-entry";
       // Añade este log para verificar el valor en el lado del cliente
       console.log("Tamaño de la carpeta recibido (logData.totalFolderSize):", logData.totalFolderSize);
-
+      console.log("Datos del log:", logData); // Para depuración  
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
       const successClass = logData.logDetails.success ? "" : "error-box";
 
@@ -408,32 +408,46 @@ document.addEventListener("DOMContentLoaded", async () => {
             <p><strong>Backup Path:</strong> ${logData.backupPath || "N/A"} (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
             <hr>
         `;
+        if (logData.logDetails.oraError) {
+          entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
+      }
 
       logEntriesContainer.appendChild(entryDiv);
       if (resultDiv) resultDiv.style.display = "block";
     }
   }
   let tooltipError = null;
-  // Solo agregar el event listener si logEntriesContainer existe
   if (logEntriesContainer) {
     logEntriesContainer.addEventListener("click", function(event) {
-      if (event.target && event.target.classList.contains("error-box")) {
-          // Crear el tooltipError solo si no existe
-          if (!tooltipError) {
-              tooltipError = document.createElement("div");
-              tooltipError.classList.add("tooltip-error");
-              tooltipError.textContent = "Error: Ha ocurrido un problema.";
-              document.body.appendChild(tooltipError);
-          }
-  
-          const rect = event.target.getBoundingClientRect(); // Posición del elemento
-          tooltipError.style.top = `${rect.top + window.scrollY}px`;
-          tooltipError.style.left = `${rect.right + 10}px`;
-          tooltipError.style.display = "block";  // Mostrar la ventana flotante
-      }
-    });
-} 
+        if (event.target && event.target.classList.contains("error-box")) {
+            if (!tooltipError) {
+                tooltipError = document.createElement("div");
+                tooltipError.classList.add("tooltip-error");
+                document.body.appendChild(tooltipError);
+            }
 
+            const logEntry = event.target.closest('.log-entry');
+            const errorDetails = logEntry ? logEntry.dataset.oraError : null;
+            
+            if (errorDetails) {
+                const oraError = JSON.parse(errorDetails);
+                tooltipError.innerHTML = `
+                    <p><strong>Error ORA encontrado:</strong></p>
+                    <p>${oraError.previousLine}</p>
+                    <p><strong>${oraError.errorLine}</strong></p>
+                    <p>${oraError.nextLine}</p>
+                `;
+            } else {
+                tooltipError.textContent = "No se encontraron detalles específicos del error.";
+            }
+
+            const rect = event.target.getBoundingClientRect();
+            tooltipError.style.top = `${rect.top + window.scrollY}px`;
+            tooltipError.style.left = `${rect.right + 10}px`;
+            tooltipError.style.display = "block";
+        }
+    });
+}
   
   // Cerrar la ventana flotante cuando se hace clic fuera de ella
   window.onclick = function(event) {
