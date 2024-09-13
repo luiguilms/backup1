@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selectServerBtn = document.getElementById("select-server-btn");
   const deleteServerBtn = document.getElementById("delete-server-btn");
   const backupRouteSelect = document.getElementById("backup-routes");
+  //const tooltipError = document.createElement("div");
   
 
   let currentOS = ""; // Variable para el sistema operativo actual
@@ -272,35 +273,35 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // *** Función para actualizar las opciones de IP en base al sistema operativo ***
   async function updateIPOptions() {
-    try {
-      const servers = await window.electron.getServers(); // Asegúrate de que esta función devuelve los servidores correctamente
-      const selectedOS = osSelect.value;
-
-      ipSelect.innerHTML = ""; // Limpia las opciones previas
-      const filteredServers = servers.filter(
-        (server) => server.os === selectedOS
-      );
-
-      if (filteredServers.length > 0) {
-        filteredServers.forEach((server) => {
-          const option = document.createElement("option");
-          option.value = server.ip;
-          option.textContent = server.ip;
-          ipSelect.appendChild(option);
-        });
-        // Si hay opciones de IP disponibles, selecciona la primera por defecto
-      if (ipSelect.options.length > 0) {
-        ipSelect.value = ipSelect.options[0].value;
-        updateBackupRoutes(); // Forzar la actualización de las rutas de backup
-      }
-      } else {
-        ipSelect.disabled = true;
-        console.log(
-          "No hay servidores disponibles para este sistema operativo."
+    if (currentPage.includes("index.html")) {
+      try {
+        const servers = await window.electron.getServers() || [];
+        const selectedOS = osSelect.value;
+  
+        ipSelect.innerHTML = ""; // Limpia las opciones previas
+        const filteredServers = servers.filter(
+          (server) => server.os === selectedOS
         );
+  
+        if (filteredServers.length > 0) {
+          filteredServers.forEach((server) => {
+            const option = document.createElement("option");
+            option.value = server.ip;
+            option.textContent = server.ip;
+            ipSelect.appendChild(option);
+          });
+          // Si hay opciones de IP disponibles, selecciona la primera por defecto
+          if (ipSelect.options.length > 0) {
+            ipSelect.value = ipSelect.options[0].value;
+            updateBackupRoutes(); // Forzar la actualización de las rutas de backup
+          }
+        } else {
+          ipSelect.disabled = true;
+          console.log("No hay servidores disponibles para este sistema operativo.");
+        }
+      } catch (error) {
+        console.error("Error al actualizar las opciones de IP:", error);
       }
-    } catch (error) {
-      console.error("Error al actualizar las opciones de IP:", error);
     }
   }
 
@@ -310,18 +311,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function showLoading() {
-    const loadingOverlay = document.getElementById('loading-overlay');
-    if (loadingOverlay) {
-        loadingOverlay.style.display = 'flex';  // Cambiar a 'flex' para respetar las reglas de CSS
-    }
-}
+    document.getElementById("loading-overlay").style.display = "flex";
+  }
 
-function hideLoading() {
-    const loadingOverlay = document.getElementById('loading-overlay');
-    if (loadingOverlay) {
-        loadingOverlay.style.display = 'none';
-    }
-}
+  function hideLoading() {
+    document.getElementById("loading-overlay").style.display = "none";
+  }
 
   function showAuthErrorModal(errorMessage) {
     requestAnimationFrame(() => {
@@ -418,7 +413,38 @@ function hideLoading() {
       if (resultDiv) resultDiv.style.display = "block";
     }
   }
+  let tooltipError = null;
+  // Solo agregar el event listener si logEntriesContainer existe
+  if (logEntriesContainer) {
+    logEntriesContainer.addEventListener("click", function(event) {
+      if (event.target && event.target.classList.contains("error-box")) {
+          // Crear el tooltipError solo si no existe
+          if (!tooltipError) {
+              tooltipError = document.createElement("div");
+              tooltipError.classList.add("tooltip-error");
+              tooltipError.textContent = "Error: Ha ocurrido un problema.";
+              document.body.appendChild(tooltipError);
+          }
+  
+          const rect = event.target.getBoundingClientRect(); // Posición del elemento
+          tooltipError.style.top = `${rect.top + window.scrollY}px`;
+          tooltipError.style.left = `${rect.right + 10}px`;
+          tooltipError.style.display = "block";  // Mostrar la ventana flotante
+      }
+    });
+} 
 
+  
+  // Cerrar la ventana flotante cuando se hace clic fuera de ella
+  window.onclick = function(event) {
+      if (tooltipError && !event.target.classList.contains("error-box") && !tooltipError.contains(event.target)) {
+          tooltipError.style.display = "none";  // Esconde el tooltip
+  
+          // Eliminar el tooltip si ya no es necesario
+          tooltipError.remove();
+          tooltipError = null;
+      }
+  };
   const form = document.getElementById("server-form");
   if (form) {
     form.addEventListener("submit", async (event) => {
