@@ -585,7 +585,7 @@ app.whenReady().then(() => {
     // Convertimos a string y eliminamos comillas adicionales
     let decryptedText = decrypted.toString().replace(/^"|"$/g, "");
 
-    console.log("Datos desencriptados:", decryptedText); // Verificar que se está desencriptando correctamente
+    //console.log("Datos desencriptados:", decryptedText); // Verificar que se está desencriptando correctamente
     return decryptedText;
   }
   ipcMain.handle("get-server-details", async (event, serverId) => {
