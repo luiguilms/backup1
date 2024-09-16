@@ -371,6 +371,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (logEntriesContainer) {
       const entryDiv = document.createElement("div");
       entryDiv.className = "log-entry";
+
+      // Verifica que 'serverName' esté correctamente asignado
+      const serverName = logData.serverName || "N/A";
+
       // Añade este log para verificar el valor en el lado del cliente
       console.log("Tamaño de la carpeta recibido (logData.totalFolderSize):", logData.totalFolderSize);
       console.log("Datos del log:", logData); // Para depuración  
@@ -385,15 +389,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       const formattedFolderSize = logData.totalFolderSize
         ? formatFileSize(parseFloat(logData.totalFolderSize)) // Si hay tamaño de carpeta, lo formateamos
         : "N/A"; // Si no hay tamaño de carpeta, mostramos "N/A"
+      // Añadir el estado del backup
+      const backupStatus = logData.logDetails.backupStatus || "N/A";
 
       entryDiv.innerHTML = `
-            <p><strong>Server IP:</strong> ${logData.ip}</p>
+            <p><strong>Server IP:</strong> ${logData.ip}<strong> Server Name:</strong> ${serverName}</p>
             <p><strong>Start Time:</strong> ${
               logData.logDetails.startTime || "N/A"
             }</p>
             <p><strong>End Time:</strong> ${
               logData.logDetails.endTime || "N/A"
             }</p>
+            <p><strong>Backup Status:</strong> ${backupStatus}</p>
             <p><strong>Duration:</strong> ${
               logData.logDetails.duration || "N/A"
             }</p>
@@ -448,6 +455,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 }
+
   
   // Cerrar la ventana flotante cuando se hace clic fuera de ella
   window.onclick = function(event) {
