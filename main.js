@@ -1267,11 +1267,9 @@ async function saveLogToDatabase(
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    const startTime = formatDateForOracle(logDetails.startTime);
-    const endTime = formatDateForOracle(logDetails.endTime);
-    if (!startTime || !endTime) {
-      throw new Error("Fechas inválidas en los detalles del log");
-    }
+    const startTime = logDetails.startTime ? formatDateForOracle(logDetails.startTime) : null;
+    const endTime = logDetails.endTime ? formatDateForOracle(logDetails.endTime) : null;
+    
 
     // Convertir el tamaño de archivo
     let totalDmpSize = 0;
