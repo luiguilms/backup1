@@ -453,47 +453,126 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log('Mostrando resultados de servidores:', results);
     
     if (gridApi && typeof gridApi.setRowData === 'function') {
-      const rowData = results.flatMap(serverResult => {
-        // Si el resultado es un array (para Solaris), lo expandimos
-        if (Array.isArray(serverResult.logDetails)) {
-          return serverResult.logDetails.map(logDetail => ({
-            serverName: serverResult.serverName,
-            ip: serverResult.ip,
-            status: logDetail.error ? 'Error' : (logDetail.logDetails?.success ? 'Éxito' : 'Fallo'),
-            logFileName: logDetail.logFileName || 'N/A',
-            startTime: logDetail.logDetails?.startTime || 'N/A',
-            endTime: logDetail.logDetails?.endTime || 'N/A',
-            duration: logDetail.logDetails?.duration || 'N/A',
-            totalDmpSize: logDetail.totalDmpSize ? `${logDetail.totalDmpSize} MB` : 'N/A',
-            totalFolderSize: logDetail.totalFolderSize || 'N/A'
-          }));
-        } else {
-          // Para otros sistemas operativos, mantenemos la estructura actual
-          const logDetails = serverResult.logDetails || {};
-          return [{
-            serverName: serverResult.serverName,
-            ip: serverResult.ip,
-            status: serverResult.error ? 'Error' : (logDetails.logDetails?.success ? 'Éxito' : 'Fallo'),
-            logFileName: logDetails.logFileName || 'N/A',
-            startTime: logDetails.logDetails?.startTime || 'N/A',
-            endTime: logDetails.logDetails?.endTime || 'N/A',
-            duration: logDetails.logDetails?.duration || 'N/A',
-            totalDmpSize: logDetails.totalDmpSize ? `${logDetails.totalDmpSize} MB` : 'N/A',
-            totalFolderSize: logDetails.totalFolderSize || 'N/A'
-          }];
+        const rowData = results.flatMap(serverResult => {
+            const processLogDetail = (logDetail) => {
+                const status = serverResult.error ? 'Error' : (logDetail.logDetails?.success ? 'Éxito' : 'Fallo');
+                const successClass = logDetail.logDetails?.success ? "" : "error-box";
+
+                const totalDmpSize = logDetail.dumpFileInfo.reduce(
+                  (sum, file) => sum + file.fileSize,
+                  0
+                );
+                const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
+                const formattedFolderSize = logDetail.totalFolderSize
+                  ? formatFileSize(parseFloat(logDetail.totalFolderSize)) // Si hay tamaño de carpeta, lo formateamos
+                  : "N/A"; // Si no hay tamaño de carpeta, mostramos "N/A"
+
+                return {
+                    serverName: serverResult.serverName,
+                    ip: serverResult.ip,
+                    status: status,
+                    statusClass: successClass,
+                    logFileName: logDetail.logFileName || 'N/A',
+                    startTime: logDetail.logDetails?.startTime || 'N/A',
+                    endTime: logDetail.logDetails?.endTime || 'N/A',
+                    duration: logDetail.logDetails?.duration || 'N/A',
+                    totalDmpSize: formattedDmpSize,  // Cambiado de formattedDmpSize
+                    totalFolderSize: formattedFolderSize,  // Cambiado de formattedFolderSize
+                    backupStatus: logDetail.logDetails?.backupStatus || 'N/A',
+                    backupPath: logDetail.backupPath || 'N/A',
+                    oraError: logDetail.logDetails?.oraError ? JSON.stringify(logDetail.logDetails.oraError) : null
+                };
+            };
+
+            if (Array.isArray(serverResult.logDetails)) {
+                return serverResult.logDetails.map(logDetail => processLogDetail(logDetail));
+            } else {
+                return [processLogDetail(serverResult.logDetails || {})];
+            }
+        });
+
+        try {
+            gridApi.setRowData(rowData);
+            console.log('Datos cargados en el grid');
+
+            // Configurar las columnas del grid
+            const columnDefs = [
+                { field: 'serverName', headerName: 'Server Name' },
+                { field: 'ip', headerName: 'IP' },
+                { 
+                    field: 'status', 
+                    headerName: 'Status',
+                    cellRenderer: params => {
+                        return `<div class="${params.data.statusClass}">${params.value}</div>`;
+                    }
+                },
+                { field: 'logFileName', headerName: 'Log File Name' },
+                { field: 'startTime', headerName: 'Start Time' },
+                { field: 'endTime', headerName: 'End Time' },
+                { field: 'duration', headerName: 'Duration' },
+                { field: 'totalDmpSize', headerName: 'Total Dump Size' },
+                { field: 'totalFolderSize', headerName: 'Total Folder Size' },
+                { field: 'backupStatus', headerName: 'Backup Status' },
+                { field: 'backupPath', headerName: 'Backup Path' }
+            ];
+
+            gridApi.setColumnDefs(columnDefs);
+
+            let tooltipVisible = false;
+
+            // Configurar el evento de clic en celda para mostrar el tooltip de error
+            gridApi.addEventListener('cellClicked', (params) => {
+                if (params.column.colId === 'status' && params.data.statusClass === 'error-box') {
+                    const tooltipError = document.getElementById('tooltipError') || (() => {
+                        const div = document.createElement('div');
+                        div.id = 'tooltipError';
+                        div.classList.add('tooltip-error');
+                        document.body.appendChild(div);
+                        return div;
+                    })();
+
+                    if (tooltipVisible) {
+                        tooltipError.style.display = "none";
+                        tooltipVisible = false;
+                        return;
+                    }
+
+                    if (params.data.oraError) {
+                        const oraError = JSON.parse(params.data.oraError);
+                        tooltipError.innerHTML = `
+                            <p><strong>Error ORA encontrado:</strong></p>
+                            <p>${oraError.previousLine}</p>
+                            <p><strong>${oraError.errorLine}</strong></p>
+                            <p>${oraError.nextLine}</p>
+                        `;
+                    } else {
+                        tooltipError.textContent = "No se encontraron detalles específicos del error.";
+                    }
+
+                    const rect = params.event.target.getBoundingClientRect();
+                    tooltipError.style.top = `${rect.top + window.scrollY}px`;
+                    tooltipError.style.left = `${rect.right + 10}px`;
+                    tooltipError.style.display = "block";
+                    tooltipVisible = true;
+                }
+            });
+
+            // Agregar evento para ocultar el tooltip al hacer clic en cualquier lugar
+            document.addEventListener('click', (event) => {
+                const tooltipError = document.getElementById('tooltipError');
+                if (tooltipError && tooltipVisible && !tooltipError.contains(event.target)) {
+                    tooltipError.style.display = "none";
+                    tooltipVisible = false;
+                }
+            });
+
+        } catch (error) {
+            console.error('Error al cargar datos en el grid:', error);
         }
-      });
-  
-      try {
-        gridApi.setRowData(rowData);
-        console.log('Datos cargados en el grid');
-      } catch (error) {
-        console.error('Error al cargar datos en el grid:', error);
-      }
     } else {
-      console.warn('Grid API no disponible o setRowData no es una función');
+        console.warn('Grid API no disponible o setRowData no es una función');
     }
-  }
+}
   function showErrorMessage(message) {
     console.error('Error:', message);
     alert(message);

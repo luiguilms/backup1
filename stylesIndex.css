@@ -234,3 +234,26 @@ button:hover {
     border-style: solid;
     border-color: transparent transparent transparent rgba(255, 0, 0, 0.9);
 }
+.password-container {
+  position: relative;
+}
+
+.password-container input[type="password"],
+.password-container input[type="text"] {
+  width: 100%;
+  padding: 8px 30px 8px 8px; /* Increased right padding to make room for the icon */
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.toggle-password {
+  position: absolute;
+  top: 53.5%;
+  right: 10px;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #007bff;
+  font-size: 18px;
+}
+
