@@ -79,15 +79,14 @@ app.whenReady().then(() => {
     });
   }
 
-  ipcMain.handle(
-    "get-log-details",
-    async (
-      event,
-      { directoryPath, ip, port, username, password, targetOS }
-    ) => {
-      let allLogDetails = [];
-      // Obtener el nombre del servidor
-      const servers = await getServers(); // Usa la función que ya tienes
+  ipcMain.handle("get-log-details", async (event, { directoryPath, ip, port, username, password, targetOS }) => {
+    return await getLogDetailsLogic(directoryPath, ip, port, username, password, targetOS);
+  });
+  // Función que encapsula la lógica de get-log-details
+async function getLogDetailsLogic(directoryPath, ip, port, username, password, targetOS) {
+  let allLogDetails = [];
+  // Obtener el nombre del servidor
+  const servers = await getServers(); // Usa la función que ya tienes
       const server = servers.find(s => s.ip === ip);
       const serverName = server ? server.name : "N/A";
 
@@ -519,9 +518,9 @@ app.whenReady().then(() => {
       } catch (error) {
         console.error("Error fetching log details:", error);
         return { logDetails: null, dumpFileInfo: null };
-      }
-    }
-  );
+  }
+}
+
 
   // Clave de encriptación (debe ser segura y almacenada en un lugar seguro)
   // Clave de encriptación (debe ser segura y almacenada en un lugar seguro)
@@ -678,40 +677,57 @@ app.whenReady().then(() => {
     return await getServers();
   });
 
-  function readLob(lob) {
+  async function readLob(lob) {
     return new Promise((resolve, reject) => {
-      if (!lob) {
-        return reject(new Error("Lob is undefined"));
-      }
-
       let data = [];
-
-      lob.on("data", (chunk) => {
-        data.push(chunk);
-      });
-
-      lob.on("end", () => {
-        resolve(Buffer.concat(data));
-      });
-
-      lob.on("error", (err) => {
-        reject(err);
-      });
+      lob.on('data', chunk => data.push(chunk));
+      lob.on('end', () => resolve(Buffer.concat(data)));
+      lob.on('error', err => reject(err));
     });
   }
+  
   function decrypt(encryptedData) {
-    const data = JSON.parse(encryptedData.toString()); // Convertir el Buffer a cadena y luego parsear el JSON
-    let iv = Buffer.from(data.iv, "hex");
-    let encryptedText = Buffer.from(data.encryptedData, "hex");
-    let decipher = crypto.createDecipheriv("aes-256-cbc", encryptionKey, iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    // Convertimos a string y eliminamos comillas adicionales
-    let decryptedText = decrypted.toString().replace(/^"|"$/g, "");
-
-    //console.log("Datos desencriptados:", decryptedText); // Verificar que se está desencriptando correctamente
-    return decryptedText;
+    try {
+      // Si encryptedData es un string, intentamos parsearlo como JSON
+      if (typeof encryptedData === 'string') {
+        encryptedData = JSON.parse(encryptedData);
+      }
+  
+      // Si encryptedData es un objeto Buffer, lo convertimos a string
+      if (Buffer.isBuffer(encryptedData)) {
+        encryptedData = encryptedData.toString();
+      }
+  
+      // Ahora parseamos el JSON
+      const data = JSON.parse(encryptedData);
+  
+      // Verificamos que tenemos los datos necesarios
+      if (!data.iv || !data.encryptedData) {
+        throw new Error('Formato de datos encriptados inválido');
+      }
+  
+      let iv = Buffer.from(data.iv, "hex");
+      let encryptedText = Buffer.from(data.encryptedData, "hex");
+      let decipher = crypto.createDecipheriv("aes-256-cbc", encryptionKey, iv);
+      let decrypted = decipher.update(encryptedText);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+  
+      // Convertimos a string y eliminamos comillas adicionales
+      let decryptedText = decrypted.toString().replace(/^"|"$/g, "");
+  
+      // Intentamos parsear el resultado como JSON
+      try {
+        return JSON.parse(decryptedText);
+      } catch (e) {
+        // Si no es JSON válido, devolvemos el string
+        return decryptedText;
+      }
+    } catch (error) {
+      console.error('Error al desencriptar:', error);
+      return null;
+    }
   }
+  
   ipcMain.handle("get-server-details", async (event, serverId) => {
     let connection;
     try {
@@ -824,7 +840,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle(
-    "verify-credentials",
+    "verify-credentials",//ACA ESTA DESENCRIPTADO
     async (event, { ip, username, password }) => {
       let connection;
 
@@ -1011,6 +1027,181 @@ app.whenReady().then(() => {
       }
     }
   });
+  async function getAllServers() {
+    let connection;
+    try {
+      connection = await oracledb.getConnection(dbConfig);
+      const result = await connection.execute(
+        `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword 
+         FROM ServerInfo`,
+        [],
+        { fetchInfo: { EncryptedUser: { type: oracledb.STRING }, EncryptedPassword: { type: oracledb.STRING } } }
+      );
+      
+      return result.rows.map(row => ({
+        id: row[0],
+        serverName: row[1],
+        ip: row[2],
+        os: row[3],
+        port: row[4],
+        encryptedUser: row[5],
+        encryptedPassword: row[6]
+      }));
+    } catch (err) {
+      console.error("Error al obtener los servidores:", err);
+      throw err;
+    } finally {
+      if (connection) {
+        try {
+          await connection.close();
+        } catch (err) {
+          console.error("Error al cerrar la conexión:", err);
+        }
+      }
+    }
+  }
+  // Añade esta función para usar dentro de processAllServers
+async function getBackupRoutesByIPInternal(ip, connection) {
+  try {
+    const result = await connection.execute(
+      `SELECT br.BackupPath, si.OS_Type
+       FROM BackupRoutes br
+       JOIN ServerInfo si ON br.ServerID = si.ID
+       WHERE si.IP = :ip`,
+      { ip: ip }
+    );
+    
+    console.log("Rutas obtenidas de la base de datos:", result.rows);
+    
+    return result.rows.map((row) => ({
+      backupPath: row[0],
+      os: row[1],
+    }));
+  } catch (error) {
+    console.error("Error al obtener las rutas de backup:", error);
+    return [];
+  }
+}
+  
+
+async function processAllServers() {
+  let connection;
+  let results = [];
+
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    const serversResult = await connection.execute(
+      `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword FROM ServerInfo`
+    );
+
+    for (const row of serversResult.rows) {
+      const serverName = row[1];
+      const ip = row[2];
+      const osType = row[3];
+      const port = row[4];
+      const encryptedUserLob = row[5];
+      const encryptedPasswordLob = row[6];
+
+      try {
+        console.log(`Procesando servidor: ${serverName} (${ip})`);
+
+        // Desencriptar credenciales
+        const decryptedUser = await decrypt(await readLob(encryptedUserLob));
+        const decryptedPassword = await decrypt(await readLob(encryptedPasswordLob));
+
+        console.log(`Credenciales desencriptadas para ${serverName}`);
+
+        // Obtener rutas de backup
+        const backupRoutes = await getBackupRoutesByIPInternal(ip, connection);
+        console.log(`Rutas de backup obtenidas para ${serverName}:`, backupRoutes);
+
+        const backupPath = backupRoutes[0]?.backupPath;
+
+        if (!backupPath) {
+          throw new Error(`No se encontró ruta de backup para el servidor ${serverName}`);
+        }
+
+        console.log(`Obteniendo detalles de log para ${serverName} desde ${backupPath}`);
+
+        // Usar ipcRenderer para invocar get-log-details
+        const logDetails = await getLogDetailsLogic(backupPath, ip, port, decryptedUser, decryptedPassword, osType);
+
+        console.log(`Detalles de log obtenidos para ${serverName}:`, logDetails);
+
+        if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
+          console.log(`No se encontraron detalles de log para ${serverName}`);
+          results.push({
+            serverName,
+            ip,
+            error: 'No se encontraron detalles de log'
+          });
+          continue;
+        }
+
+        // Guardar los detalles en la base de datos
+        if (Array.isArray(logDetails)) {
+          for (const detail of logDetails) {
+            await saveLogToDatabase(
+              detail.logDetails,
+              detail.dumpFileInfo,
+              osType,
+              detail.logFileName,
+              ip,
+              backupPath
+            );
+          }
+        } else if (logDetails && logDetails.logDetails) {
+          await saveLogToDatabase(
+            logDetails.logDetails,
+            logDetails.dumpFileInfo,
+            osType,
+            logDetails.logFileName,
+            ip,
+            backupPath
+          );
+        }
+
+        results.push({
+          serverName,
+          ip,
+          logDetails
+        });
+
+      } catch (error) {
+        console.error(`Error procesando el servidor ${serverName}:`, error);
+        results.push({
+          serverName,
+          ip,
+          error: error.message
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error al procesar todos los servidores:", err);
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error al cerrar la conexión a la base de datos:", err);
+      }
+    }
+  }
+
+  return results;
+}
+  ipcMain.handle('process-all-servers', async (event) => {
+    try {
+      const results = await processAllServers();
+      return { success: true, results };
+    } catch (error) {
+      console.error('Error al procesar todos los servidores:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  
   async function getFolderSize(conn, directoryPath, os, sftp) {
     if (os === "solaris") {
       // Lógica para Solaris: Usar `du` para obtener el tamaño de todas las subcarpetas en un solo comando

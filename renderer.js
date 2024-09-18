@@ -1,3 +1,4 @@
+let gridApi = null;
 document.addEventListener("DOMContentLoaded", async () => {
   const currentPage = window.location.pathname;
   const backButton = document.getElementById("back-button");
@@ -14,6 +15,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const deleteServerBtn = document.getElementById("delete-server-btn");
   const backupRouteSelect = document.getElementById("backup-routes");
   //const tooltipError = document.createElement("div");
+  const processAllServersBtn = document.getElementById('process-all-servers-btn');
+  const gridContainer = document.getElementById('gridContainer');
+  const gridDiv = document.querySelector('#myGrid');
+ 
   
 
   let currentOS = ""; // Variable para el sistema operativo actual
@@ -366,7 +371,133 @@ document.addEventListener("DOMContentLoaded", async () => {
       return `${sizeInMB.toFixed(2)} MB`;
     }
   }
+  if (typeof agGrid === 'undefined' || typeof agGrid.createGrid === 'undefined') {
+    console.error('AG-Grid o createGrid no está definido. Verifica que el script se ha cargado correctamente y es la versión 31+.');
+    return;
+  }
+  if (gridDiv) {
+    console.log('Elemento del grid encontrado, inicializando...');
+    initGrid(gridDiv);
+  } else {
+    console.error('Elemento #myGrid no encontrado');
+  }
 
+  if (processAllServersBtn) {
+    processAllServersBtn.addEventListener('click', startProcessAllServers);
+  } else {
+    console.error('Botón process-all-servers-btn no encontrado');
+  }
+
+  function initGrid(gridDiv) {
+    const gridOptions = {
+      columnDefs: [
+        { headerName: "Servidor", field: "serverName", sortable: true, filter: true },
+        { headerName: "IP", field: "ip", sortable: true, filter: true },
+        { headerName: "Estado", field: "status", sortable: true, filter: true },
+        { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true },
+        { headerName: "Hora de Inicio", field: "startTime", sortable: true, filter: true },
+        { headerName: "Hora de Fin", field: "endTime", sortable: true, filter: true },
+        { headerName: "Duración", field: "duration", sortable: true, filter: true },
+        { headerName: "Tamaño Total DMP", field: "totalDmpSize", sortable: true, filter: true },
+        { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true }
+      ],
+      defaultColDef: {
+        flex: 1,
+        minWidth: 100,
+        resizable: true
+      },
+      rowData: [],
+      onGridReady: (params) => {
+        params.api.sizeColumnsToFit();
+      }
+    };
+  
+    try {
+      gridApi = agGrid.createGrid(gridDiv, gridOptions);
+      console.log('Grid inicializado correctamente');
+      window.addEventListener('resize', () => gridApi.sizeColumnsToFit());
+    } catch (error) {
+      console.error('Error al inicializar AG-Grid:', error);
+    }
+  }
+  
+  async function startProcessAllServers() {
+    console.log('Iniciando proceso de todos los servidores');
+    try {
+      showLoading();
+      const result = await window.electron.processAllServers();
+      hideLoading();
+  
+      if (result.success) {
+        // Mostrar el contenedor del grid
+        gridContainer.style.display = 'block';
+        
+        // Inicializar el grid si aún no se ha hecho
+        if (!gridApi) {
+          initGrid(gridDiv);
+        }
+        
+        displayAllServersResults(result.results);
+      } else {
+        console.error('Error al procesar los servidores:', result.error);
+        showErrorMessage('Error al procesar los servidores: ' + result.error);
+      }
+    } catch (error) {
+      hideLoading();
+      console.error('Error:', error);
+      showErrorMessage('Error: ' + error.message);
+    }
+  }
+  
+  function displayAllServersResults(results) {
+    console.log('Mostrando resultados de servidores:', results);
+    
+    if (gridApi && typeof gridApi.setRowData === 'function') {
+      const rowData = results.flatMap(serverResult => {
+        // Si el resultado es un array (para Solaris), lo expandimos
+        if (Array.isArray(serverResult.logDetails)) {
+          return serverResult.logDetails.map(logDetail => ({
+            serverName: serverResult.serverName,
+            ip: serverResult.ip,
+            status: logDetail.error ? 'Error' : (logDetail.logDetails?.success ? 'Éxito' : 'Fallo'),
+            logFileName: logDetail.logFileName || 'N/A',
+            startTime: logDetail.logDetails?.startTime || 'N/A',
+            endTime: logDetail.logDetails?.endTime || 'N/A',
+            duration: logDetail.logDetails?.duration || 'N/A',
+            totalDmpSize: logDetail.totalDmpSize ? `${logDetail.totalDmpSize} MB` : 'N/A',
+            totalFolderSize: logDetail.totalFolderSize || 'N/A'
+          }));
+        } else {
+          // Para otros sistemas operativos, mantenemos la estructura actual
+          const logDetails = serverResult.logDetails || {};
+          return [{
+            serverName: serverResult.serverName,
+            ip: serverResult.ip,
+            status: serverResult.error ? 'Error' : (logDetails.logDetails?.success ? 'Éxito' : 'Fallo'),
+            logFileName: logDetails.logFileName || 'N/A',
+            startTime: logDetails.logDetails?.startTime || 'N/A',
+            endTime: logDetails.logDetails?.endTime || 'N/A',
+            duration: logDetails.logDetails?.duration || 'N/A',
+            totalDmpSize: logDetails.totalDmpSize ? `${logDetails.totalDmpSize} MB` : 'N/A',
+            totalFolderSize: logDetails.totalFolderSize || 'N/A'
+          }];
+        }
+      });
+  
+      try {
+        gridApi.setRowData(rowData);
+        console.log('Datos cargados en el grid');
+      } catch (error) {
+        console.error('Error al cargar datos en el grid:', error);
+      }
+    } else {
+      console.warn('Grid API no disponible o setRowData no es una función');
+    }
+  }
+  function showErrorMessage(message) {
+    console.error('Error:', message);
+    alert(message);
+  }
   function addLogEntry(logData) {
     if (logEntriesContainer) {
       const entryDiv = document.createElement("div");
