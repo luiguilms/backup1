@@ -51,7 +51,8 @@ label {
   font-weight: 600;
 }
 select,
-select, input {
+select,
+input {
   width: 100%;
   padding: 12px;
   border: 1px solid #bdc3c7;
@@ -61,7 +62,8 @@ select, input {
   transition: border-color 0.3s ease;
   margin-bottom: 10px;
 }
-select:focus, input:focus {
+select:focus,
+input:focus {
   outline: none;
   border-color: #3498db;
 }

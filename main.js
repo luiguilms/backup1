@@ -79,355 +79,129 @@ app.whenReady().then(() => {
     });
   }
 
-  ipcMain.handle("get-log-details", async (event, { directoryPath, ip, port, username, password, targetOS }) => {
-    return await getLogDetailsLogic(directoryPath, ip, port, username, password, targetOS);
-  });
+  ipcMain.handle(
+    "get-log-details",
+    async (
+      event,
+      { directoryPath, ip, port, username, password, targetOS }
+    ) => {
+      return await getLogDetailsLogic(
+        directoryPath,
+        ip,
+        port,
+        username,
+        password,
+        targetOS
+      );
+    }
+  );
   // Función que encapsula la lógica de get-log-details
-async function getLogDetailsLogic(directoryPath, ip, port, username, password, targetOS) {
-  let allLogDetails = [];
-  // Obtener el nombre del servidor
-  const servers = await getServers(); // Usa la función que ya tienes
-      const server = servers.find(s => s.ip === ip);
-      const serverName = server ? server.name : "N/A";
+  async function getLogDetailsLogic(
+    directoryPath,
+    ip,
+    port,
+    username,
+    password,
+    targetOS
+  ) {
+    let allLogDetails = [];
+    // Obtener el nombre del servidor
+    const servers = await getServers(); // Usa la función que ya tienes
+    const server = servers.find((s) => s.ip === ip);
+    const serverName = server ? server.name : "N/A";
 
+    try {
+      console.log(`Fetching log details from directory: ${directoryPath}`);
 
-      try {
-        console.log(`Fetching log details from directory: ${directoryPath}`);
+      // Initialize SSH connection
+      const conn = await createSSHClient(ip, port, username, password);
+      // Initialize SFTP connection
+      const sftp = await new Promise((resolve, reject) => {
+        conn.sftp((err, sftp) => {
+          if (err) {
+            console.error("SFTP error:", err);
+            conn.end();
+            return reject(new Error(`SFTP error: ${err.message}`));
+          }
+          resolve(sftp);
+        });
+      });
+      // Llamada a getFolderSize para Solaris, Linux, y Windows
+      const folderSizes = await getFolderSize(
+        conn,
+        directoryPath,
+        targetOS,
+        sftp
+      );
+      console.log("Tamaños de las subcarpetas:", folderSizes);
 
-        // Initialize SSH connection
-        const conn = await createSSHClient(ip, port, username, password);
-        // Initialize SFTP connection
-        const sftp = await new Promise((resolve, reject) => {
-          conn.sftp((err, sftp) => {
+      if (targetOS === "solaris") {
+        // Asegurarse de que folderSizes sea un arreglo solo para Solaris
+        if (!Array.isArray(folderSizes)) {
+          throw new Error("folderSizes no es un arreglo válido para Solaris.");
+        }
+
+        const files = await new Promise((resolve, reject) => {
+          sftp.readdir(directoryPath, (err, files) => {
             if (err) {
-              console.error("SFTP error:", err);
+              console.error("Readdir error:", err);
+              sftp.end();
               conn.end();
-              return reject(new Error(`SFTP error: ${err.message}`));
+              return reject(
+                new Error(`Failed to read directory: ${err.message}`)
+              );
             }
-            resolve(sftp);
+            resolve(files);
           });
         });
-        // Llamada a getFolderSize para Solaris, Linux, y Windows
-        const folderSizes = await getFolderSize(
-          conn,
-          directoryPath,
-          targetOS,
-          sftp
-        );
-        console.log("Tamaños de las subcarpetas:", folderSizes);
 
-        if (targetOS === "solaris") {
-          // Asegurarse de que folderSizes sea un arreglo solo para Solaris
-          if (!Array.isArray(folderSizes)) {
-            throw new Error(
-              "folderSizes no es un arreglo válido para Solaris."
-            );
-          }
+        for (const file of files) {
+          if (file.attrs.isDirectory()) {
+            const subDirPath = joinPath(directoryPath, file.filename, targetOS);
 
-          const files = await new Promise((resolve, reject) => {
-            sftp.readdir(directoryPath, (err, files) => {
-              if (err) {
-                console.error("Readdir error:", err);
-                sftp.end();
-                conn.end();
-                return reject(
-                  new Error(`Failed to read directory: ${err.message}`)
-                );
-              }
-              resolve(files);
-            });
-          });
+            console.log(`Processing subdirectory: ${subDirPath}`);
 
-          for (const file of files) {
-            if (file.attrs.isDirectory()) {
-              const subDirPath = joinPath(
-                directoryPath,
-                file.filename,
-                targetOS
-              );
-
-              console.log(`Processing subdirectory: ${subDirPath}`);
-
-              const subDirFiles = await new Promise((resolve, reject) => {
-                sftp.readdir(subDirPath, (err, files) => {
-                  if (err) {
-                    console.error("Readdir error:", err);
-                    sftp.end();
-                    conn.end();
-                    return reject(
-                      new Error(`Failed to read subdirectory: ${err.message}`)
-                    );
-                  }
-                  resolve(files);
-                });
-              });
-              // Encuentra el tamaño del subdirectorio directamente desde folderSizes sin realizar comparaciones
-              const folderSizeInfo = folderSizes.find((folder) =>
-                folder.folderPath.includes(file.filename)
-              );
-              const totalFolderSize = folderSizeInfo
-                ? `${folderSizeInfo.sizeInMB} MB`
-                : "N/A";
-
-              console.log(
-                "Tamaño total de la carpeta (totalFolderSize):",
-                totalFolderSize
-              );
-
-              const logFiles = subDirFiles.filter(
-                (file) => path.extname(file.filename) === ".log"
-              );
-
-              let dumpFileInfo = []; // Reinicia para cada subdirectorio
-              let totalDmpSize = 0; // Reinicia para cada subdirectorio
-              let logDetails = null;
-              let logFileName = null;
-
-              for (const logFile of logFiles) {
-                logFileName = logFile.filename;
-                const logFilePath = joinPath(subDirPath, logFileName, targetOS);
-
-                console.log("Attempting to read log file:", logFilePath);
-
-                await new Promise((resolve, reject) => {
-                  sftp.stat(logFilePath, (err, stats) => {
-                    if (err) {
-                      console.error("Stat error:", err);
-                      sftp.end();
-                      conn.end();
-                      return reject(
-                        new Error(`Failed to stat log file: ${err.message}`)
-                      );
-                    }
-                    resolve(stats);
-                  });
-                });
-
-                const logData = await new Promise((resolve, reject) => {
-                  sftp.readFile(logFilePath, "utf8", (err, data) => {
-                    if (err) {
-                      console.error("ReadFile error:", err);
-                      sftp.end();
-                      conn.end();
-                      return reject(
-                        new Error(`Failed to read log file: ${err.message}`)
-                      );
-                    }
-                    resolve(data);
-                  });
-                });
-
-                logDetails = parseLogLine(logData);
-
-                const dumpFiles = subDirFiles.filter((file) =>
-                  [".DMP", ".dmp"].includes(
-                    path.extname(file.filename).toUpperCase()
-                  )
-                );
-
-                for (const dumpFile of dumpFiles) {
-                  const dumpFilePath = joinPath(
-                    subDirPath,
-                    dumpFile.filename,
-                    targetOS
+            const subDirFiles = await new Promise((resolve, reject) => {
+              sftp.readdir(subDirPath, (err, files) => {
+                if (err) {
+                  console.error("Readdir error:", err);
+                  sftp.end();
+                  conn.end();
+                  return reject(
+                    new Error(`Failed to read subdirectory: ${err.message}`)
                   );
-
-                  const dumpStats = await new Promise((resolve, reject) => {
-                    sftp.stat(dumpFilePath, (err, stats) => {
-                      if (err) {
-                        console.error("Stat error:", err);
-                        sftp.end();
-                        conn.end();
-                        return reject(
-                          new Error(`Failed to stat dump file: ${err.message}`)
-                        );
-                      }
-                      resolve(stats);
-                    });
-                  });
-
-                  const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
-                  totalDmpSize += dumpFileSizeInMB;
-
-                  dumpFileInfo.push({
-                    filePath: dumpFilePath,
-                    fileSize:
-                      dumpFileSizeInMB > 0
-                        ? parseFloat(dumpFileSizeInMB.toFixed(2))
-                        : 0,
-                  });
                 }
-              }
-
-              allLogDetails.push({
-                logDetails,
-                dumpFileInfo,
-                logFileName,
-                ip,
-                backupPath: subDirPath,
-                os: targetOS,
-                totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
-                totalFolderSize,
-                serverName: serverName,
+                resolve(files);
               });
-              // Añade este log para verificar el valor
-              console.log(
-                "Tamaño de la carpeta (totalFolderSize):",
-                totalFolderSize
-              );
-            }
-          }
-          return allLogDetails;
-        } else {
-          if (typeof folderSizes !== "number") {
-            throw new Error(
-              "folderSizes debe ser un número para Linux/Windows."
-            );
-          }
-          // Logic for other OS (Windows, Linux)
-          const files = await new Promise((resolve, reject) => {
-            sftp.readdir(directoryPath, (err, files) => {
-              if (err) {
-                console.error("Readdir error:", err);
-                sftp.end();
-                conn.end();
-                return reject(
-                  new Error(`Failed to read directory: ${err.message}`)
-                );
-              }
-              resolve(files);
             });
-          });
-        
-          // Check if there are subdirectories
-          const subdirectories = files.filter(file => file.attrs.isDirectory());
-        
-          if (subdirectories.length > 0) {
-            // Process each subdirectory
-            let allSubdirResults = [];
-            for (const subdir of subdirectories) {
-              const subDirPath = joinPath(directoryPath, subdir.filename, targetOS);
-              
-              // Read subdirectory contents
-              const subDirFiles = await new Promise((resolve, reject) => {
-                sftp.readdir(subDirPath, (err, files) => {
-                  if (err) {
-                    console.error("Readdir error:", err);
-                    return reject(new Error(`Failed to read subdirectory: ${err.message}`));
-                  }
-                  resolve(files);
-                });
-              });
-        
-              // Process log files in subdirectory
-              const logFiles = subDirFiles.filter(file => path.extname(file.filename) === ".log");
-              
-              if (logFiles.length > 0) {
-                const latestLogFile = logFiles.reduce((latest, file) =>
-                  file.attrs.mtime > latest.attrs.mtime ? file : latest
-                );
-                let logFileName = latestLogFile.filename;
-                const logFilePath = joinPath(subDirPath, logFileName, targetOS);
-        
-                console.log("Attempting to read log file:", logFilePath);
-        
-                await new Promise((resolve, reject) => {
-                  sftp.stat(logFilePath, (err, stats) => {
-                    if (err) {
-                      console.error("Stat error:", err);
-                      sftp.end();
-                      conn.end();
-                      return reject(
-                        new Error(`Failed to stat log file: ${err.message}`)
-                      );
-                    }
-                    resolve(stats);
-                  });
-                });
-        
-                const logData = await new Promise((resolve, reject) => {
-                  sftp.readFile(logFilePath, "utf8", (err, data) => {
-                    if (err) {
-                      console.error("ReadFile error:", err);
-                      sftp.end();
-                      conn.end();
-                      return reject(
-                        new Error(`Failed to read log file: ${err.message}`)
-                      );
-                    }
-                    resolve(data);
-                  });
-                });
-        
-                const logDetails = parseLogLine(logData);
-                let dumpFileInfo = [];
-                const dumpFiles = subDirFiles.filter((file) =>
-                  [".DMP", ".dmp"].includes(
-                    path.extname(file.filename).toUpperCase()
-                  )
-                );
-        
-                let totalDmpSize = 0;
-                for (const dumpFile of dumpFiles) {
-                  const dumpFilePath = joinPath(
-                    subDirPath,
-                    dumpFile.filename,
-                    targetOS
-                  );
-        
-                  const dumpStats = await new Promise((resolve, reject) => {
-                    sftp.stat(dumpFilePath, (err, stats) => {
-                      if (err) {
-                        console.error("Stat error:", err);
-                        sftp.end();
-                        conn.end();
-                        return reject(
-                          new Error(`Failed to stat dump file: ${err.message}`)
-                        );
-                      }
-                      resolve(stats);
-                    });
-                  });
-        
-                  const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
-                  totalDmpSize += dumpFileSizeInMB;
-        
-                  dumpFileInfo.push({
-                    filePath: dumpFilePath,
-                    fileSize:
-                      dumpFileSizeInMB > 0
-                        ? parseFloat(dumpFileSizeInMB.toFixed(2))
-                        : 0,
-                  });
-                }
-        
-                allSubdirResults.push({
-                  logDetails,
-                  dumpFileInfo,
-                  logFileName,
-                  ip,
-                  backupPath: subDirPath,
-                  os: targetOS,
-                  totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
-                  totalFolderSize: `${folderSizes} MB`,
-                  serverName: serverName,
-                });
-              }
-            }
-            return allSubdirResults;
-          } else {
-            // No subdirectories, process the main directory
-            const logFiles = files.filter(file => path.extname(file.filename) === ".log");
-            
-            if (logFiles.length > 0) {
-              const latestLogFile = logFiles.reduce((latest, file) =>
-                file.attrs.mtime > latest.attrs.mtime ? file : latest
-              );
-              let logFileName = latestLogFile.filename;
-              const logFilePath = joinPath(directoryPath, logFileName, targetOS);
-        
+            // Encuentra el tamaño del subdirectorio directamente desde folderSizes sin realizar comparaciones
+            const folderSizeInfo = folderSizes.find((folder) =>
+              folder.folderPath.includes(file.filename)
+            );
+            const totalFolderSize = folderSizeInfo
+              ? `${folderSizeInfo.sizeInMB} MB`
+              : "N/A";
+
+            console.log(
+              "Tamaño total de la carpeta (totalFolderSize):",
+              totalFolderSize
+            );
+
+            const logFiles = subDirFiles.filter(
+              (file) => path.extname(file.filename) === ".log"
+            );
+
+            let dumpFileInfo = []; // Reinicia para cada subdirectorio
+            let totalDmpSize = 0; // Reinicia para cada subdirectorio
+            let logDetails = null;
+            let logFileName = null;
+
+            for (const logFile of logFiles) {
+              logFileName = logFile.filename;
+              const logFilePath = joinPath(subDirPath, logFileName, targetOS);
+
               console.log("Attempting to read log file:", logFilePath);
-        
+
               await new Promise((resolve, reject) => {
                 sftp.stat(logFilePath, (err, stats) => {
                   if (err) {
@@ -441,7 +215,7 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
                   resolve(stats);
                 });
               });
-        
+
               const logData = await new Promise((resolve, reject) => {
                 sftp.readFile(logFilePath, "utf8", (err, data) => {
                   if (err) {
@@ -455,23 +229,22 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
                   resolve(data);
                 });
               });
-        
-              const logDetails = parseLogLine(logData);
-              let dumpFileInfo = [];
-              const dumpFiles = files.filter((file) =>
+
+              logDetails = parseLogLine(logData);
+
+              const dumpFiles = subDirFiles.filter((file) =>
                 [".DMP", ".dmp"].includes(
                   path.extname(file.filename).toUpperCase()
                 )
               );
-        
-              let totalDmpSize = 0;
+
               for (const dumpFile of dumpFiles) {
                 const dumpFilePath = joinPath(
-                  directoryPath,
+                  subDirPath,
                   dumpFile.filename,
                   targetOS
                 );
-        
+
                 const dumpStats = await new Promise((resolve, reject) => {
                   sftp.stat(dumpFilePath, (err, stats) => {
                     if (err) {
@@ -485,10 +258,10 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
                     resolve(stats);
                   });
                 });
-        
+
                 const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
                 totalDmpSize += dumpFileSizeInMB;
-        
+
                 dumpFileInfo.push({
                   filePath: dumpFilePath,
                   fileSize:
@@ -497,8 +270,257 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
                       : 0,
                 });
               }
-        
-              return [{
+            }
+
+            allLogDetails.push({
+              logDetails,
+              dumpFileInfo,
+              logFileName,
+              ip,
+              backupPath: subDirPath,
+              os: targetOS,
+              totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
+              totalFolderSize,
+              serverName: serverName,
+            });
+            // Añade este log para verificar el valor
+            console.log(
+              "Tamaño de la carpeta (totalFolderSize):",
+              totalFolderSize
+            );
+          }
+        }
+        return allLogDetails;
+      } else {
+        if (typeof folderSizes !== "number") {
+          throw new Error("folderSizes debe ser un número para Linux/Windows.");
+        }
+        // Logic for other OS (Windows, Linux)
+        const files = await new Promise((resolve, reject) => {
+          sftp.readdir(directoryPath, (err, files) => {
+            if (err) {
+              console.error("Readdir error:", err);
+              sftp.end();
+              conn.end();
+              return reject(
+                new Error(`Failed to read directory: ${err.message}`)
+              );
+            }
+            resolve(files);
+          });
+        });
+
+        // Check if there are subdirectories
+        const subdirectories = files.filter((file) => file.attrs.isDirectory());
+
+        if (subdirectories.length > 0) {
+          // Process each subdirectory
+          let allSubdirResults = [];
+          for (const subdir of subdirectories) {
+            const subDirPath = joinPath(
+              directoryPath,
+              subdir.filename,
+              targetOS
+            );
+
+            // Read subdirectory contents
+            const subDirFiles = await new Promise((resolve, reject) => {
+              sftp.readdir(subDirPath, (err, files) => {
+                if (err) {
+                  console.error("Readdir error:", err);
+                  return reject(
+                    new Error(`Failed to read subdirectory: ${err.message}`)
+                  );
+                }
+                resolve(files);
+              });
+            });
+
+            // Process log files in subdirectory
+            const logFiles = subDirFiles.filter(
+              (file) => path.extname(file.filename) === ".log"
+            );
+
+            if (logFiles.length > 0) {
+              const latestLogFile = logFiles.reduce((latest, file) =>
+                file.attrs.mtime > latest.attrs.mtime ? file : latest
+              );
+              let logFileName = latestLogFile.filename;
+              const logFilePath = joinPath(subDirPath, logFileName, targetOS);
+
+              console.log("Attempting to read log file:", logFilePath);
+
+              await new Promise((resolve, reject) => {
+                sftp.stat(logFilePath, (err, stats) => {
+                  if (err) {
+                    console.error("Stat error:", err);
+                    sftp.end();
+                    conn.end();
+                    return reject(
+                      new Error(`Failed to stat log file: ${err.message}`)
+                    );
+                  }
+                  resolve(stats);
+                });
+              });
+
+              const logData = await new Promise((resolve, reject) => {
+                sftp.readFile(logFilePath, "utf8", (err, data) => {
+                  if (err) {
+                    console.error("ReadFile error:", err);
+                    sftp.end();
+                    conn.end();
+                    return reject(
+                      new Error(`Failed to read log file: ${err.message}`)
+                    );
+                  }
+                  resolve(data);
+                });
+              });
+
+              const logDetails = parseLogLine(logData);
+              let dumpFileInfo = [];
+              const dumpFiles = subDirFiles.filter((file) =>
+                [".DMP", ".dmp"].includes(
+                  path.extname(file.filename).toUpperCase()
+                )
+              );
+
+              let totalDmpSize = 0;
+              for (const dumpFile of dumpFiles) {
+                const dumpFilePath = joinPath(
+                  subDirPath,
+                  dumpFile.filename,
+                  targetOS
+                );
+
+                const dumpStats = await new Promise((resolve, reject) => {
+                  sftp.stat(dumpFilePath, (err, stats) => {
+                    if (err) {
+                      console.error("Stat error:", err);
+                      sftp.end();
+                      conn.end();
+                      return reject(
+                        new Error(`Failed to stat dump file: ${err.message}`)
+                      );
+                    }
+                    resolve(stats);
+                  });
+                });
+
+                const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
+                totalDmpSize += dumpFileSizeInMB;
+
+                dumpFileInfo.push({
+                  filePath: dumpFilePath,
+                  fileSize:
+                    dumpFileSizeInMB > 0
+                      ? parseFloat(dumpFileSizeInMB.toFixed(2))
+                      : 0,
+                });
+              }
+
+              allSubdirResults.push({
+                logDetails,
+                dumpFileInfo,
+                logFileName,
+                ip,
+                backupPath: subDirPath,
+                os: targetOS,
+                totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
+                totalFolderSize: `${folderSizes} MB`,
+                serverName: serverName,
+              });
+            }
+          }
+          return allSubdirResults;
+        } else {
+          // No subdirectories, process the main directory
+          const logFiles = files.filter(
+            (file) => path.extname(file.filename) === ".log"
+          );
+
+          if (logFiles.length > 0) {
+            const latestLogFile = logFiles.reduce((latest, file) =>
+              file.attrs.mtime > latest.attrs.mtime ? file : latest
+            );
+            let logFileName = latestLogFile.filename;
+            const logFilePath = joinPath(directoryPath, logFileName, targetOS);
+
+            console.log("Attempting to read log file:", logFilePath);
+
+            await new Promise((resolve, reject) => {
+              sftp.stat(logFilePath, (err, stats) => {
+                if (err) {
+                  console.error("Stat error:", err);
+                  sftp.end();
+                  conn.end();
+                  return reject(
+                    new Error(`Failed to stat log file: ${err.message}`)
+                  );
+                }
+                resolve(stats);
+              });
+            });
+
+            const logData = await new Promise((resolve, reject) => {
+              sftp.readFile(logFilePath, "utf8", (err, data) => {
+                if (err) {
+                  console.error("ReadFile error:", err);
+                  sftp.end();
+                  conn.end();
+                  return reject(
+                    new Error(`Failed to read log file: ${err.message}`)
+                  );
+                }
+                resolve(data);
+              });
+            });
+
+            const logDetails = parseLogLine(logData);
+            let dumpFileInfo = [];
+            const dumpFiles = files.filter((file) =>
+              [".DMP", ".dmp"].includes(
+                path.extname(file.filename).toUpperCase()
+              )
+            );
+
+            let totalDmpSize = 0;
+            for (const dumpFile of dumpFiles) {
+              const dumpFilePath = joinPath(
+                directoryPath,
+                dumpFile.filename,
+                targetOS
+              );
+
+              const dumpStats = await new Promise((resolve, reject) => {
+                sftp.stat(dumpFilePath, (err, stats) => {
+                  if (err) {
+                    console.error("Stat error:", err);
+                    sftp.end();
+                    conn.end();
+                    return reject(
+                      new Error(`Failed to stat dump file: ${err.message}`)
+                    );
+                  }
+                  resolve(stats);
+                });
+              });
+
+              const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
+              totalDmpSize += dumpFileSizeInMB;
+
+              dumpFileInfo.push({
+                filePath: dumpFilePath,
+                fileSize:
+                  dumpFileSizeInMB > 0
+                    ? parseFloat(dumpFileSizeInMB.toFixed(2))
+                    : 0,
+              });
+            }
+
+            return [
+              {
                 logDetails,
                 dumpFileInfo,
                 logFileName,
@@ -508,19 +530,19 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
                 totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
                 totalFolderSize: `${folderSizes} MB`,
                 serverName: serverName,
-              }];
-            }
+              },
+            ];
           }
-        
-          sftp.end();
-          conn.end();
         }
-      } catch (error) {
-        console.error("Error fetching log details:", error);
-        return { logDetails: null, dumpFileInfo: null };
-  }
-}
 
+        sftp.end();
+        conn.end();
+      }
+    } catch (error) {
+      console.error("Error fetching log details:", error);
+      return { logDetails: null, dumpFileInfo: null };
+    }
+  }
 
   // Clave de encriptación (debe ser segura y almacenada en un lugar seguro)
   // Clave de encriptación (debe ser segura y almacenada en un lugar seguro)
@@ -646,7 +668,7 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
         password: "USRMONBK_2024",
         connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
       });
-  
+
       const result = await connection.execute(
         `SELECT ID, ServerName, IP, OS_Type, Port FROM ServerInfo`
       );
@@ -677,41 +699,41 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
   async function readLob(lob) {
     return new Promise((resolve, reject) => {
       let data = [];
-      lob.on('data', chunk => data.push(chunk));
-      lob.on('end', () => resolve(Buffer.concat(data)));
-      lob.on('error', err => reject(err));
+      lob.on("data", (chunk) => data.push(chunk));
+      lob.on("end", () => resolve(Buffer.concat(data)));
+      lob.on("error", (err) => reject(err));
     });
   }
-  
+
   function decrypt(encryptedData) {
     try {
       // Si encryptedData es un string, intentamos parsearlo como JSON
-      if (typeof encryptedData === 'string') {
+      if (typeof encryptedData === "string") {
         encryptedData = JSON.parse(encryptedData);
       }
-  
+
       // Si encryptedData es un objeto Buffer, lo convertimos a string
       if (Buffer.isBuffer(encryptedData)) {
         encryptedData = encryptedData.toString();
       }
-  
+
       // Ahora parseamos el JSON
       const data = JSON.parse(encryptedData);
-  
+
       // Verificamos que tenemos los datos necesarios
       if (!data.iv || !data.encryptedData) {
-        throw new Error('Formato de datos encriptados inválido');
+        throw new Error("Formato de datos encriptados inválido");
       }
-  
+
       let iv = Buffer.from(data.iv, "hex");
       let encryptedText = Buffer.from(data.encryptedData, "hex");
       let decipher = crypto.createDecipheriv("aes-256-cbc", encryptionKey, iv);
       let decrypted = decipher.update(encryptedText);
       decrypted = Buffer.concat([decrypted, decipher.final()]);
-  
+
       // Convertimos a string y eliminamos comillas adicionales
       let decryptedText = decrypted.toString().replace(/^"|"$/g, "");
-  
+
       // Intentamos parsear el resultado como JSON
       try {
         return JSON.parse(decryptedText);
@@ -720,11 +742,11 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
         return decryptedText;
       }
     } catch (error) {
-      console.error('Error al desencriptar:', error);
+      console.error("Error al desencriptar:", error);
       return null;
     }
   }
-  
+
   ipcMain.handle("get-server-details", async (event, serverId) => {
     let connection;
     try {
@@ -837,7 +859,7 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
   });
 
   ipcMain.handle(
-    "verify-credentials",//ACA ESTA DESENCRIPTADO
+    "verify-credentials", //ACA ESTA DESENCRIPTADO
     async (event, { ip, username, password }) => {
       let connection;
 
@@ -1032,17 +1054,22 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
         `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword 
          FROM ServerInfo`,
         [],
-        { fetchInfo: { EncryptedUser: { type: oracledb.STRING }, EncryptedPassword: { type: oracledb.STRING } } }
+        {
+          fetchInfo: {
+            EncryptedUser: { type: oracledb.STRING },
+            EncryptedPassword: { type: oracledb.STRING },
+          },
+        }
       );
-      
-      return result.rows.map(row => ({
+
+      return result.rows.map((row) => ({
         id: row[0],
         serverName: row[1],
         ip: row[2],
         os: row[3],
         port: row[4],
         encryptedUser: row[5],
-        encryptedPassword: row[6]
+        encryptedPassword: row[6],
       }));
     } catch (err) {
       console.error("Error al obtener los servidores:", err);
@@ -1058,158 +1085,180 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
     }
   }
   // Añade esta función para usar dentro de processAllServers
-async function getBackupRoutesByIPInternal(ip, connection) {
-  try {
-    const result = await connection.execute(
-      `SELECT br.BackupPath, si.OS_Type
+  async function getBackupRoutesByIPInternal(ip, connection) {
+    try {
+      const result = await connection.execute(
+        `SELECT br.BackupPath, si.OS_Type
        FROM BackupRoutes br
        JOIN ServerInfo si ON br.ServerID = si.ID
        WHERE si.IP = :ip`,
-      { ip: ip }
-    );
-    
-    console.log("Rutas obtenidas de la base de datos:", result.rows);
-    
-    return result.rows.map((row) => ({
-      backupPath: row[0],
-      os: row[1],
-    }));
-  } catch (error) {
-    console.error("Error al obtener las rutas de backup:", error);
-    return [];
+        { ip: ip }
+      );
+
+      console.log("Rutas obtenidas de la base de datos:", result.rows);
+
+      return result.rows.map((row) => ({
+        backupPath: row[0],
+        os: row[1],
+      }));
+    } catch (error) {
+      console.error("Error al obtener las rutas de backup:", error);
+      return [];
+    }
   }
-}
-  
 
-async function processAllServers() {
-  let connection;
-  let results = [];
+  async function processAllServers() {
+    let connection;
+    let results = [];
 
-  try {
-    connection = await oracledb.getConnection(dbConfig);
+    try {
+      connection = await oracledb.getConnection(dbConfig);
 
-    const serversResult = await connection.execute(
-      `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword FROM ServerInfo`
-    );
+      const serversResult = await connection.execute(
+        `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword FROM ServerInfo`
+      );
 
-    for (const row of serversResult.rows) {
-      const serverName = row[1];
-      const ip = row[2];
-      const osType = row[3];
-      const port = row[4];
-      const encryptedUserLob = row[5];
-      const encryptedPasswordLob = row[6];
+      for (const row of serversResult.rows) {
+        const serverName = row[1];
+        const ip = row[2];
+        const osType = row[3];
+        const port = row[4];
+        const encryptedUserLob = row[5];
+        const encryptedPasswordLob = row[6];
 
-      try {
-        console.log(`Procesando servidor: ${serverName} (${ip})`);
+        try {
+          console.log(`Procesando servidor: ${serverName} (${ip})`);
 
-        // Desencriptar credenciales
-        const decryptedUser = await decrypt(await readLob(encryptedUserLob));
-        const decryptedPassword = await decrypt(await readLob(encryptedPasswordLob));
+          // Desencriptar credenciales
+          const decryptedUser = await decrypt(await readLob(encryptedUserLob));
+          const decryptedPassword = await decrypt(
+            await readLob(encryptedPasswordLob)
+          );
 
-        console.log(`Credenciales desencriptadas para ${serverName}`);
+          console.log(`Credenciales desencriptadas para ${serverName}`);
 
-        // Obtener rutas de backup
-        const backupRoutes = await getBackupRoutesByIPInternal(ip, connection);
-        console.log(`Rutas de backup obtenidas para ${serverName}:`, backupRoutes);
-
-        const backupPath = backupRoutes[0]?.backupPath;
-
-        if (!backupPath) {
-          throw new Error(`No se encontró ruta de backup para el servidor ${serverName}`);
-        }
-
-        console.log(`Obteniendo detalles de log para ${serverName} desde ${backupPath}`);
-
-        // Usar ipcRenderer para invocar get-log-details
-        const logDetails = await getLogDetailsLogic(backupPath, ip, port, decryptedUser, decryptedPassword, osType);
-
-        console.log(`Detalles de log obtenidos para ${serverName}:`, logDetails);
-
-        if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
-          console.log(`No se encontraron detalles de log para ${serverName}`);
-          results.push({
-            serverName,
+          // Obtener rutas de backup
+          const backupRoutes = await getBackupRoutesByIPInternal(
             ip,
-            error: 'No se encontraron detalles de log'
-          });
-          continue;
-        }
+            connection
+          );
+          console.log(
+            `Rutas de backup obtenidas para ${serverName}:`,
+            backupRoutes
+          );
 
-        // Guardar los detalles en la base de datos
-        if (Array.isArray(logDetails)) {
-          for (const detail of logDetails) {
+          const backupPath = backupRoutes[0]?.backupPath;
+
+          if (!backupPath) {
+            throw new Error(
+              `No se encontró ruta de backup para el servidor ${serverName}`
+            );
+          }
+
+          console.log(
+            `Obteniendo detalles de log para ${serverName} desde ${backupPath}`
+          );
+
+          // Usar ipcRenderer para invocar get-log-details
+          const logDetails = await getLogDetailsLogic(
+            backupPath,
+            ip,
+            port,
+            decryptedUser,
+            decryptedPassword,
+            osType
+          );
+
+          console.log(
+            `Detalles de log obtenidos para ${serverName}:`,
+            logDetails
+          );
+
+          if (
+            !logDetails ||
+            (Array.isArray(logDetails) && logDetails.length === 0)
+          ) {
+            console.log(`No se encontraron detalles de log para ${serverName}`);
+            results.push({
+              serverName,
+              ip,
+              error: "No se encontraron detalles de log",
+            });
+            continue;
+          }
+
+          // Guardar los detalles en la base de datos
+          if (Array.isArray(logDetails)) {
+            for (const detail of logDetails) {
+              await saveLogToDatabase(
+                detail.logDetails,
+                detail.dumpFileInfo,
+                osType,
+                detail.logFileName,
+                ip,
+                backupPath
+              );
+            }
+          } else if (logDetails && logDetails.logDetails) {
             await saveLogToDatabase(
-              detail.logDetails,
-              detail.dumpFileInfo,
+              logDetails.logDetails,
+              logDetails.dumpFileInfo,
               osType,
-              detail.logFileName,
+              logDetails.logFileName,
               ip,
               backupPath
             );
           }
-        } else if (logDetails && logDetails.logDetails) {
-          await saveLogToDatabase(
-            logDetails.logDetails,
-            logDetails.dumpFileInfo,
-            osType,
-            logDetails.logFileName,
+
+          results.push({
+            serverName,
             ip,
-            backupPath
-          );
+            logDetails,
+          });
+        } catch (error) {
+          console.error(`Error procesando el servidor ${serverName}:`, error);
+          results.push({
+            serverName,
+            ip,
+            error: error.message,
+          });
         }
-
-        results.push({
-          serverName,
-          ip,
-          logDetails
-        });
-
-      } catch (error) {
-        console.error(`Error procesando el servidor ${serverName}:`, error);
-        results.push({
-          serverName,
-          ip,
-          error: error.message
-        });
+      }
+    } catch (err) {
+      console.error("Error al procesar todos los servidores:", err);
+    } finally {
+      if (connection) {
+        try {
+          await connection.close();
+        } catch (err) {
+          console.error("Error al cerrar la conexión a la base de datos:", err);
+        }
       }
     }
-  } catch (err) {
-    console.error("Error al procesar todos los servidores:", err);
-  } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
-        console.error("Error al cerrar la conexión a la base de datos:", err);
-      }
-    }
+
+    return results;
   }
-
-  return results;
-}
-  ipcMain.handle('process-all-servers', async (event) => {
+  ipcMain.handle("process-all-servers", async (event) => {
     try {
       const results = await processAllServers();
       return { success: true, results };
     } catch (error) {
-      console.error('Error al procesar todos los servidores:', error);
+      console.error("Error al procesar todos los servidores:", error);
       return { success: false, error: error.message };
     }
   });
-  
-  
+
   async function getFolderSize(conn, directoryPath, os, sftp) {
     if (os === "solaris") {
       // Lógica para Solaris: Usar `du` para obtener el tamaño de todas las subcarpetas en un solo comando
       const command = `du -sk ${directoryPath}/* | awk '{print $1/1024, $2}'`; // Cambiamos aquí el awk para que no incluya "MB"
       const output = await executeSSHCommand(conn, command);
       console.log("Salida del comando du:", output);
-  
+
       if (!output || output.trim() === "") {
         throw new Error("No se obtuvo salida del comando du");
       }
-  
+
       // Aquí ajustamos cómo se parsea la salida del comando `du`
       return output
         .trim()
@@ -1223,40 +1272,41 @@ async function processAllServers() {
             sizeInMB: parseFloat(sizeInMB).toFixed(2), // Formatear el tamaño a dos decimales
           };
         });
-      } else {
-        // Nueva lógica para Windows y Linux
-        async function calculateSize(path) {
-          let totalSize = 0;
-          const files = await new Promise((resolve, reject) => {
-            sftp.readdir(path, (err, fileList) => {
+    } else {
+      // Nueva lógica para Windows y Linux
+      async function calculateSize(path) {
+        let totalSize = 0;
+        const files = await new Promise((resolve, reject) => {
+          sftp.readdir(path, (err, fileList) => {
+            if (err) return reject(err);
+            resolve(fileList || []);
+          });
+        });
+
+        for (const file of files) {
+          const filePath =
+            path + (os === "windows" ? "\\" : "/") + file.filename;
+          const stats = await new Promise((resolve, reject) => {
+            sftp.stat(filePath, (err, stats) => {
               if (err) return reject(err);
-              resolve(fileList || []);
+              resolve(stats);
             });
           });
-    
-          for (const file of files) {
-            const filePath = path + (os === "windows" ? "\\" : "/") + file.filename;
-            const stats = await new Promise((resolve, reject) => {
-              sftp.stat(filePath, (err, stats) => {
-                if (err) return reject(err);
-                resolve(stats);
-              });
-            });
-    
-            if (stats.isDirectory()) {
-              totalSize += await calculateSize(filePath);
-            } else {
-              totalSize += stats.size;
-            }
+
+          if (stats.isDirectory()) {
+            totalSize += await calculateSize(filePath);
+          } else {
+            totalSize += stats.size;
           }
-    
-          return totalSize;
         }
-    
-        const totalSize = await calculateSize(directoryPath);
-        return parseFloat((totalSize / (1024 * 1024)).toFixed(2)); // Tamaño en MB
+
+        return totalSize;
       }
+
+      const totalSize = await calculateSize(directoryPath);
+      return parseFloat((totalSize / (1024 * 1024)).toFixed(2)); // Tamaño en MB
     }
+  }
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -1361,78 +1411,82 @@ function formatDateForOracle(date) {
     .replace(/(\d+)\/(\d+)\/(\d+),/, "$3-$1-$2");
 }
 
-  function parseLogLine(logContent) {
-    const oraErrorPattern = /ORA-\d{5}/g;
-    const oraSpecificErrorPattern = /ORA-39327/;
-    const successPattern = /successfully completed/i;
+function parseLogLine(logContent) {
+  const oraErrorPattern = /ORA-\d{5}/g;
+  const oraSpecificErrorPattern = /ORA-39327/;
+  const successPattern = /successfully completed/i;
 
-    const lines = logContent.split('\n');
-    let lastLine = lines[lines.length - 1].trim();
+  const lines = logContent.split("\n");
+  let lastLine = lines[lines.length - 1].trim();
 
-    // Si la última línea está vacía, busca la primera línea no vacía desde el final
-    while (lastLine === "" && lines.length > 1) {
-        lines.pop(); // Elimina la última línea vacía
-        lastLine = lines[lines.length - 1].trim();
-    }
-
-    console.log("Last line of log after handling empty lines:", lastLine); // Depuración
-
-    let backupStatus = "EN PROGRESO"; // Estado por defecto
-    
-    if (lastLine.toLowerCase().includes("completed")) {
-      backupStatus = "COMPLETED"; // Siempre establecer a "COMPLETED"
+  // Si la última línea está vacía, busca la primera línea no vacía desde el final
+  while (lastLine === "" && lines.length > 1) {
+    lines.pop(); // Elimina la última línea vacía
+    lastLine = lines[lines.length - 1].trim();
   }
 
-    const hasOraSpecificError = oraSpecificErrorPattern.test(logContent);
-    const hasSuccessMessage = successPattern.test(logContent);
+  console.log("Last line of log after handling empty lines:", lastLine); // Depuración
 
-    const isSuccess = hasOraSpecificError || hasSuccessMessage;
+  let backupStatus = "EN PROGRESO"; // Estado por defecto
 
-    const datePattern = /(\w{3} \w{3} \d{1,2} \d{2}:\d{2}:\d{2} \d{4})/g;
-    const datesMatch = logContent.match(datePattern);
+  if (lastLine.toLowerCase().includes("completed")) {
+    backupStatus = "COMPLETED"; // Siempre establecer a "COMPLETED"
+  }
 
-    let startDateTime = null;
-    let endDateTime = null;
+  const hasOraSpecificError = oraSpecificErrorPattern.test(logContent);
+  const hasSuccessMessage = successPattern.test(logContent);
 
-    if (datesMatch) {
-      if (datesMatch.length > 0) {
-        startDateTime = new Date(datesMatch[0]);
-      }
-      if (datesMatch.length > 1) {
-        endDateTime = new Date(datesMatch[datesMatch.length - 1]);
-      }
+  const isSuccess = hasOraSpecificError || hasSuccessMessage;
+
+  const datePattern = /(\w{3} \w{3} \d{1,2} \d{2}:\d{2}:\d{2} \d{4})/g;
+  const datesMatch = logContent.match(datePattern);
+
+  let startDateTime = null;
+  let endDateTime = null;
+
+  if (datesMatch) {
+    if (datesMatch.length > 0) {
+      startDateTime = new Date(datesMatch[0]);
     }
-
-    const durationPattern = /elapsed (\d{1,2} \d{2}:\d{2}:\d{2})/;
-    const durationMatch = logContent.match(durationPattern);
-    let duration = durationMatch ? durationMatch[1] : "N/A";
-
-    // Elimina el "0 " si la duración comienza con "0 "
-    if (duration.startsWith("0 ")) {
-      duration = duration.substring(2); // Elimina los primeros dos caracteres "0 "
+    if (datesMatch.length > 1) {
+      endDateTime = new Date(datesMatch[datesMatch.length - 1]);
     }
+  }
 
-    //console.log("Extracted Data:", { startDateTime, endDateTime, duration });
-    let oraError = null;
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].match(oraErrorPattern) && !lines[i].match(oraSpecificErrorPattern)) {
-        oraError = {
-          previousLine: i > 0 ? lines[i-1].trim() : '',
-          errorLine: lines[i].trim(),
-          nextLine: i < lines.length - 1 ? lines[i+1].trim() : ''
-        };
-        break;
-      }
-    }console.log("Last line of log:", lastLine);
-    console.log("Parsed backup status:", backupStatus);
-    return {
-      startTime: startDateTime ? formatDateForOracle(startDateTime) : null,
-      endTime: endDateTime ? formatDateForOracle(endDateTime) : null,
-      duration: duration !== "N/A" ? duration : null,
-      success: isSuccess ? 1 : 0,
-      oraError: oraError,
-      backupStatus: backupStatus
-    };
+  const durationPattern = /elapsed (\d{1,2} \d{2}:\d{2}:\d{2})/;
+  const durationMatch = logContent.match(durationPattern);
+  let duration = durationMatch ? durationMatch[1] : "N/A";
+
+  // Elimina el "0 " si la duración comienza con "0 "
+  if (duration.startsWith("0 ")) {
+    duration = duration.substring(2); // Elimina los primeros dos caracteres "0 "
+  }
+
+  //console.log("Extracted Data:", { startDateTime, endDateTime, duration });
+  let oraError = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (
+      lines[i].match(oraErrorPattern) &&
+      !lines[i].match(oraSpecificErrorPattern)
+    ) {
+      oraError = {
+        previousLine: i > 0 ? lines[i - 1].trim() : "",
+        errorLine: lines[i].trim(),
+        nextLine: i < lines.length - 1 ? lines[i + 1].trim() : "",
+      };
+      break;
+    }
+  }
+  console.log("Last line of log:", lastLine);
+  console.log("Parsed backup status:", backupStatus);
+  return {
+    startTime: startDateTime ? formatDateForOracle(startDateTime) : null,
+    endTime: endDateTime ? formatDateForOracle(endDateTime) : null,
+    duration: duration !== "N/A" ? duration : null,
+    success: isSuccess ? 1 : 0,
+    oraError: oraError,
+    backupStatus: backupStatus,
+  };
 }
 function formatFileSize(sizeInMB) {
   if (sizeInMB >= 1000) {
@@ -1455,9 +1509,12 @@ async function saveLogToDatabase(
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    const startTime = logDetails.startTime ? formatDateForOracle(logDetails.startTime) : null;
-    const endTime = logDetails.endTime ? formatDateForOracle(logDetails.endTime) : null;
-    
+    const startTime = logDetails.startTime
+      ? formatDateForOracle(logDetails.startTime)
+      : null;
+    const endTime = logDetails.endTime
+      ? formatDateForOracle(logDetails.endTime)
+      : null;
 
     // Convertir el tamaño de archivo
     let totalDmpSize = 0;

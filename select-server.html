@@ -1,23 +1,25 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Seleccionar Servidor</title>
-</head>
-<link rel="stylesheet" href="stylesSelect.css">
-<body>
-  <h1>Seleccionar Servidor para Editar</h1>
-  <div id="server-list"></div>
-  <button id="select-server-btn" disabled>Seleccionar</button>
-  <button id="delete-server-btn" disabled>Eliminar</button>
-  <!-- Botón para retroceder -->
-  <button id="back-button">Volver</button>
-  <script>
-    document.getElementById('back-button').addEventListener('click', function() {
-      window.location.href = 'index.html'; // Cambia 'index.html' por la página a la que quieras redirigir
-    });
-  </script>
-  <script src="renderer.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seleccionar Servidor</title>
+  </head>
+  <link rel="stylesheet" href="stylesSelect.css" />
+  <body>
+    <h1>Seleccionar Servidor para Editar</h1>
+    <div id="server-list"></div>
+    <button id="select-server-btn" disabled>Seleccionar</button>
+    <button id="delete-server-btn" disabled>Eliminar</button>
+    <!-- Botón para retroceder -->
+    <button id="back-button">Volver</button>
+    <script>
+      document
+        .getElementById("back-button")
+        .addEventListener("click", function () {
+          window.location.href = "index.html"; // Cambia 'index.html' por la página a la que quieras redirigir
+        });
+    </script>
+    <script src="renderer.js"></script>
+  </body>
 </html>
