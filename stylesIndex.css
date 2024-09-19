@@ -327,3 +327,15 @@ button:hover {
   padding: 15px; /* Ajustado para dar un poco más de espacio alrededor del botón */
   margin-top: 10px;
 }
+.status-failure {
+  background-color: #ffebee; /* Un rojo más suave */
+  color: #d32f2f; /* Un rojo más oscuro para el texto */
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  display: inline-block;
+  text-align: center;
+  width: 90%; /* Ajusta según necesites */
+  margin: 0 auto;
+}
+

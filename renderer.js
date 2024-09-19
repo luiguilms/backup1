@@ -383,9 +383,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     typeof agGrid === "undefined" ||
     typeof agGrid.createGrid === "undefined"
   ) {
-    console.error(
-      "AG-Grid o createGrid no está definido. Verifica que el script se ha cargado correctamente y es la versión 31+."
-    );
     return;
   }
   if (gridDiv) {
@@ -424,6 +421,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           sortable: true,
           filter: true,
           minWidth: 80,
+          cellRenderer: (params) => {
+            return `<div class="${params.data.statusClass}">${params.value}</div>`;
+          },
         },
         {
           headerName: "Archivo de Log",
@@ -503,7 +503,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       gridApi = agGrid.createGrid(gridDiv, gridOptions);
       console.log("Grid inicializado correctamente");
-      window.addEventListener("resize", () => gridApi.sizeColumnsToFit());
+      window.addEventListener("resize", () => {
+        if (gridApi) {
+          gridApi.sizeColumnsToFit();
+        }
+      });
     } catch (error) {
       console.error("Error al inicializar AG-Grid:", error);
     }
@@ -548,6 +552,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             : logDetail.logDetails?.success
             ? "Éxito"
             : "Fallo";
+          const statusClass = status === "Fallo" ? "status-failure" : 
+                    status === "Éxito" ? "status-success" : 
+                    "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
 
           const totalDmpSize = logDetail.dumpFileInfo.reduce(
@@ -575,6 +582,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             oraError: logDetail.logDetails?.oraError
               ? JSON.stringify(logDetail.logDetails.oraError)
               : null,
+              statusClass: statusClass, 
           };
         };
 
@@ -620,7 +628,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         gridApi.addEventListener("cellClicked", (params) => {
           if (
             params.column.colId === "status" &&
-            params.data.statusClass === "error-box"
+            params.data.status !== "Éxito"
           ) {
             const tooltipError =
               document.getElementById("tooltipError") ||
@@ -735,11 +743,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             <p><strong>Backup Path:</strong> ${
               logData.backupPath || "N/A"
             } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
-            <hr>
+            
         `;
-      if (logData.logDetails.oraError) {
-        entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
-      }
+        if (logData.logDetails.oraError) {
+          entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
+        }
+
+      const showLogButton = document.createElement("button");
+      showLogButton.textContent = "Ver grupos de control";
+      showLogButton.onclick = () =>
+        showLast10LinesModal(logData.logDetails.last10Lines);
+      entryDiv.appendChild(showLogButton);
+      // Añadir la línea divisoria después del botón
+      const hr = document.createElement("hr");
+      entryDiv.appendChild(hr);
+
+      
 
       logEntriesContainer.appendChild(entryDiv);
       if (resultDiv) resultDiv.style.display = "block";
@@ -793,6 +812,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       tooltipError = null;
     }
   };
+  function showLast10LinesModal(last10Lines) {
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    modal.innerHTML = `
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Grupos de control</h2>
+        <pre>${last10Lines.join("\n")}</pre>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeBtn = modal.querySelector(".close");
+    closeBtn.onclick = function () {
+      modal.style.display = "none";
+      document.body.removeChild(modal);
+    };
+
+    window.onclick = function (event) {
+      if (event.target == modal) {
+        modal.style.display = "none";
+        document.body.removeChild(modal);
+      }
+    };
+
+    modal.style.display = "block";
+  }
   const form = document.getElementById("server-form");
   if (form) {
     form.addEventListener("submit", async (event) => {

@@ -1410,11 +1410,16 @@ function formatDateForOracle(date) {
     })
     .replace(/(\d+)\/(\d+)\/(\d+),/, "$3-$1-$2");
 }
+function getLast10LogLines(logContent) {
+  const lines = logContent.trim().split('\n');
+  return lines.slice(-11, -1);  // Obtiene las últimas 11 líneas
+}
 
 function parseLogLine(logContent) {
   const oraErrorPattern = /ORA-\d{5}/g;
   const oraSpecificErrorPattern = /ORA-39327/;
   const successPattern = /successfully completed/i;
+  const last10Lines = getLast10LogLines(logContent);
 
   const lines = logContent.split("\n");
   let lastLine = lines[lines.length - 1].trim();
@@ -1486,6 +1491,7 @@ function parseLogLine(logContent) {
     success: isSuccess ? 1 : 0,
     oraError: oraError,
     backupStatus: backupStatus,
+    last10Lines: last10Lines  // Añadimos las últimas 11 líneas
   };
 }
 function formatFileSize(sizeInMB) {
