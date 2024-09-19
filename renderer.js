@@ -391,25 +391,34 @@ document.addEventListener("DOMContentLoaded", async () => {
   function initGrid(gridDiv) {
     const gridOptions = {
       columnDefs: [
-        { headerName: "Servidor", field: "serverName", sortable: true, filter: true },
-        { headerName: "IP", field: "ip", sortable: true, filter: true },
-        { headerName: "Estado", field: "status", sortable: true, filter: true },
-        { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true },
-        { headerName: "Hora de Inicio", field: "startTime", sortable: true, filter: true },
-        { headerName: "Hora de Fin", field: "endTime", sortable: true, filter: true },
-        { headerName: "Duración", field: "duration", sortable: true, filter: true },
-        { headerName: "Tamaño Total DMP", field: "totalDmpSize", sortable: true, filter: true },
-        { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true }
+        { headerName: "Servidor", field: "serverName", sortable: true, filter: true, minWidth: 120 },
+        { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 100 },
+        { headerName: "Estado", field: "status", sortable: true, filter: true, minWidth: 80 },
+        { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 150 },
+        { headerName: "Hora de Inicio", field: "startTime", sortable: true, filter: true, minWidth: 150 },
+        { headerName: "Hora de Fin", field: "endTime", sortable: true, filter: true,minWidth: 150 },
+        { headerName: "Duración", field: "duration", sortable: true, filter: true, minWidth: 100 },
+        { headerName: "Tamaño Total DMP", field: "totalDmpSize", sortable: true, filter: true, minWidth: 100 },
+        { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true, minWidth: 100 },
+        { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true, minWidth: 80 },
+        { headerName: "Ruta de Backup", field: "backupPath", sortable: true, filter: true, minWidth: 150 }
       ],
+      pagination: true, // Habilita la paginación
+      paginationPageSize: 10, // Número de filas por página
       defaultColDef: {
-        flex: 1,
-        minWidth: 100,
-        resizable: true
+        resizable: true,
+        sortable: true,
+        filter: true  // Asegúrate de que los filtros estén habilitados aquí
       },
       rowData: [],
       onGridReady: (params) => {
         params.api.sizeColumnsToFit();
-      }
+      },
+      domLayout: 'autoHeight',
+      onFirstDataRendered: (params) => {
+        params.api.autoSizeAllColumns();
+      },
+      //domLayout: 'autoWidht'
     };
   
     try {

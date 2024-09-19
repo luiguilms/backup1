@@ -1,6 +1,6 @@
 body {
-  font-family: Arial, sans-serif;
-  background-color: #f0f0f0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f0f4f8;
   margin: 0;
   padding: 20px;
   display: flex;
@@ -8,55 +8,76 @@ body {
   align-items: center;
   min-height: 100vh;
   position: relative;
+  box-sizing: border-box;
+}
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 600px;
+  width: 100%;
 }
 .card {
   background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   padding: 20px;
   width: 100%;
-  max-width: 600px;
+  box-sizing: border-box;
 }
 h1 {
   text-align: center;
-  color: #333;
+  color: #2c3e50;
+  margin-bottom: 30px;
+  font-size: 28px;
 }
 form {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 20px;
 }
 .form-row {
   display: flex;
-  gap: 10px;
+  gap: 15px;
+  margin-bottom: 15px;
 }
 .form-group {
   flex: 1;
 }
 label {
   display: block;
-  margin-bottom: 5px;
-  color: #666;
+  margin-bottom: 8px;
+  color: #34495e;
+  font-weight: 600;
 }
 select,
-input {
+select, input {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 6px;
   box-sizing: border-box;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+  margin-bottom: 10px;
+}
+select:focus, input:focus {
+  outline: none;
+  border-color: #3498db;
 }
 button {
-  background-color: #007bff;
+  background-color: #3498db;
   color: white;
   border: none;
-  padding: 10px;
-  border-radius: 4px;
+  padding: 14px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
 }
 button:hover {
-  background-color: #0056b3;
+  background-color: #2980b9;
 }
 #loading-overlay {
   position: fixed;
@@ -208,31 +229,31 @@ button:hover {
   padding: 5px;
   border-radius: 5px;
   font-weight: bold;
-  cursor: pointer;  /* Cambia el cursor a la forma de mano */
-  width: 100%;      /* Asegura que todo el campo sea clickeable */
+  cursor: pointer; /* Cambia el cursor a la forma de mano */
+  width: 100%; /* Asegura que todo el campo sea clickeable */
 }
 /* Estilos para la ventana flotante */
 .tooltip-error {
-    position: absolute;
-    background-color: rgba(255, 0, 0, 0.9);
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 14px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
-    display: none; /* Oculto por defecto */
+  position: absolute;
+  background-color: rgba(255, 0, 0, 0.9);
+  color: white;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  display: none; /* Oculto por defecto */
 }
 
 .tooltip-error::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 100%;
-    margin-left: 5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color: transparent transparent transparent rgba(255, 0, 0, 0.9);
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-left: 5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent rgba(255, 0, 0, 0.9);
 }
 .password-container {
   position: relative;
@@ -249,11 +270,58 @@ button:hover {
 
 .toggle-password {
   position: absolute;
-  top: 53.5%;
-  right: 10px;
+  top: 50%;
+  right: 12px;
   transform: translateY(-50%);
   cursor: pointer;
-  color: #007bff;
+  color: #7f8c8d;
   font-size: 18px;
 }
-
+#process-all-servers-btn {
+  background-color: #2ecc71;
+  margin-top: 1px;
+  width: 100%;
+  margin-bottom: 1px;
+  padding: 12px; /* Ajustado para dar más espacio dentro del botón */
+  font-size: 16px; /* Ajustado para asegurar que el texto se vea bien */
+}
+#process-all-servers-btn:hover {
+  background-color: #27ae60;
+}
+#gridContainer {
+  margin-top: 30px;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 30px;
+  width: 100%;
+  height: calc(100vh - 200px);
+}
+.grid-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 15px;
+}
+#myGrid {
+  width: 100%;
+  height: auto;
+}
+.ag-cell-wrapper {
+  word-break: break-word;
+}
+.ag-root-wrapper {
+  border: none !important;
+}
+/* Ocultar el scroll horizontal del cuerpo del grid */
+.ag-body-horizontal-scroll {
+  display: none !important;
+}
+.ag-cell {
+  white-space: normal;
+  line-height: 1.5em;
+}
+.process-button-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px; /* Ajustado para dar un poco más de espacio alrededor del botón */
+  margin-top: 10px;
+}

@@ -17,67 +17,65 @@
     />
   </head>
   <body>
-    <div class="card">
-      <h1>Conexión al Servidor</h1>
-      <form id="server-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="os">Sistema Operativo:</label>
-            <select id="os" name="os">
-              <option value="windows">Windows</option>
-              <option value="linux">Linux</option>
-              <option value="solaris">Solaris</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="ip">Dirección IP:</label>
-            <select id="ip" name="ip">
-              <!-- Las opciones de IP se llenarán dinámicamente -->
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="port">Puerto:</label>
-            <input type="text" id="port" name="port" value="22" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="backup-routes">Rutas de Backup:</label>
-          <select id="backup-routes" name="backup-routes">
-            <!-- Las rutas de backup se llenarán dinámicamente -->
-          </select>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="username">Usuario:</label>
-            <input type="text" id="username" name="username" required />
-          </div>
-          <div class="form-group">
-            <label for="password">Contraseña:</label>
-            <div class="password-container">
-              <input type="password" id="password" name="password" required />
-              <i class="far fa-eye toggle-password" id="togglePassword"></i>
+    <div class="container">
+      <div class="card">
+        <h1>Conexión al Servidor</h1>
+        <form id="server-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="os">Sistema Operativo:</label>
+              <select id="os" name="os">
+                <option value="windows">Windows</option>
+                <option value="linux">Linux</option>
+                <option value="solaris">Solaris</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ip">Dirección IP:</label>
+              <select id="ip" name="ip">
+                <!-- Las opciones de IP se llenarán dinámicamente -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="port">Puerto:</label>
+              <input type="text" id="port" name="port" value="22" />
             </div>
           </div>
-        </div>
 
-        <button type="submit">Conectar</button>
-      </form>
-    </div>
-    <div class="card">
-      <button id="process-all-servers-btn">
-        Procesar Todos los Servidores
-      </button>
-      <div
-        id="gridContainer"
-        style="display: none; height: calc(100vh - 200px)"
-      >
-        <div
-          id="myGrid"
-          class="ag-theme-alpine"
-          style="width: 100%; height: 100%"
-        ></div>
+          <div class="form-group">
+            <label for="backup-routes">Rutas de Backup:</label>
+            <select id="backup-routes" name="backup-routes">
+              <!-- Las rutas de backup se llenarán dinámicamente -->
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="username">Usuario:</label>
+              <input type="text" id="username" name="username" required />
+            </div>
+            <div class="form-group">
+              <label for="password">Contraseña:</label>
+              <div class="password-container">
+                <input type="password" id="password" name="password" required />
+                <i class="far fa-eye toggle-password" id="togglePassword"></i>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit">Conectar</button>
+        </form>
+      </div>
+      <div class="card process-button-card">
+        <button id="process-all-servers-btn">
+          Procesar Todos los Servidores
+        </button>
+      </div>
+        <div class="grid-wrapper">
+          <div id="gridContainer" style="display: none">
+            <div id="myGrid" class="ag-theme-alpine"></div>
+          </div>
+        </div>
       </div>
     </div>
 
