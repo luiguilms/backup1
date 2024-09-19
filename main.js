@@ -544,7 +544,6 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
 
   // Conexión a la base de datos y función para insertar servidor
   async function insertServerInfo(
-    id,
     ip,
     osType,
     port,
@@ -563,10 +562,9 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
 
       // Insertar datos en la base de datos, incluyendo un ID definido
       const result = await connection.execute(
-        `INSERT INTO ServerInfo (ID, IP, OS_Type, Port, EncryptedUser, EncryptedPassword, ServerName)
-       VALUES (:id, :ip, :osType, :port, :encryptedUser, :encryptedPassword, :serverName)`,
+        `INSERT INTO ServerInfo (IP, OS_Type, Port, EncryptedUser, EncryptedPassword, ServerName)
+       VALUES (:ip, :osType, :port, :encryptedUser, :encryptedPassword, :serverName)`,
         {
-          id: id, // Aquí el ID es pasado manualmente
           ip: ip,
           osType: osType,
           port: port,
@@ -594,7 +592,7 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
 
   // Modificación en el manejo del IPC para agregar un servidor con ID
   ipcMain.handle("add-server", async (event, serverData) => {
-    const { serverName, ip, os, port, username, password, id } = serverData;
+    const { serverName, ip, os, port, username, password } = serverData;
 
     try {
       console.log(`Agregando servidor: ${serverName}, IP: ${ip}, OS: ${os}`);
@@ -603,7 +601,6 @@ async function getLogDetailsLogic(directoryPath, ip, port, username, password, t
 
       // Pasamos el ID manualmente al insertar el servidor
       await insertServerInfo(
-        id,
         ip,
         os,
         port,

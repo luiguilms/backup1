@@ -235,7 +235,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         event.preventDefault();
 
         const serverData = {
-          id: document.getElementById("server-id").value,
           serverName: document.getElementById("server-name").value,
           ip: document.getElementById("ip").value,
           os: document.getElementById("os").value,
