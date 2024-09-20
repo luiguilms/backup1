@@ -482,11 +482,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           minWidth: 150,
         },
         {
-          headerName: "Últimas 10 líneas",
+          headerName: "Grupo de control",
           field: "last10Lines",
           cellRenderer: params => {
             const button = document.createElement('button');
-            button.innerHTML = 'Ver log';
+            button.innerHTML = 'Ver';
             button.style.border = '1px solid red'; // Para ver si el botón está siendo renderizado
             button.addEventListener('click', () => {
               showLast10LinesModal(params.data.last10Lines);
@@ -705,28 +705,28 @@ document.addEventListener("DOMContentLoaded", async () => {
       const backupStatus = logData.logDetails.backupStatus || "N/A";
 
       entryDiv.innerHTML = `
-            <p><strong>Server IP:</strong> ${
+            <p><strong>IP:</strong> ${
               logData.ip
-            }<strong> Server Name:</strong> ${serverName}</p>
-            <p><strong>Start Time:</strong> ${
+            }<strong> Nombre del servidor:</strong> ${serverName}</p>
+            <p><strong>Tiempo de inicio:</strong> ${
               logData.logDetails.startTime || "N/A"
             }</p>
-            <p><strong>End Time:</strong> ${
+            <p><strong>Tiempo de fin:</strong> ${
               logData.logDetails.endTime || "N/A"
             }</p>
-            <p><strong>Backup Status:</strong> ${backupStatus}</p>
-            <p><strong>Duration:</strong> ${
+            <p><strong>Estado del backup:</strong> ${backupStatus}</p>
+            <p><strong>Duración:</strong> ${
               logData.logDetails.duration || "N/A"
             }</p>
             <!-- Aplica la clase 'error' al párrafo si success es No -->
-            <p class="${successClass}"><strong>Success:</strong> ${
+            <p class="${successClass}"><strong>Exitoso?:</strong> ${
         logData.logDetails.success ? "Yes" : "No"
       }</p>
-            <p><strong>Total Dump File Size:</strong> ${formattedDmpSize}</p> <!-- Aquí -->
-            <p><strong>Log File Name:</strong> ${
+            <p><strong>Peso total de archivo .dmp:</strong> ${formattedDmpSize}</p> <!-- Aquí -->
+            <p><strong>Nombre del archivo .log:</strong> ${
               logData.logFileName || "N/A"
             }</p>
-            <p><strong>Backup Path:</strong> ${
+            <p><strong>Ruta del backup:</strong> ${
               logData.backupPath || "N/A"
             } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
             
