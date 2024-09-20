@@ -335,7 +335,6 @@ button:hover {
   border-radius: 4px;
   font-weight: bold;
   display: inline-block;
-  text-align: center;
   width: 90%; /* Ajusta según necesites */
   margin: 0 auto;
 }

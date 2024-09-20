@@ -43,6 +43,8 @@ function createWindow() {
     },
   });
 
+  mainWindow.setIcon(`${__dirname}/respaldo.png`);
+
   mainWindow.maximize(); // Maximiza la ventana
   mainWindow.loadFile("index.html");
 }

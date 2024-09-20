@@ -481,6 +481,20 @@ document.addEventListener("DOMContentLoaded", async () => {
           filter: true,
           minWidth: 150,
         },
+        {
+          headerName: "Últimas 10 líneas",
+          field: "last10Lines",
+          cellRenderer: params => {
+            const button = document.createElement('button');
+            button.innerHTML = 'Ver log';
+            button.style.border = '1px solid red'; // Para ver si el botón está siendo renderizado
+            button.addEventListener('click', () => {
+              showLast10LinesModal(params.data.last10Lines);
+            });
+            return button;
+          },
+          minwidth: 120,
+        }
       ],
       pagination: true, // Habilita la paginación
       paginationPageSize: 10, // Número de filas por página
@@ -583,6 +597,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               ? JSON.stringify(logDetail.logDetails.oraError)
               : null,
               statusClass: statusClass, 
+            last10Lines: logDetail.logDetails?.last10Lines || [],
           };
         };
 
@@ -594,33 +609,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           return [processLogDetail(serverResult.logDetails || {})];
         }
       });
-
-      try {
-        gridApi.setRowData(rowData);
-        console.log("Datos cargados en el grid");
-
-        // Configurar las columnas del grid
-        const columnDefs = [
-          { field: "serverName", headerName: "Server Name" },
-          { field: "ip", headerName: "IP" },
-          {
-            field: "status",
-            headerName: "Status",
-            cellRenderer: (params) => {
-              return `<div class="${params.data.statusClass}">${params.value}</div>`;
-            },
-          },
-          { field: "logFileName", headerName: "Log File Name" },
-          { field: "startTime", headerName: "Start Time" },
-          { field: "endTime", headerName: "End Time" },
-          { field: "duration", headerName: "Duration" },
-          { field: "totalDmpSize", headerName: "Total Dump Size" },
-          { field: "totalFolderSize", headerName: "Total Folder Size" },
-          { field: "backupStatus", headerName: "Backup Status" },
-          { field: "backupPath", headerName: "Backup Path" },
-        ];
-
-        gridApi.setColumnDefs(columnDefs);
 
         let tooltipVisible = false;
 
@@ -679,9 +667,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             tooltipVisible = false;
           }
         });
-      } catch (error) {
-        console.error("Error al cargar datos en el grid:", error);
-      }
+        gridApi.setRowData(rowData);
     } else {
       console.warn("Grid API no disponible o setRowData no es una función");
     }
@@ -827,7 +813,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <div class="modal-content">
         <span class="close">&times;</span>
         <h2>Grupos de control</h2>
-        <pre>${last10Lines.join("\n")}</pre>
+        <pre>${Array.isArray(last10Lines) ? last10Lines.join('\n') : last10Lines}</pre>
       </div>
     `;
 
