@@ -748,6 +748,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (logData.logDetails.oraError) {
           entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
         }
+        document.getElementById('close-result').addEventListener('click', function() {
+          const resultDiv = document.getElementById('result');
+          if (resultDiv) {
+            resultDiv.style.display = 'none'; // Oculta el div por completo
+          }
+        });
 
       const showLogButton = document.createElement("button");
       showLogButton.textContent = "Ver grupos de control";
@@ -812,6 +818,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       tooltipError = null;
     }
   };
+  
+  
   function showLast10LinesModal(last10Lines) {
     const modal = document.createElement("div");
     modal.className = "modal";
