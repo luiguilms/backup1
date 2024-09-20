@@ -173,6 +173,7 @@ button:hover {
   font-size: 16px;
   color: #333;
   display: none; /* Ocultar inicialmente */
+  padding-top: -155px;
 }
 
 #result h2 {
@@ -272,11 +273,11 @@ button:hover {
 
 .toggle-password {
   position: absolute;
-  top: 50%;
+  top: 22px;
   right: 12px;
   transform: translateY(-50%);
   cursor: pointer;
-  color: #7f8c8d;
+  color: #827f8d;
   font-size: 18px;
 }
 #process-all-servers-btn {
