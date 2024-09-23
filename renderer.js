@@ -1,6 +1,7 @@
 let gridApi = null;
 document.addEventListener("DOMContentLoaded", async () => {
   const currentPage = window.location.pathname;
+  const currentPath = window.location.pathname;
   const backButton = document.getElementById("back-button");
   //console.log("Current Page Path:", currentPage);
 
@@ -14,6 +15,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selectServerBtn = document.getElementById("select-server-btn");
   const deleteServerBtn = document.getElementById("delete-server-btn");
   const backupRouteSelect = document.getElementById("backup-routes");
+  // Verifica si estamos en la página index.html
+  if (currentPath.endsWith('index.html') || currentPath === '/') {
+    createStatsButton();
+}
+function createStatsButton() {
+  const statsButton = document.createElement('button');
+  statsButton.textContent = 'Mostrar Estadísticas';
+  statsButton.id = 'showStatsButton'; // Añadimos un ID para fácil referencia
+  statsButton.onclick = showStatistics;
+  
+  // Determina dónde quieres colocar el botón
+  const targetElement = document.querySelector('#some-container-id') || document.body;
+  targetElement.appendChild(statsButton);
+  
+  console.log('Botón de estadísticas creado en index.html');
+}
   //const tooltipError = document.createElement("div");
   const processAllServersBtn = document.getElementById(
     "process-all-servers-btn"
@@ -833,6 +850,157 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     modal.style.display = "block";
   }
+  // Añade esto al principio de tu renderer.js o donde sea apropiado
+  let statisticsModal = null;
+
+  function createStatisticsModal() {
+      if (statisticsModal) {
+          console.log('Modal de estadísticas ya existe');
+          return;
+      }
+  
+      const modalHTML = `
+          <div id="statisticsModal" class="modal">
+              <div class="modal-content">
+                  <span class="close">&times;</span>
+                  <h2>Estadísticas de Backups</h2>
+                  <div id="statisticsContent">
+                      <p>Total de backups: <span id="totalBackups"></span></p>
+                      <p>Backups exitosos: <span id="successfulBackups"></span></p>
+                      <p>Duración promedio: <span id="avgDuration"></span> minutos</p>
+                      <p>Servidores únicos: <span id="uniqueServers"></span></p>
+                      <p>IPs únicas: <span id="uniqueIPs"></span></p>
+                      <p>Fecha del último backup: <span id="lastBackupDate"></span></p>
+                  </div>
+              </div>
+          </div>
+      `;
+  
+      const modalStyles = `
+          <style>
+              .modal {
+                  display: none;
+                  position: fixed;
+                  z-index: 1;
+                  left: 0;
+                  top: 0;
+                  width: 100%;
+                  height: 100%;
+                  overflow: auto;
+                  background-color: rgba(0,0,0,0.4);
+              }
+              .modal-content {
+                  background-color: #fefefe;
+                  margin: 15% auto;
+                  padding: 20px;
+                  border: 1px solid #888;
+                  width: 80%;
+                  max-width: 600px;
+              }
+              .close {
+                  color: #aaa;
+                  float: right;
+                  font-size: 28px;
+                  font-weight: bold;
+                  cursor: pointer;
+              }
+              .close:hover,
+              .close:focus {
+                  color: black;
+                  text-decoration: none;
+                  cursor: pointer;
+              }
+          </style>
+      `;
+  
+      // Insertar estilos
+      const styleElement = document.createElement('style');
+      styleElement.innerHTML = modalStyles;
+      document.head.appendChild(styleElement);
+  
+      // Insertar HTML del modal
+      const modalElement = document.createElement('div');
+      modalElement.innerHTML = modalHTML;
+      document.body.appendChild(modalElement.firstElementChild);
+  
+      statisticsModal = document.getElementById('statisticsModal');
+      console.log('Modal de estadísticas creado');
+  }
+  
+
+  async function showStatistics() {
+    try {
+        if (!statisticsModal) {
+            console.log('Creando modal de estadísticas');
+            createStatisticsModal();
+        }
+
+        if (!statisticsModal) {
+            console.error('No se pudo crear el modal de estadísticas');
+            alert('Error al mostrar las estadísticas. Por favor, intenta de nuevo.');
+            return;
+        }
+
+        const stats = await window.electron.getBackupStatistics();
+        console.log('Estadísticas recibidas:', stats);
+
+        const formatValue = (value, formatter) => {
+            if (value === null || value === undefined || isNaN(value)) {
+                return 'N/A';
+            }
+            return formatter(value);
+        };
+
+        const safelyUpdateContent = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            } else {
+                console.warn(`Elemento con id '${id}' no encontrado`);
+            }
+        };
+
+        // Mapeo de índices del array a nombres de estadísticas
+        const [
+            totalBackups,
+            successfulBackups,
+            avgDurationSeconds,
+            uniqueServers,
+            uniqueIPs,
+            lastBackupDate
+        ] = stats;
+
+        safelyUpdateContent('totalBackups', formatValue(totalBackups, v => v.toString()));
+        safelyUpdateContent('successfulBackups', `${formatValue(successfulBackups, v => v.toString())} (${formatValue(successfulBackups / totalBackups, v => (v * 100).toFixed(2))}%)`);
+        safelyUpdateContent('avgDuration', formatValue(avgDurationSeconds, v => (v / 60).toFixed(2)));
+        safelyUpdateContent('uniqueServers', formatValue(uniqueServers, v => v.toString()));
+        safelyUpdateContent('uniqueIPs', formatValue(uniqueIPs, v => v.toString()));
+        safelyUpdateContent('lastBackupDate', formatValue(lastBackupDate, v => new Date(v).toLocaleString()));
+
+        statisticsModal.style.display = 'block';
+        
+        // Configurar el cierre del modal
+        const closeBtn = statisticsModal.querySelector('.close');
+        if (closeBtn) {
+            closeBtn.onclick = function() {
+                statisticsModal.style.display = 'none';
+            }
+        } else {
+            console.warn('Botón de cierre no encontrado en el modal');
+        }
+        
+        window.onclick = function(event) {
+            if (event.target == statisticsModal) {
+                statisticsModal.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error al obtener o mostrar estadísticas:', error);
+        alert('Error al obtener o mostrar estadísticas. Por favor, revisa la consola para más detalles.');
+    }
+}
+
+    
   const form = document.getElementById("server-form");
   if (form) {
     form.addEventListener("submit", async (event) => {

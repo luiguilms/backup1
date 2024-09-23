@@ -1510,6 +1510,53 @@ function formatFileSize(sizeInMB) {
     return `${sizeInMB} MB`;
   }
 }
+// En main.js, actualiza la función getBackupStatistics
+async function getBackupStatistics() {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(`
+      SELECT 
+        COUNT(*) as total_backups,
+        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_backups,
+        AVG(CASE 
+          WHEN horaFIN IS NOT NULL AND horaINI IS NOT NULL 
+          THEN (CAST(horaFIN AS DATE) - CAST(horaINI AS DATE)) * 24 * 60 * 60 
+          ELSE NULL 
+        END) as avg_duration_seconds,
+        COUNT(DISTINCT serverName) as unique_servers,
+        COUNT(DISTINCT ip) as unique_ips,
+        MAX(horaINI) as last_backup_date
+      FROM LogBackup
+    `);
+    
+    return result.rows[0];
+  } catch (err) {
+    console.error('Error obteniendo estadísticas:', err);
+    throw err;
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error al cerrar la conexión:', err);
+      }
+    }
+  }
+}
+
+// El resto del código (manejador IPC, etc.) permanece igual
+
+// Añade este manejador de IPC
+ipcMain.handle('get-backup-statistics', async (event) => {
+  try {
+    const stats = await getBackupStatistics();
+    return stats;
+  } catch (error) {
+    console.error('Error al obtener estadísticas:', error);
+    throw error;
+  }
+});
 async function saveLogToDatabase(
   logDetails,
   dumpFileInfo,
