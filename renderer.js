@@ -16,21 +16,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   const deleteServerBtn = document.getElementById("delete-server-btn");
   const backupRouteSelect = document.getElementById("backup-routes");
   // Verifica si estamos en la página index.html
-  if (currentPath.endsWith('index.html') || currentPath === '/') {
+  if (currentPath.endsWith("index.html") || currentPath === "/") {
     createStatsButton();
-}
-function createStatsButton() {
-  const statsButton = document.createElement('button');
-  statsButton.textContent = 'Mostrar Estadísticas';
-  statsButton.id = 'showStatsButton'; // Añadimos un ID para fácil referencia
-  statsButton.onclick = showStatistics;
-  
-  // Determina dónde quieres colocar el botón
-  const targetElement = document.querySelector('#some-container-id') || document.body;
-  targetElement.appendChild(statsButton);
-  
-  console.log('Botón de estadísticas creado en index.html');
-}
+  }
+  function createStatsButton() {
+    const statsButton = document.createElement("button");
+    statsButton.textContent = "Mostrar Estadísticas";
+    statsButton.id = "showStatsButton";
+    statsButton.onclick = showStatistics;
+
+    const topBar = document.createElement("div");
+    topBar.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: #f8f9fa;
+    padding: 10px;
+    text-align: right;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+  `;
+    topBar.appendChild(statsButton);
+
+    document.body.insertBefore(topBar, document.body.firstChild);
+    document.body.style.marginTop = "50px"; // Ajusta este valor según sea necesario
+  }
   //const tooltipError = document.createElement("div");
   const processAllServersBtn = document.getElementById(
     "process-all-servers-btn"
@@ -51,7 +62,7 @@ function createStatsButton() {
     }
 
     try {
-     // console.log(`Obteniendo rutas de backup para la IP: ${selectedIP}`);
+      // console.log(`Obteniendo rutas de backup para la IP: ${selectedIP}`);
 
       // Llamar a la función del main process para obtener las rutas de backup
       const backupRoutes = await window.electron.getBackupRoutesByIP(
@@ -501,16 +512,16 @@ function createStatsButton() {
         {
           headerName: "Grupo de control",
           field: "last10Lines",
-          cellRenderer: params => {
-            const button = document.createElement('button');
-            button.innerHTML = 'Ver';
-            button.addEventListener('click', () => {
+          cellRenderer: (params) => {
+            const button = document.createElement("button");
+            button.innerHTML = "Ver";
+            button.addEventListener("click", () => {
               showLast10LinesModal(params.data.last10Lines);
             });
             return button;
           },
           minwidth: 120,
-        }
+        },
       ],
       pagination: true, // Habilita la paginación
       paginationPageSize: 10, // Número de filas por página
@@ -582,9 +593,12 @@ function createStatsButton() {
             : logDetail.logDetails?.success
             ? "Éxito"
             : "Fallo";
-          const statusClass = status === "Fallo" ? "status-failure" : 
-                    status === "Éxito" ? "status-success" : 
-                    "status-error";
+          const statusClass =
+            status === "Fallo"
+              ? "status-failure"
+              : status === "Éxito"
+              ? "status-success"
+              : "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
 
           const totalDmpSize = logDetail.dumpFileInfo.reduce(
@@ -612,7 +626,7 @@ function createStatsButton() {
             oraError: logDetail.logDetails?.oraError
               ? JSON.stringify(logDetail.logDetails.oraError)
               : null,
-              statusClass: statusClass, 
+            statusClass: statusClass,
             last10Lines: logDetail.logDetails?.last10Lines || [],
           };
         };
@@ -626,64 +640,64 @@ function createStatsButton() {
         }
       });
 
-        let tooltipVisible = false;
+      let tooltipVisible = false;
 
-        // Configurar el evento de clic en celda para mostrar el tooltip de error
-        gridApi.addEventListener("cellClicked", (params) => {
-          if (
-            params.column.colId === "status" &&
-            params.data.status !== "Éxito"
-          ) {
-            const tooltipError =
-              document.getElementById("tooltipError") ||
-              (() => {
-                const div = document.createElement("div");
-                div.id = "tooltipError";
-                div.classList.add("tooltip-error");
-                document.body.appendChild(div);
-                return div;
-              })();
+      // Configurar el evento de clic en celda para mostrar el tooltip de error
+      gridApi.addEventListener("cellClicked", (params) => {
+        if (
+          params.column.colId === "status" &&
+          params.data.status !== "Éxito"
+        ) {
+          const tooltipError =
+            document.getElementById("tooltipError") ||
+            (() => {
+              const div = document.createElement("div");
+              div.id = "tooltipError";
+              div.classList.add("tooltip-error");
+              document.body.appendChild(div);
+              return div;
+            })();
 
-            if (tooltipVisible) {
-              tooltipError.style.display = "none";
-              tooltipVisible = false;
-              return;
-            }
+          if (tooltipVisible) {
+            tooltipError.style.display = "none";
+            tooltipVisible = false;
+            return;
+          }
 
-            if (params.data.oraError) {
-              const oraError = JSON.parse(params.data.oraError);
-              tooltipError.innerHTML = `
+          if (params.data.oraError) {
+            const oraError = JSON.parse(params.data.oraError);
+            tooltipError.innerHTML = `
                             <p><strong>Error ORA encontrado:</strong></p>
                             <p>${oraError.previousLine}</p>
                             <p><strong>${oraError.errorLine}</strong></p>
                             <p>${oraError.nextLine}</p>
                         `;
-            } else {
-              tooltipError.textContent =
-                "No se encontraron detalles específicos del error.";
-            }
-
-            const rect = params.event.target.getBoundingClientRect();
-            tooltipError.style.top = `${rect.top + window.scrollY}px`;
-            tooltipError.style.left = `${rect.right + 10}px`;
-            tooltipError.style.display = "block";
-            tooltipVisible = true;
+          } else {
+            tooltipError.textContent =
+              "No se encontraron detalles específicos del error.";
           }
-        });
 
-        // Agregar evento para ocultar el tooltip al hacer clic en cualquier lugar
-        document.addEventListener("click", (event) => {
-          const tooltipError = document.getElementById("tooltipError");
-          if (
-            tooltipError &&
-            tooltipVisible &&
-            !tooltipError.contains(event.target)
-          ) {
-            tooltipError.style.display = "none";
-            tooltipVisible = false;
-          }
-        });
-        gridApi.setRowData(rowData);
+          const rect = params.event.target.getBoundingClientRect();
+          tooltipError.style.top = `${rect.top + window.scrollY}px`;
+          tooltipError.style.left = `${rect.right + 10}px`;
+          tooltipError.style.display = "block";
+          tooltipVisible = true;
+        }
+      });
+
+      // Agregar evento para ocultar el tooltip al hacer clic en cualquier lugar
+      document.addEventListener("click", (event) => {
+        const tooltipError = document.getElementById("tooltipError");
+        if (
+          tooltipError &&
+          tooltipVisible &&
+          !tooltipError.contains(event.target)
+        ) {
+          tooltipError.style.display = "none";
+          tooltipVisible = false;
+        }
+      });
+      gridApi.setRowData(rowData);
     } else {
       console.warn("Grid API no disponible o setRowData no es una función");
     }
@@ -702,8 +716,8 @@ function createStatsButton() {
 
       // Añade este log para verificar el valor en el lado del cliente
       //console.log(
-        //"Tamaño de la carpeta recibido (logData.totalFolderSize):",
-        //logData.totalFolderSize
+      //"Tamaño de la carpeta recibido (logData.totalFolderSize):",
+      //logData.totalFolderSize
       //);
       //console.log("Datos del log:", logData); // Para depuración
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
@@ -747,13 +761,15 @@ function createStatsButton() {
             } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
             
         `;
-        if (logData.logDetails.oraError) {
-          entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
-        }
-        document.getElementById('close-result').addEventListener('click', function() {
-          const resultDiv = document.getElementById('result');
+      if (logData.logDetails.oraError) {
+        entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
+      }
+      document
+        .getElementById("close-result")
+        .addEventListener("click", function () {
+          const resultDiv = document.getElementById("result");
           if (resultDiv) {
-            resultDiv.style.display = 'none'; // Oculta el div por completo
+            resultDiv.style.display = "none"; // Oculta el div por completo
           }
         });
 
@@ -765,8 +781,6 @@ function createStatsButton() {
       // Añadir la línea divisoria después del botón
       const hr = document.createElement("hr");
       entryDiv.appendChild(hr);
-
-      
 
       logEntriesContainer.appendChild(entryDiv);
       if (resultDiv) resultDiv.style.display = "block";
@@ -820,8 +834,7 @@ function createStatsButton() {
       tooltipError = null;
     }
   };
-  
-  
+
   function showLast10LinesModal(last10Lines) {
     const modal = document.createElement("div");
     modal.className = "modal";
@@ -829,7 +842,9 @@ function createStatsButton() {
       <div class="modal-content">
         <span class="close">&times;</span>
         <h2>Grupos de control</h2>
-        <pre>${Array.isArray(last10Lines) ? last10Lines.join('\n') : last10Lines}</pre>
+        <pre>${
+          Array.isArray(last10Lines) ? last10Lines.join("\n") : last10Lines
+        }</pre>
       </div>
     `;
 
@@ -854,12 +869,12 @@ function createStatsButton() {
   let statisticsModal = null;
 
   function createStatisticsModal() {
-      if (statisticsModal) {
-          console.log('Modal de estadísticas ya existe');
-          return;
-      }
-  
-      const modalHTML = `
+    if (statisticsModal) {
+      console.log("Modal de estadísticas ya existe");
+      return;
+    }
+
+    const modalHTML = `
           <div id="statisticsModal" class="modal">
               <div class="modal-content">
                   <span class="close">&times;</span>
@@ -875,8 +890,8 @@ function createStatsButton() {
               </div>
           </div>
       `;
-  
-      const modalStyles = `
+
+    const modalStyles = `
           <style>
               .modal {
                   display: none;
@@ -912,95 +927,118 @@ function createStatsButton() {
               }
           </style>
       `;
-  
-      // Insertar estilos
-      const styleElement = document.createElement('style');
-      styleElement.innerHTML = modalStyles;
-      document.head.appendChild(styleElement);
-  
-      // Insertar HTML del modal
-      const modalElement = document.createElement('div');
-      modalElement.innerHTML = modalHTML;
-      document.body.appendChild(modalElement.firstElementChild);
-  
-      statisticsModal = document.getElementById('statisticsModal');
-      console.log('Modal de estadísticas creado');
+
+    // Insertar estilos
+    const styleElement = document.createElement("style");
+    styleElement.innerHTML = modalStyles;
+    document.head.appendChild(styleElement);
+
+    // Insertar HTML del modal
+    const modalElement = document.createElement("div");
+    modalElement.innerHTML = modalHTML;
+    document.body.appendChild(modalElement.firstElementChild);
+
+    statisticsModal = document.getElementById("statisticsModal");
+    console.log("Modal de estadísticas creado");
   }
-  
 
   async function showStatistics() {
     try {
-        if (!statisticsModal) {
-            console.log('Creando modal de estadísticas');
-            createStatisticsModal();
+      if (!statisticsModal) {
+        console.log("Creando modal de estadísticas");
+        createStatisticsModal();
+      }
+
+      if (!statisticsModal) {
+        console.error("No se pudo crear el modal de estadísticas");
+        alert(
+          "Error al mostrar las estadísticas. Por favor, intenta de nuevo."
+        );
+        return;
+      }
+
+      const stats = await window.electron.getBackupStatistics();
+      console.log("Estadísticas recibidas:", stats);
+
+      const formatValue = (value, formatter) => {
+        if (value === null || value === undefined || isNaN(value)) {
+          return "N/A";
         }
+        return formatter(value);
+      };
 
-        if (!statisticsModal) {
-            console.error('No se pudo crear el modal de estadísticas');
-            alert('Error al mostrar las estadísticas. Por favor, intenta de nuevo.');
-            return;
-        }
-
-        const stats = await window.electron.getBackupStatistics();
-        console.log('Estadísticas recibidas:', stats);
-
-        const formatValue = (value, formatter) => {
-            if (value === null || value === undefined || isNaN(value)) {
-                return 'N/A';
-            }
-            return formatter(value);
-        };
-
-        const safelyUpdateContent = (id, value) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = value;
-            } else {
-                console.warn(`Elemento con id '${id}' no encontrado`);
-            }
-        };
-
-        // Mapeo de índices del array a nombres de estadísticas
-        const [
-            totalBackups,
-            successfulBackups,
-            avgDurationSeconds,
-            uniqueServers,
-            uniqueIPs,
-            lastBackupDate
-        ] = stats;
-
-        safelyUpdateContent('totalBackups', formatValue(totalBackups, v => v.toString()));
-        safelyUpdateContent('successfulBackups', `${formatValue(successfulBackups, v => v.toString())} (${formatValue(successfulBackups / totalBackups, v => (v * 100).toFixed(2))}%)`);
-        safelyUpdateContent('avgDuration', formatValue(avgDurationSeconds, v => (v / 60).toFixed(2)));
-        safelyUpdateContent('uniqueServers', formatValue(uniqueServers, v => v.toString()));
-        safelyUpdateContent('uniqueIPs', formatValue(uniqueIPs, v => v.toString()));
-        safelyUpdateContent('lastBackupDate', formatValue(lastBackupDate, v => new Date(v).toLocaleString()));
-
-        statisticsModal.style.display = 'block';
-        
-        // Configurar el cierre del modal
-        const closeBtn = statisticsModal.querySelector('.close');
-        if (closeBtn) {
-            closeBtn.onclick = function() {
-                statisticsModal.style.display = 'none';
-            }
+      const safelyUpdateContent = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.textContent = value;
         } else {
-            console.warn('Botón de cierre no encontrado en el modal');
+          console.warn(`Elemento con id '${id}' no encontrado`);
         }
-        
-        window.onclick = function(event) {
-            if (event.target == statisticsModal) {
-                statisticsModal.style.display = 'none';
-            }
-        }
-    } catch (error) {
-        console.error('Error al obtener o mostrar estadísticas:', error);
-        alert('Error al obtener o mostrar estadísticas. Por favor, revisa la consola para más detalles.');
-    }
-}
+      };
 
-    
+      // Mapeo de índices del array a nombres de estadísticas
+      const [
+        totalBackups,
+        successfulBackups,
+        avgDurationSeconds,
+        uniqueServers,
+        uniqueIPs,
+        lastBackupDate,
+      ] = stats;
+
+      safelyUpdateContent(
+        "totalBackups",
+        formatValue(totalBackups, (v) => v.toString())
+      );
+      safelyUpdateContent(
+        "successfulBackups",
+        `${formatValue(successfulBackups, (v) => v.toString())} (${formatValue(
+          successfulBackups / totalBackups,
+          (v) => (v * 100).toFixed(2)
+        )}%)`
+      );
+      safelyUpdateContent(
+        "avgDuration",
+        formatValue(avgDurationSeconds, (v) => (v / 60).toFixed(2))
+      );
+      safelyUpdateContent(
+        "uniqueServers",
+        formatValue(uniqueServers, (v) => v.toString())
+      );
+      safelyUpdateContent(
+        "uniqueIPs",
+        formatValue(uniqueIPs, (v) => v.toString())
+      );
+      safelyUpdateContent(
+        "lastBackupDate",
+        formatValue(lastBackupDate, (v) => new Date(v).toLocaleString())
+      );
+
+      statisticsModal.style.display = "block";
+
+      // Configurar el cierre del modal
+      const closeBtn = statisticsModal.querySelector(".close");
+      if (closeBtn) {
+        closeBtn.onclick = function () {
+          statisticsModal.style.display = "none";
+        };
+      } else {
+        console.warn("Botón de cierre no encontrado en el modal");
+      }
+
+      window.onclick = function (event) {
+        if (event.target == statisticsModal) {
+          statisticsModal.style.display = "none";
+        }
+      };
+    } catch (error) {
+      console.error("Error al obtener o mostrar estadísticas:", error);
+      alert(
+        "Error al obtener o mostrar estadísticas. Por favor, revisa la consola para más detalles."
+      );
+    }
+  }
+
   const form = document.getElementById("server-form");
   if (form) {
     form.addEventListener("submit", async (event) => {
