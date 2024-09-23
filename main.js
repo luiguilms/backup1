@@ -161,7 +161,7 @@ app.whenReady().then(() => {
           if (file.attrs.isDirectory()) {
             const subDirPath = joinPath(directoryPath, file.filename, targetOS);
 
-            console.log(`Processing subdirectory: ${subDirPath}`);
+            //console.log(`Processing subdirectory: ${subDirPath}`);
 
             const subDirFiles = await new Promise((resolve, reject) => {
               sftp.readdir(subDirPath, (err, files) => {

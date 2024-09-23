@@ -2,7 +2,7 @@ let gridApi = null;
 document.addEventListener("DOMContentLoaded", async () => {
   const currentPage = window.location.pathname;
   const backButton = document.getElementById("back-button");
-  console.log("Current Page Path:", currentPage);
+  //console.log("Current Page Path:", currentPage);
 
   // Obtener los elementos del DOM
   const osSelect = document.getElementById("os");
@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // *** Función para actualizar las rutas de backup ***
   async function updateBackupRoutes() {
     const selectedIP = ipSelect.value; // IP seleccionada
-    console.log("IP seleccionada:", selectedIP); // Asegúrate de que esto se ejecute
+    //console.log("IP seleccionada:", selectedIP); // Asegúrate de que esto se ejecute
 
     if (!selectedIP) {
       console.log("No hay IP seleccionada.");
@@ -34,14 +34,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
-      console.log(`Obteniendo rutas de backup para la IP: ${selectedIP}`);
+     // console.log(`Obteniendo rutas de backup para la IP: ${selectedIP}`);
 
       // Llamar a la función del main process para obtener las rutas de backup
       const backupRoutes = await window.electron.getBackupRoutesByIP(
         selectedIP
       );
 
-      console.log("Rutas de backup obtenidas:", backupRoutes); // Verifica que recibes datos
+      //console.log("Rutas de backup obtenidas:", backupRoutes); // Verifica que recibes datos
 
       // Limpiar las rutas previas
       backupRouteSelect.innerHTML = "";
@@ -487,7 +487,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           cellRenderer: params => {
             const button = document.createElement('button');
             button.innerHTML = 'Ver';
-            button.style.border = '1px solid red'; // Para ver si el botón está siendo renderizado
             button.addEventListener('click', () => {
               showLast10LinesModal(params.data.last10Lines);
             });
@@ -516,7 +515,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
       gridApi = agGrid.createGrid(gridDiv, gridOptions);
-      console.log("Grid inicializado correctamente");
+      //console.log("Grid inicializado correctamente");
       window.addEventListener("resize", () => {
         if (gridApi) {
           gridApi.sizeColumnsToFit();
@@ -556,7 +555,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function displayAllServersResults(results) {
-    console.log("Mostrando resultados de servidores:", results);
+    //console.log("Mostrando resultados de servidores:", results);
 
     if (gridApi && typeof gridApi.setRowData === "function") {
       const rowData = results.flatMap((serverResult) => {
@@ -685,11 +684,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const serverName = logData.serverName || "N/A";
 
       // Añade este log para verificar el valor en el lado del cliente
-      console.log(
-        "Tamaño de la carpeta recibido (logData.totalFolderSize):",
-        logData.totalFolderSize
-      );
-      console.log("Datos del log:", logData); // Para depuración
+      //console.log(
+        //"Tamaño de la carpeta recibido (logData.totalFolderSize):",
+        //logData.totalFolderSize
+      //);
+      //console.log("Datos del log:", logData); // Para depuración
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
       const successClass = logData.logDetails.success ? "" : "error-box";
 
@@ -883,7 +882,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           if (matchingRoute) {
             directoryPath = matchingRoute.backupPath; // Asignamos la ruta correcta
-            console.log(`Ruta de backup encontrada: ${directoryPath}`);
+            //console.log(`Ruta de backup encontrada: ${directoryPath}`);
           } else {
             showAuthErrorModal(
               `No se encontraron rutas para el sistema operativo ${os}`
@@ -910,7 +909,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           // Procesar los detalles del log
           if (Array.isArray(logDetailsArray)) {
             for (const logData of logDetailsArray) {
-              console.log("Adding log entry:", logData);
+              //console.log("Adding log entry:", logData);
               addLogEntry({ ...logData, ip });
 
               if (
