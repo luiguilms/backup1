@@ -113,7 +113,7 @@ app.whenReady().then(() => {
     const serverName = server ? server.name : "N/A";
 
     try {
-      console.log(`Fetching log details from directory: ${directoryPath}`);
+      //console.log(`Fetching log details from directory: ${directoryPath}`);
 
       // Initialize SSH connection
       const conn = await createSSHClient(ip, port, username, password);
@@ -135,7 +135,7 @@ app.whenReady().then(() => {
         targetOS,
         sftp
       );
-      console.log("Tamaños de las subcarpetas:", folderSizes);
+      //console.log("Tamaños de las subcarpetas:", folderSizes);
 
       if (targetOS === "solaris") {
         // Asegurarse de que folderSizes sea un arreglo solo para Solaris
@@ -184,10 +184,10 @@ app.whenReady().then(() => {
               ? `${folderSizeInfo.sizeInMB} MB`
               : "N/A";
 
-            console.log(
-              "Tamaño total de la carpeta (totalFolderSize):",
-              totalFolderSize
-            );
+            //console.log(
+           //   "Tamaño total de la carpeta (totalFolderSize):",
+            //  totalFolderSize
+        //    );
 
             const logFiles = subDirFiles.filter(
               (file) => path.extname(file.filename) === ".log"
@@ -202,7 +202,7 @@ app.whenReady().then(() => {
               logFileName = logFile.filename;
               const logFilePath = joinPath(subDirPath, logFileName, targetOS);
 
-              console.log("Attempting to read log file:", logFilePath);
+              //console.log("Attempting to read log file:", logFilePath);
 
               await new Promise((resolve, reject) => {
                 sftp.stat(logFilePath, (err, stats) => {
@@ -286,10 +286,10 @@ app.whenReady().then(() => {
               serverName: serverName,
             });
             // Añade este log para verificar el valor
-            console.log(
-              "Tamaño de la carpeta (totalFolderSize):",
-              totalFolderSize
-            );
+            //console.log(
+              //"Tamaño de la carpeta (totalFolderSize):",
+              //totalFolderSize
+            //);
           }
         }
         return allLogDetails;
@@ -350,7 +350,7 @@ app.whenReady().then(() => {
               let logFileName = latestLogFile.filename;
               const logFilePath = joinPath(subDirPath, logFileName, targetOS);
 
-              console.log("Attempting to read log file:", logFilePath);
+              //console.log("Attempting to read log file:", logFilePath);
 
               await new Promise((resolve, reject) => {
                 sftp.stat(logFilePath, (err, stats) => {
@@ -1016,7 +1016,7 @@ app.whenReady().then(() => {
     }
   });
   ipcMain.handle("getBackupRoutesByIP", async (event, ip) => {
-    console.log("IP recibida para obtener rutas:", ip);
+    //console.log("IP recibida para obtener rutas:", ip);
     let connection;
     try {
       connection = await oracledb.getConnection(dbConfig);
@@ -1029,7 +1029,7 @@ app.whenReady().then(() => {
         { ip: ip }
       );
 
-      console.log("Rutas obtenidas de la base de datos:", result.rows); // Añadir log
+      //console.log("Rutas obtenidas de la base de datos:", result.rows); // Añadir log
 
       return result.rows.map((row) => ({
         backupPath: row[0],
@@ -1097,7 +1097,7 @@ app.whenReady().then(() => {
         { ip: ip }
       );
 
-      console.log("Rutas obtenidas de la base de datos:", result.rows);
+      //console.log("Rutas obtenidas de la base de datos:", result.rows);
 
       return result.rows.map((row) => ({
         backupPath: row[0],
@@ -1112,14 +1112,14 @@ app.whenReady().then(() => {
   async function processAllServers() {
     let connection;
     let results = [];
-
+  
     try {
       connection = await oracledb.getConnection(dbConfig);
-
+  
       const serversResult = await connection.execute(
         `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword FROM ServerInfo`
       );
-
+  
       for (const row of serversResult.rows) {
         const serverName = row[1];
         const ip = row[2];
@@ -1127,96 +1127,102 @@ app.whenReady().then(() => {
         const port = row[4];
         const encryptedUserLob = row[5];
         const encryptedPasswordLob = row[6];
-
+  
         try {
           console.log(`Procesando servidor: ${serverName} (${ip})`);
-
+  
           // Desencriptar credenciales
           const decryptedUser = await decrypt(await readLob(encryptedUserLob));
           const decryptedPassword = await decrypt(
             await readLob(encryptedPasswordLob)
           );
-
-          console.log(`Credenciales desencriptadas para ${serverName}`);
-
+  
+          //console.log(`Credenciales desencriptadas para ${serverName}`);
+  
           // Obtener rutas de backup
           const backupRoutes = await getBackupRoutesByIPInternal(
             ip,
             connection
           );
-          console.log(
-            `Rutas de backup obtenidas para ${serverName}:`,
-            backupRoutes
-          );
-
-          const backupPath = backupRoutes[0]?.backupPath;
-
-          if (!backupPath) {
+          //console.log(
+            //`Rutas de backup obtenidas para ${serverName}:`,
+            //backupRoutes
+          //);
+  
+          if (backupRoutes.length === 0) {
             throw new Error(
-              `No se encontró ruta de backup para el servidor ${serverName}`
+              `No se encontraron rutas de backup para el servidor ${serverName}`
             );
           }
-
-          console.log(
-            `Obteniendo detalles de log para ${serverName} desde ${backupPath}`
-          );
-
-          // Usar ipcRenderer para invocar get-log-details
-          const logDetails = await getLogDetailsLogic(
-            backupPath,
-            ip,
-            port,
-            decryptedUser,
-            decryptedPassword,
-            osType
-          );
-
-          console.log(
-            `Detalles de log obtenidos para ${serverName}:`,
-            logDetails
-          );
-
-          if (
-            !logDetails ||
-            (Array.isArray(logDetails) && logDetails.length === 0)
-          ) {
-            console.log(`No se encontraron detalles de log para ${serverName}`);
+  
+          for (const route of backupRoutes) {
+            const backupPath = route.backupPath;
+            //console.log(`Procesando ruta de backup: ${backupPath} para ${serverName}`);
+  
+            //console.log(
+           //   `Obteniendo detalles de log para ${serverName} desde ${backupPath}`
+          //  );
+  
+            const logDetails = await getLogDetailsLogic(
+              backupPath,
+              ip,
+              port,
+              decryptedUser,
+              decryptedPassword,
+              osType
+            );
+  
+            //console.log(
+              //`Detalles de log obtenidos para ${serverName}:`,
+              //logDetails
+            //);
+  
+            if (
+              !logDetails ||
+              (Array.isArray(logDetails) && logDetails.length === 0)
+            ) {
+              console.log(`No se encontraron detalles de log para ${serverName} en la ruta ${backupPath}`);
+              results.push({
+                serverName,
+                ip,
+                backupPath,
+                error: "No se encontraron detalles de log",
+              });
+              continue;
+            }
+  
+            // Guardar los detalles en la base de datos
+            if (Array.isArray(logDetails)) {
+              for (const detail of logDetails) {
+                const fullBackupPath = detail.backupPath;
+                await saveLogToDatabase(
+                  detail.logDetails,
+                  detail.dumpFileInfo,
+                  osType,
+                  detail.logFileName,
+                  ip,
+                  fullBackupPath
+                );
+              }
+            } else if (logDetails && logDetails.logDetails) {
+              const fullBackupPath = logDetails.backupPath;
+              await saveLogToDatabase(
+                logDetails.logDetails,
+                logDetails.dumpFileInfo,
+                osType,
+                logDetails.logFileName,
+                ip,
+                fullBackupPath
+              );
+            }
+  
             results.push({
               serverName,
               ip,
-              error: "No se encontraron detalles de log",
+              backupPath: backupPath,
+              logDetails,
             });
-            continue;
           }
-
-          // Guardar los detalles en la base de datos
-          if (Array.isArray(logDetails)) {
-            for (const detail of logDetails) {
-              await saveLogToDatabase(
-                detail.logDetails,
-                detail.dumpFileInfo,
-                osType,
-                detail.logFileName,
-                ip,
-                backupPath
-              );
-            }
-          } else if (logDetails && logDetails.logDetails) {
-            await saveLogToDatabase(
-              logDetails.logDetails,
-              logDetails.dumpFileInfo,
-              osType,
-              logDetails.logFileName,
-              ip,
-              backupPath
-            );
-          }
-
-          results.push({
-            serverName,
-            ip,
-            logDetails,
-          });
         } catch (error) {
           console.error(`Error procesando el servidor ${serverName}:`, error);
           results.push({
@@ -1237,7 +1243,7 @@ app.whenReady().then(() => {
         }
       }
     }
-
+  
     return results;
   }
   ipcMain.handle("process-all-servers", async (event) => {
@@ -1255,7 +1261,7 @@ app.whenReady().then(() => {
       // Lógica para Solaris: Usar `du` para obtener el tamaño de todas las subcarpetas en un solo comando
       const command = `du -sk ${directoryPath}/* | awk '{print $1/1024, $2}'`; // Cambiamos aquí el awk para que no incluya "MB"
       const output = await executeSSHCommand(conn, command);
-      console.log("Salida del comando du:", output);
+      //console.log("Salida del comando du:", output);
 
       if (!output || output.trim() === "") {
         throw new Error("No se obtuvo salida del comando du");
@@ -1327,7 +1333,7 @@ function createSSHClient(ip, port, username, password) {
 
     conn
       .on("ready", () => {
-        console.log("SSH Connection established");
+        //console.log("SSH Connection established");
         resolve(conn);
       })
       .on("error", (err) => {
@@ -1432,7 +1438,7 @@ function parseLogLine(logContent) {
     lastLine = lines[lines.length - 1].trim();
   }
 
-  console.log("Last line of log after handling empty lines:", lastLine); // Depuración
+  //console.log("Last line of log after handling empty lines:", lastLine); // Depuración
 
   let backupStatus = "EN PROGRESO"; // Estado por defecto
 
@@ -1484,8 +1490,8 @@ function parseLogLine(logContent) {
       break;
     }
   }
-  console.log("Last line of log:", lastLine);
-  console.log("Parsed backup status:", backupStatus);
+  //console.log("Last line of log:", lastLine);
+  //console.log("Parsed backup status:", backupStatus);
   return {
     startTime: startDateTime ? formatDateForOracle(startDateTime) : null,
     endTime: endDateTime ? formatDateForOracle(endDateTime) : null,
