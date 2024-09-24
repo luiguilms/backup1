@@ -185,9 +185,9 @@ app.whenReady().then(() => {
               : "N/A";
 
             //console.log(
-           //   "Tamaño total de la carpeta (totalFolderSize):",
+            //   "Tamaño total de la carpeta (totalFolderSize):",
             //  totalFolderSize
-        //    );
+            //    );
 
             const logFiles = subDirFiles.filter(
               (file) => path.extname(file.filename) === ".log"
@@ -287,8 +287,8 @@ app.whenReady().then(() => {
             });
             // Añade este log para verificar el valor
             //console.log(
-              //"Tamaño de la carpeta (totalFolderSize):",
-              //totalFolderSize
+            //"Tamaño de la carpeta (totalFolderSize):",
+            //totalFolderSize
             //);
           }
         }
@@ -1112,14 +1112,14 @@ app.whenReady().then(() => {
   async function processAllServers() {
     let connection;
     let results = [];
-  
+
     try {
       connection = await oracledb.getConnection(dbConfig);
-  
+
       const serversResult = await connection.execute(
         `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword FROM ServerInfo`
       );
-  
+
       for (const row of serversResult.rows) {
         const serverName = row[1];
         const ip = row[2];
@@ -1127,42 +1127,42 @@ app.whenReady().then(() => {
         const port = row[4];
         const encryptedUserLob = row[5];
         const encryptedPasswordLob = row[6];
-  
+
         try {
           console.log(`Procesando servidor: ${serverName} (${ip})`);
-  
+
           // Desencriptar credenciales
           const decryptedUser = await decrypt(await readLob(encryptedUserLob));
           const decryptedPassword = await decrypt(
             await readLob(encryptedPasswordLob)
           );
-  
+
           //console.log(`Credenciales desencriptadas para ${serverName}`);
-  
+
           // Obtener rutas de backup
           const backupRoutes = await getBackupRoutesByIPInternal(
             ip,
             connection
           );
           //console.log(
-            //`Rutas de backup obtenidas para ${serverName}:`,
-            //backupRoutes
+          //`Rutas de backup obtenidas para ${serverName}:`,
+          //backupRoutes
           //);
-  
+
           if (backupRoutes.length === 0) {
             throw new Error(
               `No se encontraron rutas de backup para el servidor ${serverName}`
             );
           }
-  
+
           for (const route of backupRoutes) {
             const backupPath = route.backupPath;
             //console.log(`Procesando ruta de backup: ${backupPath} para ${serverName}`);
-  
+
             //console.log(
-           //   `Obteniendo detalles de log para ${serverName} desde ${backupPath}`
-          //  );
-  
+            //   `Obteniendo detalles de log para ${serverName} desde ${backupPath}`
+            //  );
+
             const logDetails = await getLogDetailsLogic(
               backupPath,
               ip,
@@ -1171,17 +1171,19 @@ app.whenReady().then(() => {
               decryptedPassword,
               osType
             );
-  
+
             //console.log(
-              //`Detalles de log obtenidos para ${serverName}:`,
-              //logDetails
+            //`Detalles de log obtenidos para ${serverName}:`,
+            //logDetails
             //);
-  
+
             if (
               !logDetails ||
               (Array.isArray(logDetails) && logDetails.length === 0)
             ) {
-              console.log(`No se encontraron detalles de log para ${serverName} en la ruta ${backupPath}`);
+              console.log(
+                `No se encontraron detalles de log para ${serverName} en la ruta ${backupPath}`
+              );
               results.push({
                 serverName,
                 ip,
@@ -1190,7 +1192,7 @@ app.whenReady().then(() => {
               });
               continue;
             }
-  
+
             // Guardar los detalles en la base de datos
             if (Array.isArray(logDetails)) {
               for (const detail of logDetails) {
@@ -1215,7 +1217,7 @@ app.whenReady().then(() => {
                 fullBackupPath
               );
             }
-  
+
             results.push({
               serverName,
               ip,
@@ -1243,7 +1245,7 @@ app.whenReady().then(() => {
         }
       }
     }
-  
+
     return results;
   }
   ipcMain.handle("process-all-servers", async (event) => {
@@ -1419,8 +1421,8 @@ function formatDateForOracle(date) {
     .replace(/(\d+)\/(\d+)\/(\d+),/, "$3-$1-$2");
 }
 function getLast10LogLines(logContent) {
-  const lines = logContent.trim().split('\n');
-  return lines.slice(-11, -1);  // Obtiene las últimas 11 líneas
+  const lines = logContent.trim().split("\n");
+  return lines.slice(-11, -1); // Obtiene las últimas 11 líneas
 }
 
 function parseLogLine(logContent) {
@@ -1499,7 +1501,7 @@ function parseLogLine(logContent) {
     success: isSuccess ? 1 : 0,
     oraError: oraError,
     backupStatus: backupStatus,
-    last10Lines: last10Lines  // Añadimos las últimas 11 líneas
+    last10Lines: last10Lines, // Añadimos las últimas 11 líneas
   };
 }
 function formatFileSize(sizeInMB) {
@@ -1529,17 +1531,17 @@ async function getBackupStatistics() {
         MAX(horaINI) as last_backup_date
       FROM LogBackup
     `);
-    
+
     return result.rows[0];
   } catch (err) {
-    console.error('Error obteniendo estadísticas:', err);
+    console.error("Error obteniendo estadísticas:", err);
     throw err;
   } finally {
     if (connection) {
       try {
         await connection.close();
       } catch (err) {
-        console.error('Error al cerrar la conexión:', err);
+        console.error("Error al cerrar la conexión:", err);
       }
     }
   }
@@ -1548,12 +1550,12 @@ async function getBackupStatistics() {
 // El resto del código (manejador IPC, etc.) permanece igual
 
 // Añade este manejador de IPC
-ipcMain.handle('get-backup-statistics', async (event) => {
+ipcMain.handle("get-backup-statistics", async (event) => {
   try {
     const stats = await getBackupStatistics();
     return stats;
   } catch (error) {
-    console.error('Error al obtener estadísticas:', error);
+    console.error("Error al obtener estadísticas:", error);
     throw error;
   }
 });
