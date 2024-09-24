@@ -1,10 +1,8 @@
 //preload.js
 const { contextBridge, ipcRenderer } = require("electron");
-
 contextBridge.exposeInMainWorld("electron", {
   connectToServer: (ip, port, username, password) =>
     ipcRenderer.invoke("connect-to-server", { ip, port, username, password }),
-
   getLogDetails: (directoryPath, ip, port, username, password, targetOS) =>
     ipcRenderer.invoke("get-log-details", {
       directoryPath,
@@ -14,7 +12,6 @@ contextBridge.exposeInMainWorld("electron", {
       password,
       targetOS,
     }),
-
   saveLogToDatabase: (
     logDetails,
     dumpFileInfo,
@@ -31,10 +28,8 @@ contextBridge.exposeInMainWorld("electron", {
       ip,
       backupPath,
     }),
-
   verifyCredentials: (ip, username, password) =>
     ipcRenderer.invoke("verify-credentials", { ip, username, password }),
-
   getServers: () => ipcRenderer.invoke("get-servers"),
   addServer: (serverData) => ipcRenderer.invoke("add-server", serverData),
   updateServer: (serverData) => ipcRenderer.invoke("update-server", serverData),
@@ -43,5 +38,5 @@ contextBridge.exposeInMainWorld("electron", {
   getBackupRoutesByIP: (ip) => ipcRenderer.invoke("getBackupRoutesByIP", ip),
   processAllServers: () => ipcRenderer.invoke("process-all-servers"),
   getBackupStatistics: () => ipcRenderer.invoke("get-backup-statistics"),
-  exportToExcel: (data) => ipcRenderer.invoke('export-to-excel', data),
+  exportToExcel: (data) => ipcRenderer.invoke("export-to-excel", data),
 });

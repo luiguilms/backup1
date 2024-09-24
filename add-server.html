@@ -54,7 +54,6 @@
     </div>
     <!-- Botón para retroceder -->
     <button id="back-button">Volver</button>
-
     <script>
       document
         .getElementById("back-button")
@@ -66,7 +65,6 @@
       // Código para alternar la visibilidad de la contraseña
       const togglePassword = document.getElementById("togglePassword");
       const passwordField = document.getElementById("password");
-
       togglePassword.addEventListener("click", function (e) {
         // Cambiar el tipo de la entrada de contraseña
         const type =
@@ -74,7 +72,6 @@
             ? "text"
             : "password";
         passwordField.setAttribute("type", type);
-
         // Cambiar el ícono al hacer clic
         this.classList.toggle("fa-eye-slash");
       });

@@ -5,21 +5,18 @@ const { Client } = require("ssh2");
 const oracledb = require("oracledb");
 const { Console } = require("console");
 const crypto = require("crypto");
-const ExcelJS = require('exceljs');
+const ExcelJS = require("exceljs");
 
-ipcMain.handle('export-to-excel', async (event, data) => {
+ipcMain.handle("export-to-excel", async (event, data) => {
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Backup Report');
-
-  worksheet.columns = data.columns.map(col => ({
+  const worksheet = workbook.addWorksheet("Backup Report");
+  worksheet.columns = data.columns.map((col) => ({
     header: col,
     key: col,
-    width: 15
+    width: 15,
   }));
-
   worksheet.addRows(data.rows);
   worksheet.getRow(1).font = { bold: true };
-
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer;
 });
@@ -36,12 +33,10 @@ function joinPath(directoryPath, filename, targetOS) {
   const normalizedDirectoryPath = normalizePath(directoryPath, targetOS);
   const joinedPath = path.join(normalizedDirectoryPath, filename);
   const normalizedPath = normalizePath(joinedPath, targetOS);
-
   //console.log(`Original Directory Path: ${directoryPath}`);
   //console.log(`Filename: ${filename}`);
   //console.log(`Joined Path: ${joinedPath}`);
   //console.log(`Normalized Path: ${normalizedPath}`);
-
   return normalizedPath;
 }
 // Configuración de conexión a la base de datos
@@ -62,11 +57,9 @@ function createWindow() {
   });
 
   mainWindow.setIcon(`${__dirname}/respaldo.png`);
-
   mainWindow.maximize(); // Maximiza la ventana
   mainWindow.loadFile("index.html");
 }
-
 app.whenReady().then(() => {
   createWindow();
   ipcMain.handle(
@@ -83,7 +76,6 @@ app.whenReady().then(() => {
     return new Promise((resolve, reject) => {
       conn.exec(command, (err, stream) => {
         if (err) return reject(err);
-
         let output = "";
         stream
           .on("data", (data) => {
@@ -98,7 +90,6 @@ app.whenReady().then(() => {
       });
     });
   }
-
   ipcMain.handle(
     "get-log-details",
     async (
@@ -129,10 +120,8 @@ app.whenReady().then(() => {
     const servers = await getServers(); // Usa la función que ya tienes
     const server = servers.find((s) => s.ip === ip);
     const serverName = server ? server.name : "N/A";
-
     try {
       //console.log(`Fetching log details from directory: ${directoryPath}`);
-
       // Initialize SSH connection
       const conn = await createSSHClient(ip, port, username, password);
       // Initialize SFTP connection
@@ -154,13 +143,11 @@ app.whenReady().then(() => {
         sftp
       );
       //console.log("Tamaños de las subcarpetas:", folderSizes);
-
       if (targetOS === "solaris") {
         // Asegurarse de que folderSizes sea un arreglo solo para Solaris
         if (!Array.isArray(folderSizes)) {
           throw new Error("folderSizes no es un arreglo válido para Solaris.");
         }
-
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
             if (err) {
@@ -174,13 +161,10 @@ app.whenReady().then(() => {
             resolve(files);
           });
         });
-
         for (const file of files) {
           if (file.attrs.isDirectory()) {
             const subDirPath = joinPath(directoryPath, file.filename, targetOS);
-
             //console.log(`Processing subdirectory: ${subDirPath}`);
-
             const subDirFiles = await new Promise((resolve, reject) => {
               sftp.readdir(subDirPath, (err, files) => {
                 if (err) {
@@ -201,27 +185,21 @@ app.whenReady().then(() => {
             const totalFolderSize = folderSizeInfo
               ? `${folderSizeInfo.sizeInMB} MB`
               : "N/A";
-
             //console.log(
             //   "Tamaño total de la carpeta (totalFolderSize):",
             //  totalFolderSize
             //    );
-
             const logFiles = subDirFiles.filter(
               (file) => path.extname(file.filename) === ".log"
             );
-
             let dumpFileInfo = []; // Reinicia para cada subdirectorio
             let totalDmpSize = 0; // Reinicia para cada subdirectorio
             let logDetails = null;
             let logFileName = null;
-
             for (const logFile of logFiles) {
               logFileName = logFile.filename;
               const logFilePath = joinPath(subDirPath, logFileName, targetOS);
-
               //console.log("Attempting to read log file:", logFilePath);
-
               await new Promise((resolve, reject) => {
                 sftp.stat(logFilePath, (err, stats) => {
                   if (err) {
@@ -235,7 +213,6 @@ app.whenReady().then(() => {
                   resolve(stats);
                 });
               });
-
               const logData = await new Promise((resolve, reject) => {
                 sftp.readFile(logFilePath, "utf8", (err, data) => {
                   if (err) {
@@ -249,22 +226,18 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
-
               logDetails = parseLogLine(logData);
-
               const dumpFiles = subDirFiles.filter((file) =>
                 [".DMP", ".dmp"].includes(
                   path.extname(file.filename).toUpperCase()
                 )
               );
-
               for (const dumpFile of dumpFiles) {
                 const dumpFilePath = joinPath(
                   subDirPath,
                   dumpFile.filename,
                   targetOS
                 );
-
                 const dumpStats = await new Promise((resolve, reject) => {
                   sftp.stat(dumpFilePath, (err, stats) => {
                     if (err) {
@@ -278,10 +251,8 @@ app.whenReady().then(() => {
                     resolve(stats);
                   });
                 });
-
                 const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
                 totalDmpSize += dumpFileSizeInMB;
-
                 dumpFileInfo.push({
                   filePath: dumpFilePath,
                   fileSize:
@@ -291,7 +262,6 @@ app.whenReady().then(() => {
                 });
               }
             }
-
             allLogDetails.push({
               logDetails,
               dumpFileInfo,
@@ -329,10 +299,8 @@ app.whenReady().then(() => {
             resolve(files);
           });
         });
-
         // Check if there are subdirectories
         const subdirectories = files.filter((file) => file.attrs.isDirectory());
-
         if (subdirectories.length > 0) {
           // Process each subdirectory
           let allSubdirResults = [];
@@ -342,7 +310,6 @@ app.whenReady().then(() => {
               subdir.filename,
               targetOS
             );
-
             // Read subdirectory contents
             const subDirFiles = await new Promise((resolve, reject) => {
               sftp.readdir(subDirPath, (err, files) => {
@@ -355,21 +322,17 @@ app.whenReady().then(() => {
                 resolve(files);
               });
             });
-
             // Process log files in subdirectory
             const logFiles = subDirFiles.filter(
               (file) => path.extname(file.filename) === ".log"
             );
-
             if (logFiles.length > 0) {
               const latestLogFile = logFiles.reduce((latest, file) =>
                 file.attrs.mtime > latest.attrs.mtime ? file : latest
               );
               let logFileName = latestLogFile.filename;
               const logFilePath = joinPath(subDirPath, logFileName, targetOS);
-
               //console.log("Attempting to read log file:", logFilePath);
-
               await new Promise((resolve, reject) => {
                 sftp.stat(logFilePath, (err, stats) => {
                   if (err) {
@@ -383,7 +346,6 @@ app.whenReady().then(() => {
                   resolve(stats);
                 });
               });
-
               const logData = await new Promise((resolve, reject) => {
                 sftp.readFile(logFilePath, "utf8", (err, data) => {
                   if (err) {
@@ -397,7 +359,6 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
-
               const logDetails = parseLogLine(logData);
               let dumpFileInfo = [];
               const dumpFiles = subDirFiles.filter((file) =>
@@ -405,7 +366,6 @@ app.whenReady().then(() => {
                   path.extname(file.filename).toUpperCase()
                 )
               );
-
               let totalDmpSize = 0;
               for (const dumpFile of dumpFiles) {
                 const dumpFilePath = joinPath(
@@ -413,7 +373,6 @@ app.whenReady().then(() => {
                   dumpFile.filename,
                   targetOS
                 );
-
                 const dumpStats = await new Promise((resolve, reject) => {
                   sftp.stat(dumpFilePath, (err, stats) => {
                     if (err) {
@@ -427,10 +386,8 @@ app.whenReady().then(() => {
                     resolve(stats);
                   });
                 });
-
                 const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
                 totalDmpSize += dumpFileSizeInMB;
-
                 dumpFileInfo.push({
                   filePath: dumpFilePath,
                   fileSize:
@@ -439,7 +396,6 @@ app.whenReady().then(() => {
                       : 0,
                 });
               }
-
               allSubdirResults.push({
                 logDetails,
                 dumpFileInfo,
@@ -459,16 +415,13 @@ app.whenReady().then(() => {
           const logFiles = files.filter(
             (file) => path.extname(file.filename) === ".log"
           );
-
           if (logFiles.length > 0) {
             const latestLogFile = logFiles.reduce((latest, file) =>
               file.attrs.mtime > latest.attrs.mtime ? file : latest
             );
             let logFileName = latestLogFile.filename;
             const logFilePath = joinPath(directoryPath, logFileName, targetOS);
-
             console.log("Attempting to read log file:", logFilePath);
-
             await new Promise((resolve, reject) => {
               sftp.stat(logFilePath, (err, stats) => {
                 if (err) {
@@ -482,7 +435,6 @@ app.whenReady().then(() => {
                 resolve(stats);
               });
             });
-
             const logData = await new Promise((resolve, reject) => {
               sftp.readFile(logFilePath, "utf8", (err, data) => {
                 if (err) {
@@ -496,7 +448,6 @@ app.whenReady().then(() => {
                 resolve(data);
               });
             });
-
             const logDetails = parseLogLine(logData);
             let dumpFileInfo = [];
             const dumpFiles = files.filter((file) =>
@@ -504,7 +455,6 @@ app.whenReady().then(() => {
                 path.extname(file.filename).toUpperCase()
               )
             );
-
             let totalDmpSize = 0;
             for (const dumpFile of dumpFiles) {
               const dumpFilePath = joinPath(
@@ -512,7 +462,6 @@ app.whenReady().then(() => {
                 dumpFile.filename,
                 targetOS
               );
-
               const dumpStats = await new Promise((resolve, reject) => {
                 sftp.stat(dumpFilePath, (err, stats) => {
                   if (err) {
@@ -526,10 +475,8 @@ app.whenReady().then(() => {
                   resolve(stats);
                 });
               });
-
               const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
               totalDmpSize += dumpFileSizeInMB;
-
               dumpFileInfo.push({
                 filePath: dumpFilePath,
                 fileSize:
@@ -538,7 +485,6 @@ app.whenReady().then(() => {
                     : 0,
               });
             }
-
             return [
               {
                 logDetails,
@@ -554,7 +500,6 @@ app.whenReady().then(() => {
             ];
           }
         }
-
         sftp.end();
         conn.end();
       }
@@ -563,15 +508,12 @@ app.whenReady().then(() => {
       return { logDetails: null, dumpFileInfo: null };
     }
   }
-
-  // Clave de encriptación (debe ser segura y almacenada en un lugar seguro)
   // Clave de encriptación (debe ser segura y almacenada en un lugar seguro)
   const encryptionKey = Buffer.from(
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "hex"
   );
   const iv = Buffer.from("abcdef0123456789abcdef0123456789", "hex");
-
   // Función para encriptar
   function encrypt(text) {
     let cipher = crypto.createCipheriv(
@@ -583,7 +525,6 @@ app.whenReady().then(() => {
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     return { iv: iv.toString("hex"), encryptedData: encrypted.toString("hex") };
   }
-
   // Conexión a la base de datos y función para insertar servidor
   async function insertServerInfo(
     ip,
@@ -594,14 +535,12 @@ app.whenReady().then(() => {
     serverName
   ) {
     let connection;
-
     try {
       connection = await oracledb.getConnection({
         user: "USRMONBK",
         password: "USRMONBK_2024",
         connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
       });
-
       // Insertar datos en la base de datos, incluyendo un ID definido
       const result = await connection.execute(
         `INSERT INTO ServerInfo (IP, OS_Type, Port, EncryptedUser, EncryptedPassword, ServerName)
@@ -616,7 +555,6 @@ app.whenReady().then(() => {
         },
         { autoCommit: true }
       );
-
       console.log("Servidor insertado correctamente:", result);
     } catch (err) {
       console.error("Error al insertar servidor en la base de datos:", err);
@@ -631,16 +569,13 @@ app.whenReady().then(() => {
       }
     }
   }
-
   // Modificación en el manejo del IPC para agregar un servidor con ID
   ipcMain.handle("add-server", async (event, serverData) => {
     const { serverName, ip, os, port, username, password } = serverData;
-
     try {
       console.log(`Agregando servidor: ${serverName}, IP: ${ip}, OS: ${os}`);
       const encryptedUser = encrypt(username);
       const encryptedPassword = encrypt(password);
-
       // Pasamos el ID manualmente al insertar el servidor
       await insertServerInfo(
         ip,
@@ -656,7 +591,6 @@ app.whenReady().then(() => {
       return { success: false, error: error.message };
     }
   });
-
   ipcMain.handle(
     "save-log-to-database",
     async (
@@ -679,7 +613,6 @@ app.whenReady().then(() => {
       }
     }
   );
-
   async function getServers() {
     let connection;
     try {
@@ -715,7 +648,6 @@ app.whenReady().then(() => {
   ipcMain.handle("get-servers", async () => {
     return await getServers();
   });
-
   async function readLob(lob) {
     return new Promise((resolve, reject) => {
       let data = [];
@@ -724,36 +656,29 @@ app.whenReady().then(() => {
       lob.on("error", (err) => reject(err));
     });
   }
-
   function decrypt(encryptedData) {
     try {
       // Si encryptedData es un string, intentamos parsearlo como JSON
       if (typeof encryptedData === "string") {
         encryptedData = JSON.parse(encryptedData);
       }
-
       // Si encryptedData es un objeto Buffer, lo convertimos a string
       if (Buffer.isBuffer(encryptedData)) {
         encryptedData = encryptedData.toString();
       }
-
       // Ahora parseamos el JSON
       const data = JSON.parse(encryptedData);
-
       // Verificamos que tenemos los datos necesarios
       if (!data.iv || !data.encryptedData) {
         throw new Error("Formato de datos encriptados inválido");
       }
-
       let iv = Buffer.from(data.iv, "hex");
       let encryptedText = Buffer.from(data.encryptedData, "hex");
       let decipher = crypto.createDecipheriv("aes-256-cbc", encryptionKey, iv);
       let decrypted = decipher.update(encryptedText);
       decrypted = Buffer.concat([decrypted, decipher.final()]);
-
       // Convertimos a string y eliminamos comillas adicionales
       let decryptedText = decrypted.toString().replace(/^"|"$/g, "");
-
       // Intentamos parsear el resultado como JSON
       try {
         return JSON.parse(decryptedText);
@@ -766,31 +691,25 @@ app.whenReady().then(() => {
       return null;
     }
   }
-
   ipcMain.handle("get-server-details", async (event, serverId) => {
     let connection;
     try {
       connection = await oracledb.getConnection(dbConfig);
-
       const result = await connection.execute(
         `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword 
          FROM ServerInfo WHERE ID = :id`,
         { id: serverId }
       );
-
       if (result.rows.length > 0) {
         const row = result.rows[0];
         const encryptedUserLob = row[5]; // EncryptedUser LOB
         const encryptedPasswordLob = row[6]; // EncryptedPassword LOB
-
         // Leer los LOBs de usuario y contraseña
         const encryptedUser = await readLob(encryptedUserLob);
         const encryptedPassword = await readLob(encryptedPasswordLob);
-
         // Aquí verificamos si ya está en texto claro
         let decryptedUser = encryptedUser.toString();
         let decryptedPassword = encryptedPassword.toString();
-
         // Verificamos si los valores están en texto claro o si necesitan desencriptarse
         if (
           decryptedUser.startsWith("{") &&
@@ -798,17 +717,14 @@ app.whenReady().then(() => {
         ) {
           decryptedUser = decrypt(encryptedUser); // Desencripta solo si es necesario
         }
-
         if (
           decryptedPassword.startsWith("{") &&
           decryptedPassword.includes("encryptedData")
         ) {
           decryptedPassword = decrypt(encryptedPassword); // Desencripta solo si es necesario
         }
-
         console.log("Decrypted User:", decryptedUser); // Agregar este log
         console.log("Decrypted Password:", decryptedPassword); // Agregar este log
-
         return {
           id: row[0],
           serverName: row[1],
@@ -834,7 +750,6 @@ app.whenReady().then(() => {
       }
     }
   });
-
   ipcMain.handle("delete-server", async (event, serverId) => {
     let connection;
     try {
@@ -844,16 +759,13 @@ app.whenReady().then(() => {
         password: "USRMONBK_2024",
         connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
       });
-
       // Ejecutar la consulta de eliminación
       const result = await connection.execute(
         `DELETE FROM ServerInfo WHERE ID = :id`,
         { id: serverId },
         { autoCommit: true }
       );
-
       console.log(`Servidor con ID ${serverId} eliminado.`, result);
-
       // Verificar si se eliminó algún registro
       if (result.rowsAffected === 0) {
         return {
@@ -861,7 +773,6 @@ app.whenReady().then(() => {
           error: `No se encontró el servidor con ID ${serverId}`,
         };
       }
-
       return { success: true };
     } catch (err) {
       console.error("Error al eliminar el servidor:", err);
@@ -877,41 +788,32 @@ app.whenReady().then(() => {
       }
     }
   });
-
   ipcMain.handle(
     "verify-credentials", //ACA ESTA DESENCRIPTADO
     async (event, { ip, username, password }) => {
       let connection;
-
       try {
         connection = await oracledb.getConnection(dbConfig);
-
         const result = await connection.execute(
           `SELECT EncryptedUser, EncryptedPassword, OS_Type, Port FROM ServerInfo WHERE IP = :ip`,
           { ip: ip }
         );
-
         if (result.rows.length > 0) {
           const encryptedUserLob = result.rows[0][0];
           const encryptedPasswordLob = result.rows[0][1];
           const osType = result.rows[0][2];
           const port = result.rows[0][3];
-
           if (!encryptedUserLob || !encryptedPasswordLob) {
             throw new Error("Encrypted User or Password Lob is undefined");
           }
-
           // Leer los Lobs
           const encryptedUser = await readLob(encryptedUserLob);
           const encryptedPassword = await readLob(encryptedPasswordLob);
-
           //console.log("Encrypted User Buffer:", encryptedUser);
           //console.log("Encrypted Password Buffer:", encryptedPassword);
-
           if (!encryptedUser || !encryptedPassword) {
             throw new Error("Failed to read Lob data");
           }
-
           // Desencriptar los datos
           let storedUser, storedPassword;
           try {
@@ -924,7 +826,6 @@ app.whenReady().then(() => {
               message: "Error al desencriptar los datos.",
             };
           }
-
           // Comparar las credenciales
           if (storedUser === username && storedPassword === password) {
             return { success: true, osType, port };
@@ -960,14 +861,12 @@ app.whenReady().then(() => {
   // Función para actualizar servidor en la base de datos
   async function updateServerInfo(id, name, ip, os, port, username, password) {
     let connection;
-
     try {
       connection = await oracledb.getConnection({
         user: "USRMONBK",
         password: "USRMONBK_2024",
         connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
       });
-
       // Actualizar datos del servidor
       const result = await connection.execute(
         `UPDATE ServerInfo 
@@ -984,7 +883,6 @@ app.whenReady().then(() => {
         },
         { autoCommit: true }
       );
-
       console.log("Servidor actualizado correctamente:", result);
       return result;
     } catch (err) {
@@ -1000,22 +898,16 @@ app.whenReady().then(() => {
       }
     }
   }
-
-  // En el IPC handle para editar el servidor
   // En el manejador para actualizar el servidor
   ipcMain.handle("update-server", async (event, serverData) => {
     const { id, serverName, ip, os, port, username, password } = serverData;
-
     try {
       console.log(`Actualizando servidor: ${serverName}, IP: ${ip}, OS: ${os}`);
-
       // Eliminar comillas innecesarias en el username y password antes de encriptarlos
       const cleanUsername = username.replace(/^"|"$/g, "");
       const cleanPassword = password.replace(/^"|"$/g, "");
-
       const encryptedUser = encrypt(cleanUsername); // Encripta el usuario limpio
       const encryptedPassword = encrypt(cleanPassword); // Encripta la contraseña limpia
-
       const result = await updateServerInfo(
         id,
         serverName,
@@ -1026,7 +918,6 @@ app.whenReady().then(() => {
         encryptedPassword
       );
       console.log("Servidor actualizado correctamente:", result);
-
       return { success: true };
     } catch (error) {
       console.error("Error al actualizar el servidor:", error);
@@ -1038,7 +929,6 @@ app.whenReady().then(() => {
     let connection;
     try {
       connection = await oracledb.getConnection(dbConfig);
-
       const result = await connection.execute(
         `SELECT br.BackupPath, si.OS_Type 
        FROM BackupRoutes br 
@@ -1046,9 +936,7 @@ app.whenReady().then(() => {
        WHERE si.IP = :ip`,
         { ip: ip }
       );
-
       //console.log("Rutas obtenidas de la base de datos:", result.rows); // Añadir log
-
       return result.rows.map((row) => ({
         backupPath: row[0],
         os: row[1],
@@ -1076,9 +964,7 @@ app.whenReady().then(() => {
        WHERE si.IP = :ip`,
         { ip: ip }
       );
-
       //console.log("Rutas obtenidas de la base de datos:", result.rows);
-
       return result.rows.map((row) => ({
         backupPath: row[0],
         os: row[1],
@@ -1088,18 +974,14 @@ app.whenReady().then(() => {
       return [];
     }
   }
-
   async function processAllServers() {
     let connection;
     let results = [];
-
     try {
       connection = await oracledb.getConnection(dbConfig);
-
       const serversResult = await connection.execute(
         `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword FROM ServerInfo`
       );
-
       for (const row of serversResult.rows) {
         const serverName = row[1];
         const ip = row[2];
@@ -1107,18 +989,14 @@ app.whenReady().then(() => {
         const port = row[4];
         const encryptedUserLob = row[5];
         const encryptedPasswordLob = row[6];
-
         try {
           console.log(`Procesando servidor: ${serverName} (${ip})`);
-
           // Desencriptar credenciales
           const decryptedUser = await decrypt(await readLob(encryptedUserLob));
           const decryptedPassword = await decrypt(
             await readLob(encryptedPasswordLob)
           );
-
           //console.log(`Credenciales desencriptadas para ${serverName}`);
-
           // Obtener rutas de backup
           const backupRoutes = await getBackupRoutesByIPInternal(
             ip,
@@ -1128,21 +1006,17 @@ app.whenReady().then(() => {
           //`Rutas de backup obtenidas para ${serverName}:`,
           //backupRoutes
           //);
-
           if (backupRoutes.length === 0) {
             throw new Error(
               `No se encontraron rutas de backup para el servidor ${serverName}`
             );
           }
-
           for (const route of backupRoutes) {
             const backupPath = route.backupPath;
             //console.log(`Procesando ruta de backup: ${backupPath} para ${serverName}`);
-
             //console.log(
             //   `Obteniendo detalles de log para ${serverName} desde ${backupPath}`
             //  );
-
             const logDetails = await getLogDetailsLogic(
               backupPath,
               ip,
@@ -1151,12 +1025,10 @@ app.whenReady().then(() => {
               decryptedPassword,
               osType
             );
-
             //console.log(
             //`Detalles de log obtenidos para ${serverName}:`,
             //logDetails
             //);
-
             if (
               !logDetails ||
               (Array.isArray(logDetails) && logDetails.length === 0)
@@ -1172,7 +1044,6 @@ app.whenReady().then(() => {
               });
               continue;
             }
-
             // Guardar los detalles en la base de datos
             if (Array.isArray(logDetails)) {
               for (const detail of logDetails) {
@@ -1197,7 +1068,6 @@ app.whenReady().then(() => {
                 fullBackupPath
               );
             }
-
             results.push({
               serverName,
               ip,
@@ -1225,7 +1095,6 @@ app.whenReady().then(() => {
         }
       }
     }
-
     return results;
   }
   ipcMain.handle("process-all-servers", async (event) => {
@@ -1237,18 +1106,15 @@ app.whenReady().then(() => {
       return { success: false, error: error.message };
     }
   });
-
   async function getFolderSize(conn, directoryPath, os, sftp) {
     if (os === "solaris") {
       // Lógica para Solaris: Usar `du` para obtener el tamaño de todas las subcarpetas en un solo comando
       const command = `du -sk ${directoryPath}/* | awk '{print $1/1024, $2}'`; // Cambiamos aquí el awk para que no incluya "MB"
       const output = await executeSSHCommand(conn, command);
       //console.log("Salida del comando du:", output);
-
       if (!output || output.trim() === "") {
         throw new Error("No se obtuvo salida del comando du");
       }
-
       // Aquí ajustamos cómo se parsea la salida del comando `du`
       return output
         .trim()
@@ -1272,7 +1138,6 @@ app.whenReady().then(() => {
             resolve(fileList || []);
           });
         });
-
         for (const file of files) {
           const filePath =
             path + (os === "windows" ? "\\" : "/") + file.filename;
@@ -1282,17 +1147,14 @@ app.whenReady().then(() => {
               resolve(stats);
             });
           });
-
           if (stats.isDirectory()) {
             totalSize += await calculateSize(filePath);
           } else {
             totalSize += stats.size;
           }
         }
-
         return totalSize;
       }
-
       const totalSize = await calculateSize(directoryPath);
       return parseFloat((totalSize / (1024 * 1024)).toFixed(2)); // Tamaño en MB
     }
@@ -1308,11 +1170,9 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
-
 function createSSHClient(ip, port, username, password) {
   return new Promise((resolve, reject) => {
     const conn = new Client();
-
     conn
       .on("ready", () => {
         //console.log("SSH Connection established");
@@ -1334,11 +1194,9 @@ function createSSHClient(ip, port, username, password) {
       });
   });
 }
-
 function checkConnection(ip, port, username, password) {
   return new Promise((resolve, reject) => {
     const conn = new Client();
-
     conn
       .on("ready", () => {
         console.log("Initial connection successful");
@@ -1377,17 +1235,14 @@ function checkConnection(ip, port, username, password) {
       });
   });
 }
-
 // Función para parsear las fechas en el log y formatearlas para Oracle
 function formatDateForOracle(date) {
   if (!date) return null;
-
   const dateObj = new Date(date);
   if (isNaN(dateObj.getTime())) {
     console.error("Invalid date:", date);
     return null;
   }
-
   return dateObj
     .toLocaleString("en-US", {
       year: "numeric",
@@ -1404,41 +1259,30 @@ function getLast10LogLines(logContent) {
   const lines = logContent.trim().split("\n");
   return lines.slice(-11, -1); // Obtiene las últimas 11 líneas
 }
-
 function parseLogLine(logContent) {
   const oraErrorPattern = /ORA-\d{5}/g;
   const oraSpecificErrorPattern = /ORA-39327/;
   const successPattern = /successfully completed/i;
   const last10Lines = getLast10LogLines(logContent);
-
   const lines = logContent.split("\n");
   let lastLine = lines[lines.length - 1].trim();
-
   // Si la última línea está vacía, busca la primera línea no vacía desde el final
   while (lastLine === "" && lines.length > 1) {
     lines.pop(); // Elimina la última línea vacía
     lastLine = lines[lines.length - 1].trim();
   }
-
   //console.log("Last line of log after handling empty lines:", lastLine); // Depuración
-
   let backupStatus = "EN PROGRESO"; // Estado por defecto
-
   if (lastLine.toLowerCase().includes("completed")) {
     backupStatus = "COMPLETED"; // Siempre establecer a "COMPLETED"
   }
-
   const hasOraSpecificError = oraSpecificErrorPattern.test(logContent);
   const hasSuccessMessage = successPattern.test(logContent);
-
   const isSuccess = hasOraSpecificError || hasSuccessMessage;
-
   const datePattern = /(\w{3} \w{3} \d{1,2} \d{2}:\d{2}:\d{2} \d{4})/g;
   const datesMatch = logContent.match(datePattern);
-
   let startDateTime = null;
   let endDateTime = null;
-
   if (datesMatch) {
     if (datesMatch.length > 0) {
       startDateTime = new Date(datesMatch[0]);
@@ -1447,16 +1291,13 @@ function parseLogLine(logContent) {
       endDateTime = new Date(datesMatch[datesMatch.length - 1]);
     }
   }
-
   const durationPattern = /elapsed (\d{1,2} \d{2}:\d{2}:\d{2})/;
   const durationMatch = logContent.match(durationPattern);
   let duration = durationMatch ? durationMatch[1] : "N/A";
-
   // Elimina el "0 " si la duración comienza con "0 "
   if (duration.startsWith("0 ")) {
     duration = duration.substring(2); // Elimina los primeros dos caracteres "0 "
   }
-
   //console.log("Extracted Data:", { startDateTime, endDateTime, duration });
   let oraError = null;
   for (let i = 0; i < lines.length; i++) {
@@ -1492,7 +1333,6 @@ function formatFileSize(sizeInMB) {
     return `${sizeInMB} MB`;
   }
 }
-// En main.js, actualiza la función getBackupStatistics
 async function getBackupStatistics() {
   let connection;
   try {
@@ -1511,7 +1351,6 @@ async function getBackupStatistics() {
         MAX(horaINI) as last_backup_date
       FROM LogBackup
     `);
-
     return result.rows[0];
   } catch (err) {
     console.error("Error obteniendo estadísticas:", err);
@@ -1526,10 +1365,6 @@ async function getBackupStatistics() {
     }
   }
 }
-
-// El resto del código (manejador IPC, etc.) permanece igual
-
-// Añade este manejador de IPC
 ipcMain.handle("get-backup-statistics", async (event) => {
   try {
     const stats = await getBackupStatistics();
@@ -1548,17 +1383,14 @@ async function saveLogToDatabase(
   backupPath
 ) {
   let connection;
-
   try {
     connection = await oracledb.getConnection(dbConfig);
-
     const startTime = logDetails.startTime
       ? formatDateForOracle(logDetails.startTime)
       : null;
     const endTime = logDetails.endTime
       ? formatDateForOracle(logDetails.endTime)
       : null;
-
     // Convertir el tamaño de archivo
     let totalDmpSize = 0;
     if (Array.isArray(dumpFileInfo)) {
@@ -1566,9 +1398,7 @@ async function saveLogToDatabase(
         totalDmpSize += parseFloat(file.fileSize) || 0;
       });
     }
-
     const formattedFileSize = formatFileSize(totalDmpSize); // Convierte a MB o GB
-
     // Verifica si dumpFileInfo es un array o un solo objeto y suma los tamaños
     if (Array.isArray(dumpFileInfo)) {
       dumpFileInfo.forEach((file) => {
@@ -1602,10 +1432,8 @@ async function saveLogToDatabase(
         dumpFileInfo
       );
     }
-
     // Convertimos totalDmpSize a un número con dos decimales si es mayor que 0
     const totalDmpSizeFormatted = totalDmpSize > 0 ? totalDmpSize : null;
-
     //console.log("Valores a insertar:", {
     //horaINI: startTime,
     //horaFIN: endTime,
@@ -1617,7 +1445,6 @@ async function saveLogToDatabase(
     //ip: ip,
     //backupPath: backupPath,
     //});
-
     const result = await connection.execute(
       `INSERT INTO LogBackup (horaINI, duration, success, dumpFileSize, serverName, logFileName, horaFIN, ip, backupPath) 
         VALUES (

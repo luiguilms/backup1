@@ -4,11 +4,9 @@ body {
   padding: 20px;
   background-color: #f5f5f5;
 }
-
 h1 {
   text-align: center;
 }
-
 form {
   max-width: 600px;
   margin: 0 auto;
@@ -18,17 +16,14 @@ form {
   box-shadow: 0 0 10px rgba(5, 5, 5, 0.1);
   position: relative;
 }
-
 label {
   display: block;
   margin-bottom: 8px;
   font-weight: bold;
 }
-
 .form-group {
   margin-bottom: 12px;
 }
-
 input,
 select {
   width: 100%;
@@ -37,7 +32,6 @@ select {
   border-radius: 4px;
   box-sizing: border-box;
 }
-
 button {
   width: 100%;
   padding: 10px;
@@ -48,11 +42,9 @@ button {
   cursor: pointer;
   font-size: 16px;
 }
-
 button:hover {
   background-color: #0056b3;
 }
-
 #back-button {
   width: 200px;
   padding: 10px;
@@ -72,7 +64,6 @@ button:hover {
 .password-container {
   position: relative;
 }
-
 .password-container input[type="password"],
 .password-container input[type="text"] {
   width: 100%;
@@ -81,7 +72,6 @@ button:hover {
   border-radius: 4px;
   box-sizing: border-box;
 }
-
 .toggle-password {
   position: absolute;
   top: 53.5%;

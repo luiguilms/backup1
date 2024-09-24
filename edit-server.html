@@ -49,17 +49,14 @@
       </div>
       <button type="submit">Guardar Cambios</button>
     </form>
-
     <div id="success-message" style="display: none; color: green">
       Cambios guardados exitosamente.
     </div>
     <div id="error-message" style="display: none; color: red">
       Ocurrió un error al guardar los cambios.
     </div>
-
     <!-- Botón para retroceder -->
     <button id="back-button">Volver</button>
-
     <script>
       // Código para retroceder a la lista de servidores
       document
@@ -72,7 +69,6 @@
       // Código para alternar la visibilidad de la contraseña
       const togglePassword = document.getElementById("togglePassword");
       const passwordField = document.getElementById("password");
-
       togglePassword.addEventListener("click", function (e) {
         // Cambiar el tipo de la entrada de contraseña
         const type =
@@ -80,7 +76,6 @@
             ? "text"
             : "password";
         passwordField.setAttribute("type", type);
-
         // Cambiar el ícono al hacer clic
         this.classList.toggle("fa-eye-slash");
       });

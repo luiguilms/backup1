@@ -2,9 +2,6 @@ let gridApi = null;
 document.addEventListener("DOMContentLoaded", async () => {
   const currentPage = window.location.pathname;
   const currentPath = window.location.pathname;
-  const backButton = document.getElementById("back-button");
-  //console.log("Current Page Path:", currentPage);
-
   // Obtener los elementos del DOM
   const osSelect = document.getElementById("os");
   const ipSelect = document.getElementById("ip");
@@ -15,10 +12,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selectServerBtn = document.getElementById("select-server-btn");
   const deleteServerBtn = document.getElementById("delete-server-btn");
   const backupRouteSelect = document.getElementById("backup-routes");
-  const exportExcelButton = document.getElementById('exportExcel');
+  const exportExcelButton = document.getElementById("exportExcel");
 
   if (exportExcelButton) {
-    exportExcelButton.addEventListener('click', () => handleExport('excel'));
+    exportExcelButton.addEventListener("click", () => handleExport("excel"));
   }
   // Verifica si estamos en la página index.html
   if (currentPath.endsWith("index.html") || currentPath === "/") {
@@ -29,7 +26,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     statsButton.textContent = "Mostrar Estadísticas";
     statsButton.id = "showStatsButton";
     statsButton.onclick = showStatistics;
-
     const topBar = document.createElement("div");
     topBar.style.cssText = `
     position: fixed;
@@ -43,7 +39,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     z-index: 1000;
   `;
     topBar.appendChild(statsButton);
-
     document.body.insertBefore(topBar, document.body.firstChild);
     document.body.style.marginTop = "50px"; // Ajusta este valor según sea necesario
   }
@@ -53,32 +48,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
   const gridContainer = document.getElementById("gridContainer");
   const gridDiv = document.querySelector("#myGrid");
-
   let currentOS = ""; // Variable para el sistema operativo actual
   let selectedServer = null;
   // *** Función para actualizar las rutas de backup ***
   async function updateBackupRoutes() {
     const selectedIP = ipSelect.value; // IP seleccionada
     //console.log("IP seleccionada:", selectedIP); // Asegúrate de que esto se ejecute
-
     if (!selectedIP) {
       console.log("No hay IP seleccionada.");
       return;
     }
-
     try {
       // console.log(`Obteniendo rutas de backup para la IP: ${selectedIP}`);
-
       // Llamar a la función del main process para obtener las rutas de backup
       const backupRoutes = await window.electron.getBackupRoutesByIP(
         selectedIP
       );
-
       //console.log("Rutas de backup obtenidas:", backupRoutes); // Verifica que recibes datos
-
       // Limpiar las rutas previas
       backupRouteSelect.innerHTML = "";
-
       if (backupRoutes.length > 0) {
         backupRoutes.forEach((route) => {
           const option = document.createElement("option");
@@ -106,20 +94,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       return [];
     }
   }
-
   let servers = await loadServers(); // Cargamos los servidores al inicio
-
   // *** Página de selección de servidores ***
   if (currentPage.includes("select-server.html")) {
     const serverListDiv = document.getElementById("server-list");
-
     // Si hay servidores, los mostramos
     if (servers.length > 0) {
       servers.forEach((server) => {
         const serverItem = document.createElement("div");
         serverItem.className = "server-item";
         serverItem.textContent = `Nombre: ${server.name} - IP: ${server.ip}`;
-
         serverItem.addEventListener("click", () => {
           document
             .querySelectorAll(".server-item")
@@ -129,13 +113,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           selectServerBtn.disabled = false; // Habilitar el botón cuando se seleccione un servidor
           deleteServerBtn.disabled = false;
         });
-
         serverListDiv.appendChild(serverItem); // Añadir los servidores a la lista
       });
     } else {
       serverListDiv.textContent = "No se encontraron servidores.";
     }
-
     // Manejar la selección de servidor para editar
     if (selectServerBtn) {
       selectServerBtn.addEventListener("click", () => {
@@ -182,28 +164,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentPage.includes("add-server.html") ||
     currentPage.includes("edit-server.html")
   ) {
-    const serverData = JSON.parse(
-      window.localStorage.getItem("selectedServer")
-    );
-
     // Verifica si estamos en la página de agregar o editar servidor
     if (currentPage.includes("edit-server.html")) {
       const selectedServer = JSON.parse(
         window.localStorage.getItem("selectedServer")
       );
-
       // Verificamos si existe un servidor seleccionado
       if (selectedServer && selectedServer.id) {
         const serverId = selectedServer.id;
-
         console.log("Llamando a getServerDetails con el ID:", serverId); // LOG AQUÍ
-
         try {
           console.log("Cargando detalles del servidor con ID:", serverId);
-
           // Llamamos a la función de electron para obtener los detalles del servidor
           const serverData = await window.electron.getServerDetails(serverId);
-
           if (serverData && !serverData.error) {
             // Llenamos el formulario con los datos recibidos del servidor
             document.getElementById("server-id").value = serverData.id || "";
@@ -218,7 +191,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.getElementById("password").value = (
               serverData.password || ""
             ).replace(/^"|"$/g, "");
-
             console.log("Formulario actualizado con los datos del servidor.");
           } else {
             console.error("No se pudieron cargar los detalles del servidor.");
@@ -233,7 +205,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     // Enviar cambios al editar
     const editServerForm = document.getElementById("edit-server-form");
-
     if (editServerForm) {
       editServerForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -266,10 +237,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       });
     }
-
     // *** Agregar o editar el servidor al enviar el formulario ***
     const addServerForm = document.getElementById("add-server-form");
-
     if (addServerForm) {
       addServerForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -307,26 +276,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
   }
-
   // *** Redirigir al selector de servidores cuando se hace clic en Editar ***
   if (editServerBtn) {
     editServerBtn.addEventListener("click", () => {
       window.location.href = "select-server.html"; // Redirigir a la nueva página de selección de servidores
     });
   }
-
   // *** Función para actualizar las opciones de IP en base al sistema operativo ***
   async function updateIPOptions() {
     if (currentPage.includes("index.html")) {
       try {
         const servers = (await window.electron.getServers()) || [];
         const selectedOS = osSelect.value;
-
         ipSelect.innerHTML = ""; // Limpia las opciones previas
         const filteredServers = servers.filter(
           (server) => server.os === selectedOS
         );
-
         if (filteredServers.length > 0) {
           filteredServers.forEach((server) => {
             const option = document.createElement("option");
@@ -350,20 +315,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
   }
-
   if (osSelect) {
     osSelect.addEventListener("change", updateIPOptions); // Cuando cambie el OS, actualiza las IPs
     updateIPOptions(); // Llama a la función al cargar para llenar las IPs del OS seleccionado por defecto
   }
-
   function showLoading() {
     document.getElementById("loading-overlay").style.display = "flex";
   }
-
   function hideLoading() {
     document.getElementById("loading-overlay").style.display = "none";
   }
-
   function showAuthErrorModal(errorMessage) {
     requestAnimationFrame(() => {
       const modalAuthError = document.getElementById("authErrorModal");
@@ -373,22 +334,18 @@ document.addEventListener("DOMContentLoaded", async () => {
           errorMessage ||
           "Error de autenticación. Por favor, inténtelo de nuevo.";
         modalAuthError.style.display = "block";
-
         const retryButton = document.getElementById("retryButton");
         const closeAuthModal = document.getElementById("closeModal");
-
         if (retryButton) {
           retryButton.onclick = function () {
             modalAuthError.style.display = "none";
           };
         }
-
         if (closeAuthModal) {
           closeAuthModal.onclick = function () {
             modalAuthError.style.display = "none";
           };
         }
-
         window.onclick = function (event) {
           if (event.target == modalAuthError) {
             modalAuthError.style.display = "none";
@@ -397,13 +354,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
-
   function clearLogEntries() {
     if (logEntriesContainer) {
       logEntriesContainer.innerHTML = ""; // Limpiar los logs anteriores
     }
   }
-
   function formatFileSize(sizeInMB) {
     if (sizeInMB >= 1000) {
       let sizeInGB = (sizeInMB / 1000).toFixed(2);
@@ -424,13 +379,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else {
     console.error("Elemento #myGrid no encontrado");
   }
-
   if (processAllServersBtn) {
     processAllServersBtn.addEventListener("click", startProcessAllServers);
   } else {
     console.error("Botón process-all-servers-btn no encontrado");
   }
-
   function initGrid(gridDiv) {
     const gridOptions = {
       columnDefs: [
@@ -545,7 +498,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       },
       //domLayout: 'autoWidht'
     };
-
     try {
       gridApi = agGrid.createGrid(gridDiv, gridOptions);
       //console.log("Grid inicializado correctamente");
@@ -558,23 +510,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error("Error al inicializar AG-Grid:", error);
     }
   }
-
   async function startProcessAllServers() {
     console.log("Iniciando proceso de todos los servidores");
     try {
       showLoading();
       const result = await window.electron.processAllServers();
       hideLoading();
-
       if (result.success) {
         // Mostrar el contenedor del grid
         gridContainer.style.display = "block";
-
         // Inicializar el grid si aún no se ha hecho
         if (!gridApi) {
           initGrid(gridDiv);
         }
-
         displayAllServersResults(result.results);
       } else {
         console.error("Error al procesar los servidores:", result.error);
@@ -586,10 +534,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       showErrorMessage("Error: " + error.message);
     }
   }
-
   function displayAllServersResults(results) {
     //console.log("Mostrando resultados de servidores:", results);
-
     if (gridApi && typeof gridApi.setRowData === "function") {
       const rowData = results.flatMap((serverResult) => {
         const processLogDetail = (logDetail) => {
@@ -605,7 +551,6 @@ document.addEventListener("DOMContentLoaded", async () => {
               ? "status-success"
               : "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
-
           const totalDmpSize = logDetail.dumpFileInfo.reduce(
             (sum, file) => sum + file.fileSize,
             0
@@ -614,7 +559,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           const formattedFolderSize = logDetail.totalFolderSize
             ? formatFileSize(parseFloat(logDetail.totalFolderSize)) // Si hay tamaño de carpeta, lo formateamos
             : "N/A"; // Si no hay tamaño de carpeta, mostramos "N/A"
-
           return {
             serverName: serverResult.serverName,
             ip: serverResult.ip,
@@ -635,7 +579,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             last10Lines: logDetail.logDetails?.last10Lines || [],
           };
         };
-
         if (Array.isArray(serverResult.logDetails)) {
           return serverResult.logDetails.map((logDetail) =>
             processLogDetail(logDetail)
@@ -644,9 +587,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           return [processLogDetail(serverResult.logDetails || {})];
         }
       });
-
       let tooltipVisible = false;
-
       // Configurar el evento de clic en celda para mostrar el tooltip de error
       gridApi.addEventListener("cellClicked", (params) => {
         if (
@@ -662,13 +603,11 @@ document.addEventListener("DOMContentLoaded", async () => {
               document.body.appendChild(div);
               return div;
             })();
-
           if (tooltipVisible) {
             tooltipError.style.display = "none";
             tooltipVisible = false;
             return;
           }
-
           if (params.data.oraError) {
             const oraError = JSON.parse(params.data.oraError);
             tooltipError.innerHTML = `
@@ -681,7 +620,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             tooltipError.textContent =
               "No se encontraron detalles específicos del error.";
           }
-
           const rect = params.event.target.getBoundingClientRect();
           tooltipError.style.top = `${rect.top + window.scrollY}px`;
           tooltipError.style.left = `${rect.right + 10}px`;
@@ -689,7 +627,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           tooltipVisible = true;
         }
       });
-
       // Agregar evento para ocultar el tooltip al hacer clic en cualquier lugar
       document.addEventListener("click", (event) => {
         const tooltipError = document.getElementById("tooltipError");
@@ -715,10 +652,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (logEntriesContainer) {
       const entryDiv = document.createElement("div");
       entryDiv.className = "log-entry";
-
       // Verifica que 'serverName' esté correctamente asignado
       const serverName = logData.serverName || "N/A";
-
       // Añade este log para verificar el valor en el lado del cliente
       //console.log(
       //"Tamaño de la carpeta recibido (logData.totalFolderSize):",
@@ -727,7 +662,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       //console.log("Datos del log:", logData); // Para depuración
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
       const successClass = logData.logDetails.success ? "" : "error-box";
-
       const totalDmpSize = logData.dumpFileInfo.reduce(
         (sum, file) => sum + file.fileSize,
         0
@@ -738,7 +672,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         : "N/A"; // Si no hay tamaño de carpeta, mostramos "N/A"
       // Añadir el estado del backup
       const backupStatus = logData.logDetails.backupStatus || "N/A";
-
       entryDiv.innerHTML = `
             <p><strong>IP:</strong> ${
               logData.ip
@@ -764,7 +697,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             <p><strong>Ruta del backup:</strong> ${
               logData.backupPath || "N/A"
             } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
-            
         `;
       if (logData.logDetails.oraError) {
         entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
@@ -777,7 +709,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             resultDiv.style.display = "none"; // Oculta el div por completo
           }
         });
-
       const showLogButton = document.createElement("button");
       showLogButton.textContent = "Ver grupos de control";
       showLogButton.onclick = () =>
@@ -786,7 +717,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Añadir la línea divisoria después del botón
       const hr = document.createElement("hr");
       entryDiv.appendChild(hr);
-
       logEntriesContainer.appendChild(entryDiv);
       if (resultDiv) resultDiv.style.display = "block";
     }
@@ -800,10 +730,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           tooltipError.classList.add("tooltip-error");
           document.body.appendChild(tooltipError);
         }
-
         const logEntry = event.target.closest(".log-entry");
         const errorDetails = logEntry ? logEntry.dataset.oraError : null;
-
         if (errorDetails) {
           const oraError = JSON.parse(errorDetails);
           tooltipError.innerHTML = `
@@ -816,7 +744,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           tooltipError.textContent =
             "No se encontraron detalles específicos del error.";
         }
-
         const rect = event.target.getBoundingClientRect();
         tooltipError.style.top = `${rect.top + window.scrollY}px`;
         tooltipError.style.left = `${rect.right + 10}px`;
@@ -824,7 +751,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
-
   // Cerrar la ventana flotante cuando se hace clic fuera de ella
   window.onclick = function (event) {
     if (
@@ -833,90 +759,84 @@ document.addEventListener("DOMContentLoaded", async () => {
       !tooltipError.contains(event.target)
     ) {
       tooltipError.style.display = "none"; // Esconde el tooltip
-
       // Eliminar el tooltip si ya no es necesario
       tooltipError.remove();
       tooltipError = null;
     }
   };
-  
   async function exportToExcel(gridApi) {
     // Obtener las columnas visibles, excluyendo 'last10Lines'
-    const columns = gridApi.getColumns()
-      .filter(column => column.isVisible() && column.getColId() !== 'last10Lines')
-      .map(column => ({
+    const columns = gridApi
+      .getColumns()
+      .filter(
+        (column) => column.isVisible() && column.getColId() !== "last10Lines"
+      )
+      .map((column) => ({
         headerName: column.getColDef().headerName,
-        field: column.getColId()
+        field: column.getColId(),
       }));
-  
     // Obtener los datos de las filas
     const rowData = [];
-    gridApi.forEachNodeAfterFilterAndSort(function(node) {
+    gridApi.forEachNodeAfterFilterAndSort(function (node) {
       const rowDataFiltered = {};
-      columns.forEach(col => {
+      columns.forEach((col) => {
         rowDataFiltered[col.field] = node.data[col.field];
       });
       rowData.push(rowDataFiltered);
     });
-  
     const data = {
-      columns: columns.map(col => col.headerName),
-      rows: rowData.map(row => columns.map(col => row[col.field]))
+      columns: columns.map((col) => col.headerName),
+      rows: rowData.map((row) => columns.map((col) => row[col.field])),
     };
-  
     const excelBuffer = await window.electron.exportToExcel(data);
-    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const link = document.createElement('a');
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = 'backup_report.xlsx';
+    link.download = "backup_report.xlsx";
     link.click();
     URL.revokeObjectURL(link.href);
   }
   function showLoadingIndicator() {
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = 'loadingIndicator';
-    loadingDiv.textContent = 'Exportando...';
-    loadingDiv.style.position = 'fixed';
-    loadingDiv.style.top = '50%';
-    loadingDiv.style.left = '50%';
-    loadingDiv.style.transform = 'translate(-50%, -50%)';
-    loadingDiv.style.padding = '20px';
-    loadingDiv.style.background = 'rgba(0,0,0,0.7)';
-    loadingDiv.style.color = 'white';
-    loadingDiv.style.borderRadius = '5px';
+    const loadingDiv = document.createElement("div");
+    loadingDiv.id = "loadingIndicator";
+    loadingDiv.textContent = "Exportando...";
+    loadingDiv.style.position = "fixed";
+    loadingDiv.style.top = "50%";
+    loadingDiv.style.left = "50%";
+    loadingDiv.style.transform = "translate(-50%, -50%)";
+    loadingDiv.style.padding = "20px";
+    loadingDiv.style.background = "rgba(0,0,0,0.7)";
+    loadingDiv.style.color = "white";
+    loadingDiv.style.borderRadius = "5px";
     document.body.appendChild(loadingDiv);
   }
-  
   function hideLoadingIndicator() {
-    const loadingDiv = document.getElementById('loadingIndicator');
+    const loadingDiv = document.getElementById("loadingIndicator");
     if (loadingDiv) {
       document.body.removeChild(loadingDiv);
     }
   }
-  
   async function handleExport(format) {
     if (!gridApi) {
-      console.error('Grid API no está disponible');
+      console.error("Grid API no está disponible");
       return;
     }
-  
     showLoadingIndicator();
-  
     try {
-      if (format === 'excel') {
+      if (format === "excel") {
         await exportToExcel(gridApi);
       } else {
-        console.error('Formato de exportación no soportado');
+        console.error("Formato de exportación no soportado");
       }
     } catch (error) {
-      console.error('Error durante la exportación:', error);
+      console.error("Error durante la exportación:", error);
       // Aquí podrías mostrar un mensaje de error al usuario
     } finally {
       hideLoadingIndicator();
     }
   }
-  
-
   function showLast10LinesModal(last10Lines) {
     const modal = document.createElement("div");
     modal.className = "modal";
@@ -929,33 +849,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         }</pre>
       </div>
     `;
-
     document.body.appendChild(modal);
-
     const closeBtn = modal.querySelector(".close");
     closeBtn.onclick = function () {
       modal.style.display = "none";
       document.body.removeChild(modal);
     };
-
     window.onclick = function (event) {
       if (event.target == modal) {
         modal.style.display = "none";
         document.body.removeChild(modal);
       }
     };
-
     modal.style.display = "block";
   }
-  // Añade esto al principio de tu renderer.js o donde sea apropiado
   let statisticsModal = null;
-
   function createStatisticsModal() {
     if (statisticsModal) {
       console.log("Modal de estadísticas ya existe");
       return;
     }
-
     const modalHTML = `
           <div id="statisticsModal" class="modal">
               <div class="modal-content">
@@ -972,7 +885,6 @@ document.addEventListener("DOMContentLoaded", async () => {
               </div>
           </div>
       `;
-
     const modalStyles = `
           <style>
               .modal {
@@ -1009,28 +921,23 @@ document.addEventListener("DOMContentLoaded", async () => {
               }
           </style>
       `;
-
     // Insertar estilos
     const styleElement = document.createElement("style");
     styleElement.innerHTML = modalStyles;
     document.head.appendChild(styleElement);
-
     // Insertar HTML del modal
     const modalElement = document.createElement("div");
     modalElement.innerHTML = modalHTML;
     document.body.appendChild(modalElement.firstElementChild);
-
     statisticsModal = document.getElementById("statisticsModal");
     console.log("Modal de estadísticas creado");
   }
-
   async function showStatistics() {
     try {
       if (!statisticsModal) {
         console.log("Creando modal de estadísticas");
         createStatisticsModal();
       }
-
       if (!statisticsModal) {
         console.error("No se pudo crear el modal de estadísticas");
         alert(
@@ -1038,17 +945,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
         return;
       }
-
       const stats = await window.electron.getBackupStatistics();
       console.log("Estadísticas recibidas:", stats);
-
       const formatValue = (value, formatter) => {
         if (value === null || value === undefined || isNaN(value)) {
           return "N/A";
         }
         return formatter(value);
       };
-
       const safelyUpdateContent = (id, value) => {
         const element = document.getElementById(id);
         if (element) {
@@ -1057,7 +961,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.warn(`Elemento con id '${id}' no encontrado`);
         }
       };
-
       // Mapeo de índices del array a nombres de estadísticas
       const [
         totalBackups,
@@ -1067,7 +970,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         uniqueIPs,
         lastBackupDate,
       ] = stats;
-
       safelyUpdateContent(
         "totalBackups",
         formatValue(totalBackups, (v) => v.toString())
@@ -1095,9 +997,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "lastBackupDate",
         formatValue(lastBackupDate, (v) => new Date(v).toLocaleString())
       );
-
       statisticsModal.style.display = "block";
-
       // Configurar el cierre del modal
       const closeBtn = statisticsModal.querySelector(".close");
       if (closeBtn) {
@@ -1107,7 +1007,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         console.warn("Botón de cierre no encontrado en el modal");
       }
-
       window.onclick = function (event) {
         if (event.target == statisticsModal) {
           statisticsModal.style.display = "none";
@@ -1120,23 +1019,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     }
   }
-
   const form = document.getElementById("server-form");
   if (form) {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       showLoading(); // Mostrar loading overlay
-
       const ip = ipSelect.value;
       const username = form.username.value;
       const password = form.password.value;
-
       // Guardar los datos de conexión en el almacenamiento local
       window.localStorage.setItem(
         "connectionData",
         JSON.stringify({ os, ip, port, username, password })
       );
-
       try {
         // Verificar las credenciales del usuario
         const result = await window.electron.verifyCredentials(
@@ -1144,30 +1039,23 @@ document.addEventListener("DOMContentLoaded", async () => {
           username,
           password
         );
-
         if (!result.success) {
           throw new Error(result.message); // Lanzar error si la verificación falla
         }
-
         const os = result.osType;
         const port = result.port;
-
         // Si el sistema operativo ha cambiado, limpiamos los logs anteriores
         if (currentOS !== os) {
           clearLogEntries();
           currentOS = os; // Actualizamos el sistema operativo actual
         }
-
         console.log("Connection successful");
-
         // Obtener las rutas de backup desde la base de datos usando la IP seleccionada
         const backupRoutes = await window.electron.getBackupRoutesByIP(ip);
         let directoryPath = "";
-
         // Si se encuentran rutas, buscar la correcta según el sistema operativo
         if (backupRoutes.length > 0) {
           const matchingRoute = backupRoutes.find((route) => route.os === os);
-
           if (matchingRoute) {
             directoryPath = matchingRoute.backupPath; // Asignamos la ruta correcta
             //console.log(`Ruta de backup encontrada: ${directoryPath}`);
@@ -1181,7 +1069,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           showAuthErrorModal("No se encontraron rutas de backup para esta IP.");
           return;
         }
-
         try {
           // Obtener los detalles del log
           console.log("Fetching log details...");
@@ -1193,13 +1080,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             password,
             os
           );
-
           // Procesar los detalles del log
           if (Array.isArray(logDetailsArray)) {
             for (const logData of logDetailsArray) {
               //console.log("Adding log entry:", logData);
               addLogEntry({ ...logData, ip });
-
               if (
                 logData.logDetails &&
                 Object.keys(logData.logDetails).length > 0
@@ -1218,7 +1103,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             const logData = { ...logDetailsArray, ip };
             console.log("Adding log entry:", logData);
             addLogEntry(logData);
-
             if (
               logData.logDetails &&
               Object.keys(logData.logDetails).length > 0

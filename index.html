@@ -37,14 +37,12 @@
               <input type="text" id="port" name="port" value="22" />
             </div>
           </div>
-
           <div class="form-group">
             <label for="backup-routes">Rutas de Backup:</label>
             <select id="backup-routes" name="backup-routes">
               <!-- Las rutas de backup se llenarán dinámicamente -->
             </select>
           </div>
-
           <div class="form-row">
             <div class="form-group">
               <label for="username">Usuario:</label>
@@ -58,7 +56,6 @@
               </div>
             </div>
           </div>
-
           <button type="submit">Conectar</button>
         </form>
       </div>
@@ -75,13 +72,11 @@
         </div>
       </div>
     </div>
-
     <!-- Botón flotante con ícono de agregar servidor -->
     <button id="add-server-btn">
       <i class="fas fa-plus"></i>
       <span>Añadir</span>
     </button>
-
     <!-- Botón flotante con ícono de editar servidor -->
     <button id="edit-server-btn">
       <i class="fas fa-edit"></i>
@@ -111,7 +106,6 @@
       // Código para alternar la visibilidad de la contraseña
       const togglePassword = document.getElementById("togglePassword");
       const passwordField = document.getElementById("password");
-
       togglePassword.addEventListener("click", function (e) {
         // Cambiar el tipo de la entrada de contraseña
         const type =
@@ -119,7 +113,6 @@
             ? "text"
             : "password";
         passwordField.setAttribute("type", type);
-
         // Cambiar el ícono al hacer clic
         this.classList.toggle("fa-eye-slash");
       });
