@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     left: 0;
     right: 0;
     background-color: #f8f9fa;
-    padding: 10px;
+    padding: 5px;
     text-align: right;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     z-index: 1000;

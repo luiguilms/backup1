@@ -1066,44 +1066,6 @@ app.whenReady().then(() => {
       }
     }
   });
-  async function getAllServers() {
-    let connection;
-    try {
-      connection = await oracledb.getConnection(dbConfig);
-      const result = await connection.execute(
-        `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword 
-         FROM ServerInfo`,
-        [],
-        {
-          fetchInfo: {
-            EncryptedUser: { type: oracledb.STRING },
-            EncryptedPassword: { type: oracledb.STRING },
-          },
-        }
-      );
-
-      return result.rows.map((row) => ({
-        id: row[0],
-        serverName: row[1],
-        ip: row[2],
-        os: row[3],
-        port: row[4],
-        encryptedUser: row[5],
-        encryptedPassword: row[6],
-      }));
-    } catch (err) {
-      console.error("Error al obtener los servidores:", err);
-      throw err;
-    } finally {
-      if (connection) {
-        try {
-          await connection.close();
-        } catch (err) {
-          console.error("Error al cerrar la conexión:", err);
-        }
-      }
-    }
-  }
   // Añade esta función para usar dentro de processAllServers
   async function getBackupRoutesByIPInternal(ip, connection) {
     try {
