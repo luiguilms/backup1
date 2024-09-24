@@ -5,6 +5,24 @@ const { Client } = require("ssh2");
 const oracledb = require("oracledb");
 const { Console } = require("console");
 const crypto = require("crypto");
+const ExcelJS = require('exceljs');
+
+ipcMain.handle('export-to-excel', async (event, data) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Backup Report');
+
+  worksheet.columns = data.columns.map(col => ({
+    header: col,
+    key: col,
+    width: 15
+  }));
+
+  worksheet.addRows(data.rows);
+  worksheet.getRow(1).font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return buffer;
+});
 // Función para normalizar rutas según el sistema operativo
 function normalizePath(inputPath, targetOS) {
   let normalizedPath = inputPath.replace(/\\/g, "/");

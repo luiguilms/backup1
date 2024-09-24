@@ -15,6 +15,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selectServerBtn = document.getElementById("select-server-btn");
   const deleteServerBtn = document.getElementById("delete-server-btn");
   const backupRouteSelect = document.getElementById("backup-routes");
+  const exportExcelButton = document.getElementById('exportExcel');
+
+  if (exportExcelButton) {
+    exportExcelButton.addEventListener('click', () => handleExport('excel'));
+  }
   // Verifica si estamos en la página index.html
   if (currentPath.endsWith("index.html") || currentPath === "/") {
     createStatsButton();
@@ -834,6 +839,83 @@ document.addEventListener("DOMContentLoaded", async () => {
       tooltipError = null;
     }
   };
+  
+  async function exportToExcel(gridApi) {
+    // Obtener las columnas visibles, excluyendo 'last10Lines'
+    const columns = gridApi.getColumns()
+      .filter(column => column.isVisible() && column.getColId() !== 'last10Lines')
+      .map(column => ({
+        headerName: column.getColDef().headerName,
+        field: column.getColId()
+      }));
+  
+    // Obtener los datos de las filas
+    const rowData = [];
+    gridApi.forEachNodeAfterFilterAndSort(function(node) {
+      const rowDataFiltered = {};
+      columns.forEach(col => {
+        rowDataFiltered[col.field] = node.data[col.field];
+      });
+      rowData.push(rowDataFiltered);
+    });
+  
+    const data = {
+      columns: columns.map(col => col.headerName),
+      rows: rowData.map(row => columns.map(col => row[col.field]))
+    };
+  
+    const excelBuffer = await window.electron.exportToExcel(data);
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'backup_report.xlsx';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+  function showLoadingIndicator() {
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'loadingIndicator';
+    loadingDiv.textContent = 'Exportando...';
+    loadingDiv.style.position = 'fixed';
+    loadingDiv.style.top = '50%';
+    loadingDiv.style.left = '50%';
+    loadingDiv.style.transform = 'translate(-50%, -50%)';
+    loadingDiv.style.padding = '20px';
+    loadingDiv.style.background = 'rgba(0,0,0,0.7)';
+    loadingDiv.style.color = 'white';
+    loadingDiv.style.borderRadius = '5px';
+    document.body.appendChild(loadingDiv);
+  }
+  
+  function hideLoadingIndicator() {
+    const loadingDiv = document.getElementById('loadingIndicator');
+    if (loadingDiv) {
+      document.body.removeChild(loadingDiv);
+    }
+  }
+  
+  async function handleExport(format) {
+    if (!gridApi) {
+      console.error('Grid API no está disponible');
+      return;
+    }
+  
+    showLoadingIndicator();
+  
+    try {
+      if (format === 'excel') {
+        await exportToExcel(gridApi);
+      } else {
+        console.error('Formato de exportación no soportado');
+      }
+    } catch (error) {
+      console.error('Error durante la exportación:', error);
+      // Aquí podrías mostrar un mensaje de error al usuario
+    } finally {
+      hideLoadingIndicator();
+    }
+  }
+  
 
   function showLast10LinesModal(last10Lines) {
     const modal = document.createElement("div");

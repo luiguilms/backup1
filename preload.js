@@ -43,4 +43,5 @@ contextBridge.exposeInMainWorld("electron", {
   getBackupRoutesByIP: (ip) => ipcRenderer.invoke("getBackupRoutesByIP", ip),
   processAllServers: () => ipcRenderer.invoke("process-all-servers"),
   getBackupStatistics: () => ipcRenderer.invoke("get-backup-statistics"),
+  exportToExcel: (data) => ipcRenderer.invoke('export-to-excel', data),
 });
