@@ -1,6 +1,9 @@
 node_modules
 .vscode
 repopack-output.txt
-ag-grid.css
-ag-theme-alpine.css
+css/ag-grid.css
+css/ag-theme-alpine.css
 dist
+pruebas
+insertServerInfo.js
+GESCONNEG1.DMP
