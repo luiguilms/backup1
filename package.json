@@ -15,6 +15,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@sendgrid/mail": "^8.1.3",
     "basic-ftp": "^5.0.5",
     "crypto": "^1.0.1",
     "docx": "^8.5.0",
@@ -22,8 +23,10 @@
     "fs": "^0.0.1-security",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.5.31",
+    "node-mailjet": "^6.0.6",
     "node-windows": "^1.0.0-beta.8",
     "node-winrm": "^0.1.3",
+    "nodemailer": "^6.9.15",
     "oracledb": "^6.6.0",
     "rdp": "^1.0.1",
     "repopack": "^0.1.36",

@@ -6,6 +6,7 @@ const oracledb = require("oracledb");
 const { Console } = require("console");
 const crypto = require("crypto");
 const ExcelJS = require("exceljs");
+const nodemailer = require("nodemailer");
 
 ipcMain.handle("export-to-excel", async (event, data) => {
   const workbook = new ExcelJS.Workbook();
@@ -196,6 +197,8 @@ app.whenReady().then(() => {
             let totalDmpSize = 0; // Reinicia para cada subdirectorio
             let logDetails = null;
             let logFileName = null;
+            let last10Lines = []; // Inicializa aquí
+            let has95Warning = false; // Inicializa aquí
             for (const logFile of logFiles) {
               logFileName = logFile.filename;
               const logFilePath = joinPath(subDirPath, logFileName, targetOS);
@@ -226,6 +229,13 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
+              last10Lines = getLast10LogLines(logData);
+              has95Warning = checkFor95Warning(last10Lines);
+
+              if (has95Warning) {
+                const last10LinesText = last10Lines.join("\n");
+                await sendEmailAlert(ip, serverName, `\n${last10LinesText}`);
+              }
               logDetails = parseLogLine(logData);
               const dumpFiles = subDirFiles.filter((file) =>
                 [".DMP", ".dmp"].includes(
@@ -272,6 +282,8 @@ app.whenReady().then(() => {
               totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
               totalFolderSize,
               serverName: serverName,
+              last10Lines,
+              has95Warning,
             });
             // Añade este log para verificar el valor
             //console.log(
@@ -359,6 +371,13 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
+              const last10Lines = getLast10LogLines(logData);
+              const has95Warning = checkFor95Warning(last10Lines);
+
+              if (has95Warning) {
+                const last10LinesText = last10Lines.join("\n");
+                await sendEmailAlert(ip, serverName, `\n${last10LinesText}`);
+              }
               const logDetails = parseLogLine(logData);
               let dumpFileInfo = [];
               const dumpFiles = subDirFiles.filter((file) =>
@@ -406,6 +425,8 @@ app.whenReady().then(() => {
                 totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
                 totalFolderSize: `${folderSizes} MB`,
                 serverName: serverName,
+                last10Lines,
+                has95Warning,
               });
             }
           }
@@ -448,6 +469,13 @@ app.whenReady().then(() => {
                 resolve(data);
               });
             });
+            const last10Lines = getLast10LogLines(logData);
+            const has95Warning = checkFor95Warning(last10Lines);
+
+            if (has95Warning) {
+              const last10LinesText = last10Lines.join("\n");
+              await sendEmailAlert(ip, serverName, `\n${last10LinesText}`);
+            }
             const logDetails = parseLogLine(logData);
             let dumpFileInfo = [];
             const dumpFiles = files.filter((file) =>
@@ -496,6 +524,8 @@ app.whenReady().then(() => {
                 totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
                 totalFolderSize: `${folderSizes} MB`,
                 serverName: serverName,
+                last10Lines,
+                has95Warning,
               },
             ];
           }
@@ -1485,6 +1515,63 @@ async function saveLogToDatabase(
       } catch (err) {
         console.error("Error al cerrar la conexión con la base de datos:", err);
       }
+    }
+  }
+}
+function checkFor95Warning(last10Lines) {
+  return last10Lines.some((line) => line.includes("_95"));
+}
+const Mailjet = require("node-mailjet");
+
+const mailjet = new Mailjet({
+  apiKey: "e88d0e4474aae45518847e1e2c6b1008",
+  apiSecret: "3578348b5eb98121adce82c7a757bc58",
+});
+
+async function sendEmailAlert(ip, serverName, message) {
+  try {
+    const response = await mailjet.post("send", { version: "v3.1" }).request({
+      Messages: [
+        {
+          From: {
+            Email: "luiguilmsz3@gmail.com",
+            Name: "Sistema de Backup",
+          },
+          To: [
+            {
+              Email: "igs_llupacca@cajaarequipa.pe",
+              Name: "Receptor",
+            },
+          ],
+          Subject: `Alerta de espacio en servidor ${serverName}`,
+          TextPart: `Se ha detectado una advertencia de espacio en el servidor ${serverName} (IP: ${ip}).\n\n${message}`,
+          HTMLPart: `
+            <h3>Alerta de espacio en servidor ${serverName}</h3>
+            <p>Se ha detectado una advertencia de espacio en el servidor ${serverName} (IP: ${ip}).</p>
+            <h4>Detalles del log:</h4>
+            <pre>${message.replace(/\n/g, "<br>")}</pre>
+          `,
+        },
+      ],
+    });
+
+    // Verificar el estado de la respuesta
+    if (
+      response.body &&
+      response.body.Messages &&
+      response.body.Messages.length > 0
+    ) {
+      const messageStatus = response.body.Messages[0].Status;
+      console.log("Estado del email:", messageStatus);
+      console.log("ID del mensaje:", response.body.Messages[0].To[0].MessageID);
+      console.log("Email enviado correctamente");
+    } else {
+      console.log("Respuesta inesperada de Mailjet:", response.body);
+    }
+  } catch (error) {
+    console.error("Error al enviar email:", error.statusCode);
+    if (error.response) {
+      console.error("Detalles del error:", error.response.body);
     }
   }
 }
