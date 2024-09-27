@@ -1301,14 +1301,18 @@ function parseLogLine(logContent) {
     lines.pop(); // Elimina la última línea vacía
     lastLine = lines[lines.length - 1].trim();
   }
-  //console.log("Last line of log after handling empty lines:", lastLine); // Depuración
-  let backupStatus = "EN PROGRESO"; // Estado por defecto
-  if (lastLine.toLowerCase().includes("completed")) {
-    backupStatus = "COMPLETED"; // Siempre establecer a "COMPLETED"
-  }
   const hasOraSpecificError = oraSpecificErrorPattern.test(logContent);
   const hasSuccessMessage = successPattern.test(logContent);
-  const isSuccess = hasOraSpecificError || hasSuccessMessage;
+  isSuccess = hasOraSpecificError || hasSuccessMessage;
+  //console.log("Last line of log after handling empty lines:", lastLine); // Depuración
+  let backupStatus = "EN PROGRESO";
+  if (lastLine.toLowerCase().includes("completed")) {
+    if (isSuccess) {
+      backupStatus = "COMPLETADO";
+    } else {
+      backupStatus = "COMPLETADO CON ERRORES";
+    }
+  }
   const datePattern = /(\w{3} \w{3} \d{1,2} \d{2}:\d{2}:\d{2} \d{4})/g;
   const datesMatch = logContent.match(datePattern);
   let startDateTime = null;
