@@ -1036,6 +1036,7 @@ app.whenReady().then(() => {
       const serversResult = await connection.execute(
         `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword FROM ServerInfo`
       );
+      
       for (const row of serversResult.rows) {
         const serverName = row[1];
         const ip = row[2];
@@ -1043,98 +1044,97 @@ app.whenReady().then(() => {
         const port = row[4];
         const encryptedUserLob = row[5];
         const encryptedPasswordLob = row[6];
+        
         try {
           console.log(`Procesando servidor: ${serverName} (${ip})`);
+          
           // Desencriptar credenciales
           const decryptedUser = await decrypt(await readLob(encryptedUserLob));
-          const decryptedPassword = await decrypt(
-            await readLob(encryptedPasswordLob)
-          );
-          //console.log(`Credenciales desencriptadas para ${serverName}`);
+          const decryptedPassword = await decrypt(await readLob(encryptedPasswordLob));
+          
           // Obtener rutas de backup
-          const backupRoutes = await getBackupRoutesByIPInternal(
-            ip,
-            connection
-          );
-          //console.log(
-          //`Rutas de backup obtenidas para ${serverName}:`,
-          //backupRoutes
-          //);
+          const backupRoutes = await getBackupRoutesByIPInternal(ip, connection);
+          
           if (backupRoutes.length === 0) {
-            throw new Error(
-              `No se encontraron rutas de backup para el servidor ${serverName}`
-            );
+            console.log(`No se encontraron rutas de backup para el servidor ${serverName}`);
+            results.push({
+              serverName,
+              ip,
+              error: "No se encontraron rutas de backup"
+            });
+            continue;  // Continuar con el siguiente servidor
           }
+          
           for (const route of backupRoutes) {
             const backupPath = route.backupPath;
-            //console.log(`Procesando ruta de backup: ${backupPath} para ${serverName}`);
-            //console.log(
-            //   `Obteniendo detalles de log para ${serverName} desde ${backupPath}`
-            //  );
-            const logDetails = await getLogDetailsLogic(
-              backupPath,
-              ip,
-              port,
-              decryptedUser,
-              decryptedPassword,
-              osType
-            );
-            //console.log(
-            //`Detalles de log obtenidos para ${serverName}:`,
-            //logDetails
-            //);
-            if (
-              !logDetails ||
-              (Array.isArray(logDetails) && logDetails.length === 0)
-            ) {
-              console.log(
-                `No se encontraron detalles de log para ${serverName} en la ruta ${backupPath}`
-              );
-              results.push({
-                serverName,
-                ip,
+            try {
+              const logDetails = await getLogDetailsLogic(
                 backupPath,
-                error: "No se encontraron detalles de log",
-              });
-              continue;
-            }
-            // Guardar los detalles en la base de datos
-            if (Array.isArray(logDetails)) {
-              for (const detail of logDetails) {
-                const fullBackupPath = detail.backupPath;
+                ip,
+                port,
+                decryptedUser,
+                decryptedPassword,
+                osType
+              );
+              
+              if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
+                console.log(`No se encontraron detalles de log para ${serverName} en la ruta ${backupPath}`);
+                results.push({
+                  serverName,
+                  ip,
+                  backupPath,
+                  error: "No se encontraron detalles de log"
+                });
+                continue;  // Continuar con la siguiente ruta de backup
+              }
+              
+              // Guardar los detalles en la base de datos
+              if (Array.isArray(logDetails)) {
+                for (const detail of logDetails) {
+                  const fullBackupPath = detail.backupPath;
+                  await saveLogToDatabase(
+                    detail.logDetails,
+                    detail.dumpFileInfo,
+                    osType,
+                    detail.logFileName,
+                    ip,
+                    fullBackupPath
+                  );
+                }
+              } else if (logDetails && logDetails.logDetails) {
+                const fullBackupPath = logDetails.backupPath;
                 await saveLogToDatabase(
-                  detail.logDetails,
-                  detail.dumpFileInfo,
+                  logDetails.logDetails,
+                  logDetails.dumpFileInfo,
                   osType,
-                  detail.logFileName,
+                  logDetails.logFileName,
                   ip,
                   fullBackupPath
                 );
               }
-            } else if (logDetails && logDetails.logDetails) {
-              const fullBackupPath = logDetails.backupPath;
-              await saveLogToDatabase(
-                logDetails.logDetails,
-                logDetails.dumpFileInfo,
-                osType,
-                logDetails.logFileName,
+              
+              results.push({
+                serverName,
                 ip,
-                fullBackupPath
-              );
+                backupPath: backupPath,
+                logDetails,
+              });
+            } catch (routeError) {
+              console.error(`Error procesando la ruta ${backupPath} del servidor ${serverName}:`, routeError);
+              results.push({
+                serverName,
+                ip,
+                backupPath,
+                error: routeError.message
+              });
             }
-            results.push({
-              serverName,
-              ip,
-              backupPath: backupPath,
-              logDetails,
-            });
           }
-        } catch (error) {
-          console.error(`Error procesando el servidor ${serverName}:`, error);
+        } catch (serverError) {
+          console.error(`Error procesando el servidor ${serverName}:`, serverError);
           results.push({
             serverName,
             ip,
-            error: error.message,
+            error: serverError.message
           });
         }
       }
