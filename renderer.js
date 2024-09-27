@@ -474,7 +474,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             const button = document.createElement("button");
             button.innerHTML = "Ver";
             button.addEventListener("click", () => {
-              showLast10LinesModal(params.data.last10Lines);
+              showLast10LinesModal(
+                params.data.last10Lines,
+                params.data.hasWarning
+              );
             });
             return button;
           },
@@ -559,6 +562,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           const formattedFolderSize = logDetail.totalFolderSize
             ? formatFileSize(parseFloat(logDetail.totalFolderSize)) // Si hay tamaño de carpeta, lo formateamos
             : "N/A"; // Si no hay tamaño de carpeta, mostramos "N/A"
+          const logInfo = logDetail.logDetails || {};
+          const displayedLines = logInfo.hasWarning
+            ? logDetail.last10Lines || []
+            : [logDetail.lastLine || "No hay información disponible"];
+          const groupControlInfo = logInfo.hasWarning
+            ? "Ver grupos de control (Advertencia)"
+            : "Ver última línea del log";
           return {
             serverName: serverResult.serverName,
             ip: serverResult.ip,
@@ -576,7 +586,9 @@ document.addEventListener("DOMContentLoaded", async () => {
               ? JSON.stringify(logDetail.logDetails.oraError)
               : null,
             statusClass: statusClass,
-            last10Lines: logDetail.logDetails?.last10Lines || [],
+            last10Lines: displayedLines,
+            groupControlInfo: groupControlInfo,
+            hasWarning: logInfo.hasWarning,
           };
         };
         if (Array.isArray(serverResult.logDetails)) {
@@ -837,16 +849,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       hideLoadingIndicator();
     }
   }
-  function showLast10LinesModal(last10Lines) {
+  function showLast10LinesModal(lines, hasWarning) {
     const modal = document.createElement("div");
     modal.className = "modal";
     modal.innerHTML = `
       <div class="modal-content">
         <span class="close">&times;</span>
-        <h2>Grupos de control</h2>
-        <pre>${
-          Array.isArray(last10Lines) ? last10Lines.join("\n") : last10Lines
-        }</pre>
+        <h2>${
+          hasWarning
+            ? "Grupos de control (Advertencia)"
+            : "Última línea del log"
+        }</h2>
+        <pre>${Array.isArray(lines) ? lines.join("\n") : lines}</pre>
       </div>
     `;
     document.body.appendChild(modal);

@@ -198,6 +198,8 @@ app.whenReady().then(() => {
             let logDetails = null;
             let logFileName = null;
             let logInfo = null; // Reemplaza last10Lines y has95Warning
+            let logLines = null;
+            let lastLine = null; // Añadimos la última línea aquí
             for (const logFile of logFiles) {
               logFileName = logFile.filename;
               const logFilePath = joinPath(subDirPath, logFileName, targetOS);
@@ -228,6 +230,9 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
+              
+              logLines = logData.trim().split('\n');
+              lastLine = logLines[logLines.length - 1].trim();
               logInfo = getLast10LogLines(logData);
               logDetails = parseLogLine(logData);
 
@@ -288,6 +293,7 @@ app.whenReady().then(() => {
               last10Lines: logInfo ? logInfo.relevantLines : [],
               hasWarning: logInfo ? logInfo.hasWarning : false,
               warningNumber: logInfo ? logInfo.warningNumber : null,
+              lastLine: lastLine // Añadimos la última línea aquí
             });
             // Añade este log para verificar el valor
             //console.log(
@@ -375,6 +381,8 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
+              const logLines = logData.trim().split('\n');
+              const lastLine = logLines[logLines.length - 1].trim();
               const logInfo = getLast10LogLines(logData);
 
               if (logInfo.hasWarning) {
@@ -435,6 +443,7 @@ app.whenReady().then(() => {
                 last10Lines: logInfo.relevantLines,
                 hasWarning: logInfo.hasWarning,
                 warningNumber: logInfo.warningNumber,
+                lastLine: lastLine // Añadimos la última línea aquí
               });
             }
           }
@@ -477,6 +486,8 @@ app.whenReady().then(() => {
                 resolve(data);
               });
             });
+            const logLines = logData.trim().split('\n');
+            const lastLine = logLines[logLines.length - 1].trim();
             const logInfo = getLast10LogLines(logData);
 
             if (logInfo.hasWarning) {
@@ -538,6 +549,7 @@ app.whenReady().then(() => {
                 last10Lines: logInfo.relevantLines,
                 hasWarning: logInfo.hasWarning,
                 warningNumber: logInfo.warningNumber,
+                lastLine: lastLine // Añadimos la última línea aquí
               },
             ];
           }
@@ -1302,6 +1314,7 @@ function getLast10LogLines(logContent) {
   const warningPattern = /_9[0-9]/;
   let lastWarningNumber = -1;
   let relevantLines = [];
+  let lastLine = lines[lines.length - 1].trim();
 
   // Iteramos sobre las últimas 20 líneas para asegurarnos de no perder información relevante
   for (let i = lines.length - 1; i >= Math.max(0, lines.length - 20); i--) {
@@ -1322,6 +1335,7 @@ function getLast10LogLines(logContent) {
     relevantLines: relevantLines.slice(0, 10), // Limitamos a 10 líneas relevantes
     hasWarning: lastWarningNumber !== -1,
     warningNumber: lastWarningNumber,
+    //lastLine: lastLine
   };
 }
 function parseLogLine(logContent) {
