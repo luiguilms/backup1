@@ -721,11 +721,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             resultDiv.style.display = "none"; // Oculta el div por completo
           }
         });
-      const showLogButton = document.createElement("button");
-      showLogButton.textContent = "Ver grupos de control";
-      showLogButton.onclick = () =>
-        showLast10LinesModal(logData.logDetails.last10Lines);
-      entryDiv.appendChild(showLogButton);
+        const showLogButton = document.createElement("button");
+        showLogButton.textContent = logData.logDetails.hasWarning 
+          ? "Ver grupos de control (Advertencia)" 
+          : "Ver última línea del log";
+        showLogButton.onclick = () => {
+          const linesToShow = logData.logDetails.hasWarning 
+            ? logData.logDetails.last10Lines 
+            : [logData.lastLine || "No hay información disponible"];
+          showLast10LinesModal(linesToShow, logData.logDetails.hasWarning);
+        };
+        entryDiv.appendChild(showLogButton);
       // Añadir la línea divisoria después del botón
       const hr = document.createElement("hr");
       entryDiv.appendChild(hr);
