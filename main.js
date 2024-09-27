@@ -197,8 +197,7 @@ app.whenReady().then(() => {
             let totalDmpSize = 0; // Reinicia para cada subdirectorio
             let logDetails = null;
             let logFileName = null;
-            let last10Lines = []; // Inicializa aquí
-            let has95Warning = false; // Inicializa aquí
+            let logInfo = null; // Reemplaza last10Lines y has95Warning
             for (const logFile of logFiles) {
               logFileName = logFile.filename;
               const logFilePath = joinPath(subDirPath, logFileName, targetOS);
@@ -229,12 +228,16 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
-              last10Lines = getLast10LogLines(logData);
-              has95Warning = checkFor95Warning(last10Lines);
+              logInfo = getLast10LogLines(logData);
+              logDetails = parseLogLine(logData);
 
-              if (has95Warning) {
-                const last10LinesText = last10Lines.join("\n");
-                await sendEmailAlert(ip, serverName, `\n${last10LinesText}`);
+              if (logInfo.hasWarning) {
+                const warningMessage = `Se detectó una advertencia de espacio al ${
+                  logInfo.warningNumber
+                }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
+                  "\n"
+                )}`;
+                await sendEmailAlert(ip, serverName, warningMessage);
               }
               logDetails = parseLogLine(logData);
               const dumpFiles = subDirFiles.filter((file) =>
@@ -282,8 +285,9 @@ app.whenReady().then(() => {
               totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
               totalFolderSize,
               serverName: serverName,
-              last10Lines,
-              has95Warning,
+              last10Lines: logInfo ? logInfo.relevantLines : [],
+              hasWarning: logInfo ? logInfo.hasWarning : false,
+              warningNumber: logInfo ? logInfo.warningNumber : null,
             });
             // Añade este log para verificar el valor
             //console.log(
@@ -371,12 +375,15 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
-              const last10Lines = getLast10LogLines(logData);
-              const has95Warning = checkFor95Warning(last10Lines);
+              const logInfo = getLast10LogLines(logData);
 
-              if (has95Warning) {
-                const last10LinesText = last10Lines.join("\n");
-                await sendEmailAlert(ip, serverName, `\n${last10LinesText}`);
+              if (logInfo.hasWarning) {
+                const warningMessage = `Se detectó una advertencia de espacio al ${
+                  logInfo.warningNumber
+                }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
+                  "\n"
+                )}`;
+                await sendEmailAlert(ip, serverName, warningMessage);
               }
               const logDetails = parseLogLine(logData);
               let dumpFileInfo = [];
@@ -425,8 +432,9 @@ app.whenReady().then(() => {
                 totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
                 totalFolderSize: `${folderSizes} MB`,
                 serverName: serverName,
-                last10Lines,
-                has95Warning,
+                last10Lines: logInfo.relevantLines,
+                hasWarning: logInfo.hasWarning,
+                warningNumber: logInfo.warningNumber,
               });
             }
           }
@@ -469,12 +477,15 @@ app.whenReady().then(() => {
                 resolve(data);
               });
             });
-            const last10Lines = getLast10LogLines(logData);
-            const has95Warning = checkFor95Warning(last10Lines);
+            const logInfo = getLast10LogLines(logData);
 
-            if (has95Warning) {
-              const last10LinesText = last10Lines.join("\n");
-              await sendEmailAlert(ip, serverName, `\n${last10LinesText}`);
+            if (logInfo.hasWarning) {
+              const warningMessage = `Se detectó una advertencia de espacio al ${
+                logInfo.warningNumber
+              }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
+                "\n"
+              )}`;
+              await sendEmailAlert(ip, serverName, warningMessage);
             }
             const logDetails = parseLogLine(logData);
             let dumpFileInfo = [];
@@ -524,8 +535,9 @@ app.whenReady().then(() => {
                 totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
                 totalFolderSize: `${folderSizes} MB`,
                 serverName: serverName,
-                last10Lines,
-                has95Warning,
+                last10Lines: logInfo.relevantLines,
+                hasWarning: logInfo.hasWarning,
+                warningNumber: logInfo.warningNumber,
               },
             ];
           }
@@ -1287,13 +1299,36 @@ function formatDateForOracle(date) {
 }
 function getLast10LogLines(logContent) {
   const lines = logContent.trim().split("\n");
-  return lines.slice(-11, -1); // Obtiene las últimas 11 líneas
+  const warningPattern = /_9[0-9]/;
+  let lastWarningNumber = -1;
+  let relevantLines = [];
+
+  // Iteramos sobre las últimas 20 líneas para asegurarnos de no perder información relevante
+  for (let i = lines.length - 1; i >= Math.max(0, lines.length - 20); i--) {
+    const line = lines[i];
+    const match = line.match(warningPattern);
+    if (match) {
+      const warningNumber = parseInt(match[0].substring(1));
+      if (warningNumber > lastWarningNumber) {
+        lastWarningNumber = warningNumber;
+        relevantLines = [line];
+      } else if (warningNumber === lastWarningNumber) {
+        relevantLines.unshift(line);
+      }
+    }
+  }
+
+  return {
+    relevantLines: relevantLines.slice(0, 10), // Limitamos a 10 líneas relevantes
+    hasWarning: lastWarningNumber !== -1,
+    warningNumber: lastWarningNumber,
+  };
 }
 function parseLogLine(logContent) {
   const oraErrorPattern = /ORA-\d{5}/g;
   const oraSpecificErrorPattern = /ORA-39327/;
   const successPattern = /successfully completed/i;
-  const last10Lines = getLast10LogLines(logContent);
+  const logInfo = getLast10LogLines(logContent);
   const lines = logContent.split("\n");
   let lastLine = lines[lines.length - 1].trim();
   // Si la última línea está vacía, busca la primera línea no vacía desde el final
@@ -1356,7 +1391,9 @@ function parseLogLine(logContent) {
     success: isSuccess ? 1 : 0,
     oraError: oraError,
     backupStatus: backupStatus,
-    last10Lines: last10Lines, // Añadimos las últimas 11 líneas
+    last10Lines: logInfo.relevantLines, // Añadimos las últimas 11 líneas
+    hasWarning: logInfo.hasWarning,
+    warningNumber: logInfo.warningNumber,
   };
 }
 function formatFileSize(sizeInMB) {
@@ -1522,8 +1559,8 @@ async function saveLogToDatabase(
     }
   }
 }
-function checkFor95Warning(last10Lines) {
-  return last10Lines.some((line) => line.includes("_95"));
+function checkFor95Warning(logInfo) {
+  return logInfo.hasWarning;
 }
 const Mailjet = require("node-mailjet");
 
