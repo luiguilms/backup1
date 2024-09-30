@@ -721,17 +721,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             resultDiv.style.display = "none"; // Oculta el div por completo
           }
         });
-        const showLogButton = document.createElement("button");
-        showLogButton.textContent = logData.logDetails.hasWarning 
-          ? "Ver grupos de control (Advertencia)" 
-          : "Ver última línea del log";
-        showLogButton.onclick = () => {
-          const linesToShow = logData.logDetails.hasWarning 
-            ? logData.logDetails.last10Lines 
-            : [logData.lastLine || "No hay información disponible"];
-          showLast10LinesModal(linesToShow, logData.logDetails.hasWarning);
-        };
-        entryDiv.appendChild(showLogButton);
+      const showLogButton = document.createElement("button");
+      showLogButton.textContent = logData.logDetails.hasWarning
+        ? "Ver grupos de control (Advertencia)"
+        : "Ver última línea del log";
+      showLogButton.onclick = () => {
+        const linesToShow = logData.logDetails.hasWarning
+          ? logData.logDetails.last10Lines
+          : [logData.lastLine || "No hay información disponible"];
+        showLast10LinesModal(linesToShow, logData.logDetails.hasWarning);
+      };
+      entryDiv.appendChild(showLogButton);
       // Añadir la línea divisoria después del botón
       const hr = document.createElement("hr");
       entryDiv.appendChild(hr);
@@ -902,6 +902,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                       <p>IPs únicas: <span id="uniqueIPs"></span></p>
                       <p>Fecha del último backup: <span id="lastBackupDate"></span></p>
                   </div>
+                  <div>
+          <label for="daySelector">Mostrar datos de los últimos:</label>
+          <select id="daySelector">
+            <option value="30">30 días</option>
+            <option value="60">60 días</option>
+            <option value="90" selected>90 días</option>
+          </select>
+        </div>
+                  <div id="dmpSizeChartContainer" style="width: 100%; height: 400px;">
+          <canvas id="dmpSizeChart"></canvas>
+        </div>
               </div>
           </div>
       `;
@@ -960,19 +971,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       if (!statisticsModal) {
         console.error("No se pudo crear el modal de estadísticas");
-        alert(
-          "Error al mostrar las estadísticas. Por favor, intenta de nuevo."
-        );
+        alert("Error al mostrar las estadísticas. Por favor, intenta de nuevo.");
         return;
       }
+  
       const stats = await window.electron.getBackupStatistics();
       console.log("Estadísticas recibidas:", stats);
+  
+      // Actualizar estadísticas generales
       const formatValue = (value, formatter) => {
         if (value === null || value === undefined || isNaN(value)) {
           return "N/A";
         }
         return formatter(value);
       };
+  
       const safelyUpdateContent = (id, value) => {
         const element = document.getElementById(id);
         if (element) {
@@ -981,7 +994,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.warn(`Elemento con id '${id}' no encontrado`);
         }
       };
-      // Mapeo de índices del array a nombres de estadísticas
+  
       const [
         totalBackups,
         successfulBackups,
@@ -990,6 +1003,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         uniqueIPs,
         lastBackupDate,
       ] = stats;
+  
       safelyUpdateContent(
         "totalBackups",
         formatValue(totalBackups, (v) => v.toString())
@@ -1017,7 +1031,111 @@ document.addEventListener("DOMContentLoaded", async () => {
         "lastBackupDate",
         formatValue(lastBackupDate, (v) => new Date(v).toLocaleString())
       );
+  
+      // Función para actualizar el gráfico
+      const updateChart = async (selectedDays) => {
+        const dmpSizeData = await window.electron.getDmpSizeData(selectedDays);
+        console.log("Datos de tamaño DMP recibidos:", dmpSizeData);
+  
+        if (dmpSizeData.length === 0) {
+          console.warn("No hay datos de tamaño DMP para mostrar");
+          // Aquí puedes añadir lógica para mostrar un mensaje al usuario
+          return;
+        }
+  
+        // Procesar datos para el gráfico
+        const servidores = [...new Set(dmpSizeData.map(d => d.serverName))];
+        const fechas = [...new Set(dmpSizeData.map(d => d.fecha))].sort((a, b) => new Date(a) - new Date(b));
+  
+        const datasets = servidores.map(servidor => ({
+          label: servidor,
+          data: fechas.map(fecha => {
+            const punto = dmpSizeData.find(d => d.serverName === servidor && d.fecha.getTime() === fecha.getTime());
+            return punto ? punto.tamanoDMP : null;
+          }),
+          fill: false,
+          borderColor: getRandomColor(),
+          tension: 0.1
+        }));
+  
+        // Crear o actualizar el gráfico
+        const chartContainer = document.getElementById("dmpSizeChartContainer");
+        let chartCanvas = document.getElementById("dmpSizeChart");
+  
+        console.log("Contenedor del gráfico:", chartContainer);
+        console.log("Canvas del gráfico:", chartCanvas);
+        if (!chartContainer || !chartCanvas) {
+          console.error("Contenedor o canvas del gráfico no encontrado en el DOM");
+          return;
+        }
+  
+        if (!chartCanvas) {
+          chartCanvas = document.createElement("canvas");
+          chartCanvas.id = "dmpSizeChart";
+          chartContainer.appendChild(chartCanvas);
+        }
+  
+        const ctx = chartCanvas.getContext("2d");
+  
+        // Destruir el gráfico existente si existe
+        if (window.dmpSizeChart instanceof Chart) {
+          window.dmpSizeChart.destroy();
+        }
+  
+        try {
+          // Crear nuevo gráfico
+          window.dmpSizeChart = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: fechas.map((f) => new Date(f).toLocaleDateString()),
+              datasets: datasets,
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                title: {
+                  display: true,
+                  text: `Tamaño del archivo DMP por servidor (Últimos ${selectedDays} días)`,
+                },
+              },
+              scales: {
+                x: {
+                  display: true,
+                  title: {
+                    display: true,
+                    text: "Fecha",
+                  },
+                },
+                y: {
+                  display: true,
+                  title: {
+                    display: true,
+                    text: "Tamaño (MB)",
+                  },
+                },
+              },
+            },
+          });
+        } catch (chartError) {
+          console.error("Error al crear el gráfico:", chartError);
+        }
+      };
+  
+      // Configurar el selector de días
+      const daySelector = document.getElementById('daySelector');
+      if (daySelector) {
+        daySelector.addEventListener('change', (event) => {
+          updateChart(parseInt(event.target.value));
+        });
+      } else {
+        console.warn("Selector de días no encontrado");
+      }
+  
+      // Inicializar el gráfico con 30 días por defecto
+      await updateChart(30);
+  
       statisticsModal.style.display = "block";
+  
       // Configurar el cierre del modal
       const closeBtn = statisticsModal.querySelector(".close");
       if (closeBtn) {
@@ -1038,6 +1156,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Error al obtener o mostrar estadísticas. Por favor, revisa la consola para más detalles."
       );
     }
+  }
+
+  function getRandomColor() {
+    const r = Math.floor(Math.random() * 255);
+    const g = Math.floor(Math.random() * 255);
+    const b = Math.floor(Math.random() * 255);
+    return `rgb(${r}, ${g}, ${b})`;
   }
   const form = document.getElementById("server-form");
   if (form) {

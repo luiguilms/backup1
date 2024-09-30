@@ -230,8 +230,8 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
-              
-              logLines = logData.trim().split('\n');
+
+              logLines = logData.trim().split("\n");
               lastLine = logLines[logLines.length - 1].trim();
               logInfo = getLast10LogLines(logData);
               logDetails = parseLogLine(logData);
@@ -293,7 +293,7 @@ app.whenReady().then(() => {
               last10Lines: logInfo ? logInfo.relevantLines : [],
               hasWarning: logInfo ? logInfo.hasWarning : false,
               warningNumber: logInfo ? logInfo.warningNumber : null,
-              lastLine: lastLine // Añadimos la última línea aquí
+              lastLine: lastLine, // Añadimos la última línea aquí
             });
             // Añade este log para verificar el valor
             //console.log(
@@ -381,7 +381,7 @@ app.whenReady().then(() => {
                   resolve(data);
                 });
               });
-              const logLines = logData.trim().split('\n');
+              const logLines = logData.trim().split("\n");
               const lastLine = logLines[logLines.length - 1].trim();
               const logInfo = getLast10LogLines(logData);
 
@@ -443,7 +443,7 @@ app.whenReady().then(() => {
                 last10Lines: logInfo.relevantLines,
                 hasWarning: logInfo.hasWarning,
                 warningNumber: logInfo.warningNumber,
-                lastLine: lastLine // Añadimos la última línea aquí
+                lastLine: lastLine, // Añadimos la última línea aquí
               });
             }
           }
@@ -486,7 +486,7 @@ app.whenReady().then(() => {
                 resolve(data);
               });
             });
-            const logLines = logData.trim().split('\n');
+            const logLines = logData.trim().split("\n");
             const lastLine = logLines[logLines.length - 1].trim();
             const logInfo = getLast10LogLines(logData);
 
@@ -549,7 +549,7 @@ app.whenReady().then(() => {
                 last10Lines: logInfo.relevantLines,
                 hasWarning: logInfo.hasWarning,
                 warningNumber: logInfo.warningNumber,
-                lastLine: lastLine // Añadimos la última línea aquí
+                lastLine: lastLine, // Añadimos la última línea aquí
               },
             ];
           }
@@ -1036,7 +1036,7 @@ app.whenReady().then(() => {
       const serversResult = await connection.execute(
         `SELECT ID, ServerName, IP, OS_Type, Port, EncryptedUser, EncryptedPassword FROM ServerInfo`
       );
-      
+
       for (const row of serversResult.rows) {
         const serverName = row[1];
         const ip = row[2];
@@ -1044,27 +1044,34 @@ app.whenReady().then(() => {
         const port = row[4];
         const encryptedUserLob = row[5];
         const encryptedPasswordLob = row[6];
-        
+
         try {
           console.log(`Procesando servidor: ${serverName} (${ip})`);
-          
+
           // Desencriptar credenciales
           const decryptedUser = await decrypt(await readLob(encryptedUserLob));
-          const decryptedPassword = await decrypt(await readLob(encryptedPasswordLob));
-          
+          const decryptedPassword = await decrypt(
+            await readLob(encryptedPasswordLob)
+          );
+
           // Obtener rutas de backup
-          const backupRoutes = await getBackupRoutesByIPInternal(ip, connection);
-          
+          const backupRoutes = await getBackupRoutesByIPInternal(
+            ip,
+            connection
+          );
+
           if (backupRoutes.length === 0) {
-            console.log(`No se encontraron rutas de backup para el servidor ${serverName}`);
+            console.log(
+              `No se encontraron rutas de backup para el servidor ${serverName}`
+            );
             results.push({
               serverName,
               ip,
-              error: "No se encontraron rutas de backup"
+              error: "No se encontraron rutas de backup",
             });
-            continue;  // Continuar con el siguiente servidor
+            continue; // Continuar con el siguiente servidor
           }
-          
+
           for (const route of backupRoutes) {
             const backupPath = route.backupPath;
             try {
@@ -1076,18 +1083,23 @@ app.whenReady().then(() => {
                 decryptedPassword,
                 osType
               );
-              
-              if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
-                console.log(`No se encontraron detalles de log para ${serverName} en la ruta ${backupPath}`);
+
+              if (
+                !logDetails ||
+                (Array.isArray(logDetails) && logDetails.length === 0)
+              ) {
+                console.log(
+                  `No se encontraron detalles de log para ${serverName} en la ruta ${backupPath}`
+                );
                 results.push({
                   serverName,
                   ip,
                   backupPath,
-                  error: "No se encontraron detalles de log"
+                  error: "No se encontraron detalles de log",
                 });
-                continue;  // Continuar con la siguiente ruta de backup
+                continue; // Continuar con la siguiente ruta de backup
               }
-              
+
               // Guardar los detalles en la base de datos
               if (Array.isArray(logDetails)) {
                 for (const detail of logDetails) {
@@ -1112,7 +1124,7 @@ app.whenReady().then(() => {
                   fullBackupPath
                 );
               }
-              
+
               results.push({
                 serverName,
                 ip,
@@ -1120,21 +1132,27 @@ app.whenReady().then(() => {
                 logDetails,
               });
             } catch (routeError) {
-              console.error(`Error procesando la ruta ${backupPath} del servidor ${serverName}:`, routeError);
+              console.error(
+                `Error procesando la ruta ${backupPath} del servidor ${serverName}:`,
+                routeError
+              );
               results.push({
                 serverName,
                 ip,
                 backupPath,
-                error: routeError.message
+                error: routeError.message,
               });
             }
           }
         } catch (serverError) {
-          console.error(`Error procesando el servidor ${serverName}:`, serverError);
+          console.error(
+            `Error procesando el servidor ${serverName}:`,
+            serverError
+          );
           results.push({
             serverName,
             ip,
-            error: serverError.message
+            error: serverError.message,
           });
         }
       }
@@ -1630,3 +1648,64 @@ async function sendEmailAlert(ip, serverName, message) {
     }
   }
 }
+async function getDmpSizeData(days = 30) {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(`
+      SELECT 
+        serverName,
+        TRUNC(horaINI) as fecha,
+        dumpFileSize
+      FROM LogBackup
+      WHERE horaINI >= SYSDATE - :days
+      ORDER BY serverName, fecha
+    `,{days:days});
+
+    return result.rows.map(row => {
+      const serverName = row[0];
+      const fecha = row[1];
+      const dumpFileSize = row[2];
+      
+      // Función para convertir el tamaño a MB
+      const convertToMB = (size) => {
+        const match = size.match(/^(\d+(\.\d+)?)\s*(MB|GB)$/i);
+        if (match) {
+          const value = parseFloat(match[1]);
+          const unit = match[3].toUpperCase();
+          return unit === 'GB' ? value * 1024 : value;
+        }
+        return 0; // o algún valor predeterminado si el formato no coincide
+      };
+
+      const tamanoDMP = convertToMB(dumpFileSize);
+
+      return {
+        serverName,
+        fecha,
+        tamanoDMP
+      };
+    });
+  } catch (err) {
+    console.error("Error obteniendo datos de tamaño DMP:", err);
+    throw err;
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error al cerrar la conexión:", err);
+      }
+    }
+  }
+}
+
+// Agregar un nuevo manejador IPC para esta función
+ipcMain.handle('get-dmp-size-data', async (event, days) => {
+  try {
+    return await getDmpSizeData(days);
+  } catch (error) {
+    console.error("Error al obtener datos de tamaño DMP:", error);
+    throw error;
+  }
+});

@@ -39,4 +39,5 @@ contextBridge.exposeInMainWorld("electron", {
   processAllServers: () => ipcRenderer.invoke("process-all-servers"),
   getBackupStatistics: () => ipcRenderer.invoke("get-backup-statistics"),
   exportToExcel: (data) => ipcRenderer.invoke("export-to-excel", data),
+  getDmpSizeData: (days) => ipcRenderer.invoke('get-dmp-size-data',days),
 });
