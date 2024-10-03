@@ -1652,40 +1652,74 @@ async function getDmpSizeData(days = 30) {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    const result = await connection.execute(`
-      SELECT 
-        serverName,
-        TRUNC(horaINI) as fecha,
-        dumpFileSize
+    // Primero, obtenemos todos los servidores
+    const allServersAndRoutesResult = await connection.execute(`
+      SELECT DISTINCT serverName, ip, backupPath
       FROM LogBackup
-      WHERE horaINI >= SYSDATE - :days
-      ORDER BY serverName, fecha
-    `,{days:days});
+    `);
+    const dataResult = await connection.execute(`
+      SELECT 
+        l.serverName,
+        l.ip,
+        l.backupPath,
+        TRUNC(l.horaINI) as fecha,
+        l.dumpFileSize
+      FROM LogBackup l
+      WHERE l.horaINI >= SYSDATE - :days
+      ORDER BY l.serverName, l.ip, l.backupPath, fecha
+    `, {days: days});
+    console.log("Todos los servidores y rutas:", allServersAndRoutesResult.rows);
+    console.log("Datos obtenidos para el período seleccionado:", dataResult.rows);
 
-    return result.rows.map(row => {
+    const processedData = dataResult.rows.map(row => {
       const serverName = row[0];
-      const fecha = row[1];
-      const dumpFileSize = row[2];
+      const ip = row[1];
+      const backupPath = row[2];
+      const fecha = row[3];
+      const dumpFileSize = row[4];
       
-      // Función para convertir el tamaño a MB
-      const convertToMB = (size) => {
+      console.log(`Procesando: Server: ${serverName}, IP: ${ip}, Path: ${backupPath}`);
+      
+      // Función para convertir el tamaño a GB
+      const convertToGB = (size) => {
         const match = size.match(/^(\d+(\.\d+)?)\s*(MB|GB)$/i);
         if (match) {
           const value = parseFloat(match[1]);
           const unit = match[3].toUpperCase();
-          return unit === 'GB' ? value * 1024 : value;
+          return unit === 'GB' ? value : value / 1024;
         }
         return 0; // o algún valor predeterminado si el formato no coincide
       };
 
-      const tamanoDMP = convertToMB(dumpFileSize);
+      const tamanoDMP = convertToGB(dumpFileSize);
 
       return {
         serverName,
+        ip,
+        backupPath,
         fecha,
         tamanoDMP
       };
     });
+    // Añadimos todos los servidores a la lista, incluso si no tienen datos
+    // Creamos un objeto con todos los servidores y sus rutas
+    const allServersAndRoutes = allServersAndRoutesResult.rows.reduce((acc, row) => {
+      const key = `${row[0]} - ${row[1]}`;
+      if (!acc[key]) {
+        acc[key] = {
+          serverName: row[0],
+          ip: row[1],
+          routes: []
+        };
+      }
+      acc[key].routes.push(row[2]);
+      return acc;
+    }, {});
+
+    return {
+      allServersAndRoutes: Object.values(allServersAndRoutes),
+      data: processedData
+    };
   } catch (err) {
     console.error("Error obteniendo datos de tamaño DMP:", err);
     throw err;

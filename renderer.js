@@ -903,13 +903,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                       <p>Fecha del último backup: <span id="lastBackupDate"></span></p>
                   </div>
                   <div>
-          <label for="daySelector">Mostrar datos de los últimos:</label>
-          <select id="daySelector">
-            <option value="30">30 días</option>
-            <option value="60">60 días</option>
-            <option value="90" selected>90 días</option>
-          </select>
-        </div>
+                    <label for="daySelector">Mostrar datos de los últimos:</label>
+                    <select id="daySelector">
+                      <option value="30" selected>30 días</option>
+                      <option value="60">60 días</option>
+                      <option value="90">90 días</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="serverSelector">Seleccionar servidor:</label>
+                    <select id="serverSelector">
+                      <option value="all">Todos los servidores</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="routeSelector">Seleccionar ruta:</label>
+                    <select id="routeSelector">
+                      <option value="all">Todas las rutas</option>
+                    </select>
+                  </div>
                   <div id="dmpSizeChartContainer" style="width: 100%; height: 400px;">
           <canvas id="dmpSizeChart"></canvas>
         </div>
@@ -971,13 +983,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       if (!statisticsModal) {
         console.error("No se pudo crear el modal de estadísticas");
-        alert("Error al mostrar las estadísticas. Por favor, intenta de nuevo.");
+        alert(
+          "Error al mostrar las estadísticas. Por favor, intenta de nuevo."
+        );
         return;
       }
-  
+
       const stats = await window.electron.getBackupStatistics();
       console.log("Estadísticas recibidas:", stats);
-  
+
       // Actualizar estadísticas generales
       const formatValue = (value, formatter) => {
         if (value === null || value === undefined || isNaN(value)) {
@@ -985,7 +999,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         return formatter(value);
       };
-  
+
       const safelyUpdateContent = (id, value) => {
         const element = document.getElementById(id);
         if (element) {
@@ -994,7 +1008,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.warn(`Elemento con id '${id}' no encontrado`);
         }
       };
-  
+
       const [
         totalBackups,
         successfulBackups,
@@ -1003,7 +1017,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         uniqueIPs,
         lastBackupDate,
       ] = stats;
-  
+
       safelyUpdateContent(
         "totalBackups",
         formatValue(totalBackups, (v) => v.toString())
@@ -1031,86 +1045,133 @@ document.addEventListener("DOMContentLoaded", async () => {
         "lastBackupDate",
         formatValue(lastBackupDate, (v) => new Date(v).toLocaleString())
       );
-  
+
+      let globalDmpSizeData = [];
+
       // Función para actualizar el gráfico
-      const updateChart = async (selectedDays) => {
-        const dmpSizeData = await window.electron.getDmpSizeData(selectedDays);
-        console.log("Datos de tamaño DMP recibidos:", dmpSizeData);
-  
-        if (dmpSizeData.length === 0) {
+      const updateChart = async (
+        selectedDays,
+        selectedServer,
+        selectedRoute
+      ) => {
+        if (
+          globalDmpSizeData.length === 0 ||
+          selectedDays !== window.lastSelectedDays
+        ) {
+          const result = await window.electron.getDmpSizeData(selectedDays);
+          globalDmpSizeData = result.data;
+          window.lastSelectedDays = selectedDays;
+        }
+
+        console.log("Datos de tamaño DMP recibidos:", globalDmpSizeData);
+
+        if (globalDmpSizeData.length === 0) {
           console.warn("No hay datos de tamaño DMP para mostrar");
-          // Aquí puedes añadir lógica para mostrar un mensaje al usuario
           return;
         }
-  
-        // Procesar datos para el gráfico
-        const servidores = [...new Set(dmpSizeData.map(d => d.serverName))];
-        const fechas = [...new Set(dmpSizeData.map(d => d.fecha))].sort((a, b) => new Date(a) - new Date(b));
-  
-        const datasets = servidores.map(servidor => ({
-          label: servidor,
-          data: fechas.map(fecha => {
-            const punto = dmpSizeData.find(d => d.serverName === servidor && d.fecha.getTime() === fecha.getTime());
-            return punto ? punto.tamanoDMP : null;
-          }),
-          fill: false,
-          borderColor: getRandomColor(),
-          tension: 0.1
-        }));
-  
+
+        // Filtrar datos según las selecciones
+        let filteredData = globalDmpSizeData;
+        if (selectedServer !== "all") {
+          const [os, ip] = selectedServer.split(" - ");
+          filteredData = filteredData.filter(
+            (d) => d.serverName === os && d.ip === ip
+          );
+        }
+        if (selectedRoute !== "all") {
+          filteredData = filteredData.filter(
+            (d) => d.backupPath === selectedRoute
+          );
+        }
+
+        // Agrupar datos por servidor, IP y ruta de backup
+        const groupedData = filteredData.reduce((acc, d) => {
+          const key = `${d.serverName}-${d.ip}-${d.backupPath}`;
+          if (!acc[key]) {
+            acc[key] = [];
+          }
+          acc[key].push(d);
+          return acc;
+        }, {});
+
+        const datasets = Object.entries(groupedData).map(([key, data]) => {
+          const [serverName, ip, backupPath] = key.split("-");
+          return {
+            label: `${serverName} (${ip}) - ${backupPath}`,
+            data: data.map((d) => ({ x: d.fecha, y: d.tamanoDMP })),
+            fill: false,
+            borderColor: getRandomColor(),
+            tension: 0.1,
+          };
+        });
+
         // Crear o actualizar el gráfico
         const chartContainer = document.getElementById("dmpSizeChartContainer");
         let chartCanvas = document.getElementById("dmpSizeChart");
-  
+
         console.log("Contenedor del gráfico:", chartContainer);
         console.log("Canvas del gráfico:", chartCanvas);
         if (!chartContainer || !chartCanvas) {
-          console.error("Contenedor o canvas del gráfico no encontrado en el DOM");
+          console.error(
+            "Contenedor o canvas del gráfico no encontrado en el DOM"
+          );
           return;
         }
-  
+
         if (!chartCanvas) {
           chartCanvas = document.createElement("canvas");
           chartCanvas.id = "dmpSizeChart";
           chartContainer.appendChild(chartCanvas);
         }
-  
+
         const ctx = chartCanvas.getContext("2d");
-  
+
         // Destruir el gráfico existente si existe
         if (window.dmpSizeChart instanceof Chart) {
           window.dmpSizeChart.destroy();
         }
-  
+
         try {
-          // Crear nuevo gráfico
           window.dmpSizeChart = new Chart(ctx, {
             type: "line",
-            data: {
-              labels: fechas.map((f) => new Date(f).toLocaleDateString()),
-              datasets: datasets,
-            },
+            data: { datasets },
             options: {
               responsive: true,
               plugins: {
                 title: {
                   display: true,
-                  text: `Tamaño del archivo DMP por servidor (Últimos ${selectedDays} días)`,
+                  text: `Tamaño del archivo DMP por servidor, IP y ruta (Últimos ${selectedDays} días)`,
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      let label = context.dataset.label || "";
+                      if (label) {
+                        label += ": ";
+                      }
+                      if (context.parsed.y !== null) {
+                        label += `${context.parsed.y.toFixed(2)} GB`;
+                      }
+                      return label;
+                    },
+                  },
                 },
               },
               scales: {
                 x: {
-                  display: true,
+                  type: "time",
+                  time: {
+                    unit: "day",
+                  },
                   title: {
                     display: true,
                     text: "Fecha",
                   },
                 },
                 y: {
-                  display: true,
                   title: {
                     display: true,
-                    text: "Tamaño (MB)",
+                    text: "Tamaño (GB)",
                   },
                 },
               },
@@ -1120,22 +1181,79 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.error("Error al crear el gráfico:", chartError);
         }
       };
-  
+
+      const populateSelectors = (result) => {
+        const serverSelector = document.getElementById("serverSelector");
+        const routeSelector = document.getElementById("routeSelector");
+
+        // Limpiar opciones existentes
+        serverSelector.innerHTML =
+          '<option value="all">Todos los servidores</option>';
+        routeSelector.innerHTML =
+          '<option value="all">Todas las rutas</option>';
+
+        // Añadir cada servidor al selector
+        result.allServersAndRoutes.forEach((server) => {
+          const option = document.createElement("option");
+          option.value = `${server.serverName} - ${server.ip}`;
+          option.textContent = `${server.serverName} - ${server.ip}`;
+          serverSelector.appendChild(option);
+        });
+        console.log("Todos los servidores y rutas:", result.allServersAndRoutes);
+        console.log("Datos procesados:", result.data);
+
+        // Configurar event listener para el selector de servidores
+        serverSelector.addEventListener("change", () => {
+          const selectedServer = serverSelector.value;
+          routeSelector.innerHTML = '<option value="all">Todas las rutas</option>';
+      
+          if (selectedServer !== "all") {
+            const serverInfo = result.allServersAndRoutes.find(s => `${s.serverName} - ${s.ip}` === selectedServer);
+            if (serverInfo) {
+              serverInfo.routes.forEach(route => {
+                const option = document.createElement("option");
+                option.value = route;
+                option.textContent = route;
+                routeSelector.appendChild(option);
+              });
+            }
+          }
+      
+          updateChart(parseInt(daySelector.value), selectedServer, "all", result.data);
+        });
+
+        // Configurar event listener para el selector de rutas
+        routeSelector.addEventListener("change", () => {
+          updateChart(
+            parseInt(daySelector.value),
+            serverSelector.value,
+            routeSelector.value,
+            result.data
+          );
+        });
+      };
+
       // Configurar el selector de días
-      const daySelector = document.getElementById('daySelector');
+      const daySelector = document.getElementById("daySelector");
       if (daySelector) {
-        daySelector.addEventListener('change', (event) => {
-          updateChart(parseInt(event.target.value));
+        daySelector.addEventListener("change", (event) => {
+          const selectedDays = parseInt(event.target.value);
+          const selectedServer =
+            document.getElementById("serverSelector").value;
+          const selectedRoute = document.getElementById("routeSelector").value;
+          updateChart(selectedDays, selectedServer, selectedRoute);
         });
       } else {
         console.warn("Selector de días no encontrado");
       }
-  
-      // Inicializar el gráfico con 30 días por defecto
-      await updateChart(30);
-  
+
+      // Inicializar el gráfico y los selectores con 30 días por defecto
+      const initialResult = await window.electron.getDmpSizeData(30);
+      populateSelectors(initialResult);
+      await updateChart(30, "all", "all", initialResult.data);
+
       statisticsModal.style.display = "block";
-  
+
       // Configurar el cierre del modal
       const closeBtn = statisticsModal.querySelector(".close");
       if (closeBtn) {
