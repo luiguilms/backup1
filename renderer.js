@@ -947,7 +947,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                   padding: 20px;
                   border: 1px solid #888;
                   width: 80%;
-                  max-width: 600px;
+                  max-width: 1000px;
               }
               .close {
                   color: #aaa;
