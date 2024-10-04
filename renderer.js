@@ -922,9 +922,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                       <option value="all">Todas las rutas</option>
                     </select>
                   </div>
-                  <div id="dmpSizeChartContainer" style="width: 100%; height: 400px;">
-          <canvas id="dmpSizeChart"></canvas>
-        </div>
+                  <div id="dmpSizeChartContainer" style="width: 100%; height: auto;min-height: 400px;">
+                    <div id="serverChartsContainer"></div>
+                  </div>
               </div>
           </div>
       `;
@@ -943,11 +943,13 @@ document.addEventListener("DOMContentLoaded", async () => {
               }
               .modal-content {
                   background-color: #fefefe;
-                  margin: 15% auto;
+                  margin: 5% auto;
                   padding: 20px;
                   border: 1px solid #888;
                   width: 80%;
                   max-width: 1000px;
+                  max-height: auto; 
+                  overflow-y: auto; // Permite scroll vertical
               }
               .close {
                   color: #aaa;
@@ -1048,8 +1050,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       let globalDmpSizeData = [];
 
-      // Función para actualizar el gráfico
-      const updateChart = async (
+      const updateCharts = async (
         selectedDays,
         selectedServer,
         selectedRoute
@@ -1094,93 +1095,81 @@ document.addEventListener("DOMContentLoaded", async () => {
           return acc;
         }, {});
 
-        const datasets = Object.entries(groupedData).map(([key, data]) => {
-          const [serverName, ip, backupPath] = key.split("-");
-          return {
-            label: `${serverName} (${ip}) - ${backupPath}`,
-            data: data.map((d) => ({ x: d.fecha, y: d.tamanoDMP })),
-            fill: false,
-            borderColor: getRandomColor(),
-            tension: 0.1,
-          };
-        });
-
-        // Crear o actualizar el gráfico
         const chartContainer = document.getElementById("dmpSizeChartContainer");
-        let chartCanvas = document.getElementById("dmpSizeChart");
+      chartContainer.innerHTML = ''; // Limpiar gráficos existentes
 
-        console.log("Contenedor del gráfico:", chartContainer);
-        console.log("Canvas del gráfico:", chartCanvas);
-        if (!chartContainer || !chartCanvas) {
-          console.error(
-            "Contenedor o canvas del gráfico no encontrado en el DOM"
-          );
-          return;
-        }
+      Object.entries(groupedData).forEach(([key, data], index) => {
+        const [serverName, ip] = key.split("-");
+        const canvasId = `chart-${index}`;
+        const canvasElement = document.createElement('canvas');
+        canvasElement.id = canvasId;
+        chartContainer.appendChild(canvasElement);
 
-        if (!chartCanvas) {
-          chartCanvas = document.createElement("canvas");
-          chartCanvas.id = "dmpSizeChart";
-          chartContainer.appendChild(chartCanvas);
-        }
+        const ctx = canvasElement.getContext("2d");
 
-        const ctx = chartCanvas.getContext("2d");
-
-        // Destruir el gráfico existente si existe
-        if (window.dmpSizeChart instanceof Chart) {
-          window.dmpSizeChart.destroy();
-        }
-
-        try {
-          window.dmpSizeChart = new Chart(ctx, {
-            type: "line",
-            data: { datasets },
-            options: {
-              responsive: true,
-              plugins: {
-                title: {
-                  display: true,
-                  text: `Tamaño del archivo DMP por servidor, IP y ruta (Últimos ${selectedDays} días)`,
-                },
-                tooltip: {
-                  callbacks: {
-                    label: function (context) {
-                      let label = context.dataset.label || "";
-                      if (label) {
-                        label += ": ";
-                      }
-                      if (context.parsed.y !== null) {
-                        label += `${context.parsed.y.toFixed(2)} GB`;
-                      }
-                      return label;
-                    },
-                  },
-                },
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            datasets: data.reduce((acc, d) => {
+              const routeKey = d.backupPath;
+              if (!acc.find(dataset => dataset.label === routeKey)) {
+                acc.push({
+                  label: routeKey,
+                  data: data.filter(item => item.backupPath === routeKey)
+                    .map(item => ({ x: item.fecha, y: item.tamanoDMP })),
+                  fill: false,
+                  borderColor: getRandomColor(),
+                  tension: 0.1,
+                });
+              }
+              return acc;
+            }, [])
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: `Tamaño del archivo DMP - ${serverName} (${ip})`,
               },
-              scales: {
-                x: {
-                  type: "time",
-                  time: {
-                    unit: "day",
-                  },
-                  title: {
-                    display: true,
-                    text: "Fecha",
-                  },
-                },
-                y: {
-                  title: {
-                    display: true,
-                    text: "Tamaño (GB)",
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    let label = context.dataset.label || "";
+                    if (label) {
+                      label += ": ";
+                    }
+                    if (context.parsed.y !== null) {
+                      label += `${context.parsed.y.toFixed(2)} GB`;
+                    }
+                    return label;
                   },
                 },
               },
             },
-          });
-        } catch (chartError) {
-          console.error("Error al crear el gráfico:", chartError);
-        }
-      };
+            scales: {
+              x: {
+                type: "time",
+                time: {
+                  unit: "day",
+                },
+                title: {
+                  display: true,
+                  text: "Fecha",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Tamaño (GB)",
+                },
+              },
+            },
+          },
+        });
+      });
+    };
+
 
       const populateSelectors = (result) => {
         const serverSelector = document.getElementById("serverSelector");
@@ -1219,40 +1208,32 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
           }
       
-          updateChart(parseInt(daySelector.value), selectedServer, "all", result.data);
+          updateCharts(parseInt(daySelector.value), selectedServer, routeSelector.value);
         });
 
         // Configurar event listener para el selector de rutas
         routeSelector.addEventListener("change", () => {
-          updateChart(
-            parseInt(daySelector.value),
-            serverSelector.value,
-            routeSelector.value,
-            result.data
-          );
+          updateCharts(parseInt(daySelector.value), serverSelector.value, routeSelector.value);
         });
       };
 
       // Configurar el selector de días
       const daySelector = document.getElementById("daySelector");
-      if (daySelector) {
-        daySelector.addEventListener("change", (event) => {
-          const selectedDays = parseInt(event.target.value);
-          const selectedServer =
-            document.getElementById("serverSelector").value;
-          const selectedRoute = document.getElementById("routeSelector").value;
-          updateChart(selectedDays, selectedServer, selectedRoute);
-        });
-      } else {
-        console.warn("Selector de días no encontrado");
-      }
+    if (daySelector) {
+      daySelector.addEventListener("change", () => {
+        updateCharts(parseInt(daySelector.value), serverSelector.value, routeSelector.value);
+      });
+    } else {
+      console.warn("Selector de días no encontrado");
+    }
 
       // Inicializar el gráfico y los selectores con 30 días por defecto
       const initialResult = await window.electron.getDmpSizeData(30);
       populateSelectors(initialResult);
-      await updateChart(30, "all", "all", initialResult.data);
+      await updateCharts(30, "all", "all");
 
       statisticsModal.style.display = "block";
+      statisticsModal.offsetHeight;
 
       // Configurar el cierre del modal
       const closeBtn = statisticsModal.querySelector(".close");
@@ -1275,7 +1256,39 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     }
   }
-
+  function createChartForServer(serverData, containerId) {
+    const ctx = document.getElementById(containerId).getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: `${serverData.serverName} (${serverData.ip})`,
+          data: serverData.data.map(d => ({ x: d.fecha, y: d.tamanoDMP })),
+          borderColor: getRandomColor(),
+          fill: false
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            type: 'time',
+            time: { unit: 'day' },
+            title: { display: true, text: 'Fecha' }
+          },
+          y: {
+            title: { display: true, text: 'Tamaño (GB)' }
+          }
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: `Tamaño del archivo DMP para ${serverData.serverName}`
+          }
+        }
+      }
+    });
+  }
   function getRandomColor() {
     const r = Math.floor(Math.random() * 255);
     const g = Math.floor(Math.random() * 255);
