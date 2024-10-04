@@ -1262,42 +1262,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     }
   }
-  function createChartForServer(serverData, containerId) {
-    const ctx = document.getElementById(containerId).getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        datasets: [{
-          label: `${serverData.serverName} (${serverData.ip})`,
-          data: serverData.data.map(d => ({
-            x: new Date(d.fecha), // Asegúrate de que esto crea un objeto Date correcto
-            y: d.tamanoDMP
-          })),
-          borderColor: getRandomColor(),
-          fill: false
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: {
-            type: 'time',
-            time: { unit: 'day' },
-            title: { display: true, text: 'Fecha' }
-          },
-          y: {
-            title: { display: true, text: 'Tamaño (GB)' }
-          }
-        },
-        plugins: {
-          title: {
-            display: true,
-            text: `Tamaño del archivo DMP para ${serverData.serverName}`
-          }
-        }
-      }
-    });
-  }
   function getRandomColor() {
     const r = Math.floor(Math.random() * 255);
     const g = Math.floor(Math.random() * 255);

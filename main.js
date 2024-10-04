@@ -3,10 +3,8 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const { Client } = require("ssh2");
 const oracledb = require("oracledb");
-const { Console } = require("console");
 const crypto = require("crypto");
 const ExcelJS = require("exceljs");
-const nodemailer = require("nodemailer");
 
 ipcMain.handle("export-to-excel", async (event, data) => {
   const workbook = new ExcelJS.Workbook();
@@ -1332,7 +1330,6 @@ function getLast10LogLines(logContent) {
   const warningPattern = /_9[0-9]/;
   let lastWarningNumber = -1;
   let relevantLines = [];
-  let lastLine = lines[lines.length - 1].trim();
 
   // Iteramos sobre las últimas 20 líneas para asegurarnos de no perder información relevante
   for (let i = lines.length - 1; i >= Math.max(0, lines.length - 20); i--) {
@@ -1353,7 +1350,6 @@ function getLast10LogLines(logContent) {
     relevantLines: relevantLines.slice(0, 10), // Limitamos a 10 líneas relevantes
     hasWarning: lastWarningNumber !== -1,
     warningNumber: lastWarningNumber,
-    //lastLine: lastLine
   };
 }
 function parseLogLine(logContent) {
@@ -1590,9 +1586,6 @@ async function saveLogToDatabase(
       }
     }
   }
-}
-function checkFor95Warning(logInfo) {
-  return logInfo.hasWarning;
 }
 const Mailjet = require("node-mailjet");
 
