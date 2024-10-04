@@ -916,7 +916,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                       <option value="all">Todos los servidores</option>
                     </select>
                   </div>
-                  <div>
+                  <div class="hidden">
                     <label for="routeSelector">Seleccionar ruta:</label>
                     <select id="routeSelector">
                       <option value="all">Todas las rutas</option>
@@ -958,6 +958,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                   font-weight: bold;
                   cursor: pointer;
               }
+                  .hidden {
+  display: none;
+}
               .close:hover,
               .close:focus {
                   color: black;
@@ -1152,6 +1155,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 type: "time",
                 time: {
                   unit: "day",
+                  displayFormats: {
+                    day: 'yyyy-MM-dd HH:mm' // Esto mostrará la fecha y hora
+                  }
                 },
                 title: {
                   display: true,
@@ -1263,7 +1269,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       data: {
         datasets: [{
           label: `${serverData.serverName} (${serverData.ip})`,
-          data: serverData.data.map(d => ({ x: d.fecha, y: d.tamanoDMP })),
+          data: serverData.data.map(d => ({
+            x: new Date(d.fecha), // Asegúrate de que esto crea un objeto Date correcto
+            y: d.tamanoDMP
+          })),
           borderColor: getRandomColor(),
           fill: false
         }]

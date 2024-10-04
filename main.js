@@ -1451,7 +1451,7 @@ async function getBackupStatistics() {
         END) as avg_duration_seconds,
         COUNT(DISTINCT serverName) as unique_servers,
         COUNT(DISTINCT ip) as unique_ips,
-        MAX(horaINI) as last_backup_date
+        MAX(horaFIN) as last_backup_date
       FROM LogBackup
     `);
     return result.rows[0];
@@ -1662,10 +1662,10 @@ async function getDmpSizeData(days = 30) {
         l.serverName,
         l.ip,
         l.backupPath,
-        TRUNC(l.horaINI) as fecha,
+        l.horaFIN as fecha,
         l.dumpFileSize
       FROM LogBackup l
-      WHERE l.horaINI >= SYSDATE - :days
+      WHERE l.horaFIN >= SYSDATE - :days
       ORDER BY l.serverName, l.ip, l.backupPath, fecha
     `, {days: days});
     console.log("Todos los servidores y rutas:", allServersAndRoutesResult.rows);
