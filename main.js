@@ -1641,77 +1641,98 @@ async function sendEmailAlert(ip, serverName, message) {
     }
   }
 }
+// Añade estas funciones en algún lugar apropiado en tu main.js
+
+function getConstantIdentifier(fullPath, characterCount = 30) {
+  const parts = fullPath.split("/");
+  const subdir = parts[parts.length - 1];
+  return subdir.substring(0, characterCount);
+}
+
+function groupBackupPaths(backupPaths, characterCount = 30) {
+  const groupedPaths = {};
+  backupPaths.forEach((path) => {
+    const identifier = getConstantIdentifier(path, characterCount);
+    if (!groupedPaths[identifier]) {
+      groupedPaths[identifier] = [];
+    }
+    groupedPaths[identifier].push(path);
+  });
+  return groupedPaths;
+}
+
 async function getDmpSizeData(days = 30) {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    // Primero, obtenemos todos los servidores
+
+    // Obtener todos los servidores y rutas
     const allServersAndRoutesResult = await connection.execute(`
       SELECT DISTINCT serverName, ip, backupPath
       FROM LogBackup
     `);
-    const dataResult = await connection.execute(`
+
+    // Obtener los datos de backup
+    const dataResult = await connection.execute(
+      `
       SELECT 
         l.serverName,
         l.ip,
         l.backupPath,
-        l.horaFIN as fecha,
+        TO_CHAR(l.horaFIN, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as fecha,
         l.dumpFileSize
       FROM LogBackup l
       WHERE l.horaFIN >= SYSDATE - :days
       ORDER BY l.serverName, l.ip, l.backupPath, fecha
-    `, {days: days});
-    console.log("Todos los servidores y rutas:", allServersAndRoutesResult.rows);
-    console.log("Datos obtenidos para el período seleccionado:", dataResult.rows);
+    `,
+      { days: days }
+    );
 
-    const processedData = dataResult.rows.map(row => {
-      const serverName = row[0];
-      const ip = row[1];
-      const backupPath = row[2];
-      const fecha = row[3];
-      const dumpFileSize = row[4];
-      
-      console.log(`Procesando: Server: ${serverName}, IP: ${ip}, Path: ${backupPath}`);
-      
-      // Función para convertir el tamaño a GB
-      const convertToGB = (size) => {
-        const match = size.match(/^(\d+(\.\d+)?)\s*(MB|GB)$/i);
-        if (match) {
-          const value = parseFloat(match[1]);
-          const unit = match[3].toUpperCase();
-          return unit === 'GB' ? value : value / 1024;
-        }
-        return 0; // o algún valor predeterminado si el formato no coincide
-      };
+    console.log(
+      "Todos los servidores y rutas:",
+      allServersAndRoutesResult.rows
+    );
+    console.log(
+      "Datos obtenidos para el período seleccionado:",
+      dataResult.rows
+    );
 
-      const tamanoDMP = convertToGB(dumpFileSize);
-
-      return {
-        serverName,
-        ip,
-        backupPath,
-        fecha,
-        tamanoDMP
-      };
-    });
-    // Añadimos todos los servidores a la lista, incluso si no tienen datos
-    // Creamos un objeto con todos los servidores y sus rutas
-    const allServersAndRoutes = allServersAndRoutesResult.rows.reduce((acc, row) => {
-      const key = `${row[0]} - ${row[1]}`;
-      if (!acc[key]) {
-        acc[key] = {
-          serverName: row[0],
-          ip: row[1],
-          routes: []
-        };
+    // Función para convertir el tamaño a GB
+    const convertToGB = (size) => {
+      const match = size.match(/^(\d+(\.\d+)?)\s*(MB|GB)$/i);
+      if (match) {
+        const value = parseFloat(match[1]);
+        const unit = match[3].toUpperCase();
+        return unit === "GB" ? value : value / 1024;
       }
-      acc[key].routes.push(row[2]);
+      return 0;
+    };
+
+    const groupedData = dataResult.rows.reduce((acc, row) => {
+      const identifier = getConstantIdentifier(row[2], 30);
+      if (!acc[identifier]) {
+        acc[identifier] = [];
+      }
+      acc[identifier].push({
+        serverName: row[0],
+        ip: row[1],
+        backupPath: row[2],
+        fecha: row[3],
+        tamanoDMP: convertToGB(row[4])
+      });
       return acc;
     }, {});
 
+    const processedData = Object.entries(groupedData).map(([identifier, data]) => ({
+      identifier,
+      serverName: data[0].serverName,
+      ip: data[0].ip,
+      data: data
+    }));
+    
+
     return {
-      allServersAndRoutes: Object.values(allServersAndRoutes),
-      data: processedData
+      data: processedData,
     };
   } catch (err) {
     console.error("Error obteniendo datos de tamaño DMP:", err);
@@ -1726,9 +1747,8 @@ async function getDmpSizeData(days = 30) {
     }
   }
 }
-
 // Agregar un nuevo manejador IPC para esta función
-ipcMain.handle('get-dmp-size-data', async (event, days) => {
+ipcMain.handle("get-dmp-size-data", async (event, days) => {
   try {
     return await getDmpSizeData(days);
   } catch (error) {

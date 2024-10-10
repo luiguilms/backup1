@@ -1053,15 +1053,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       let globalDmpSizeData = [];
 
-      const updateCharts = async (
-        selectedDays,
-        selectedServer,
-        selectedRoute
-      ) => {
-        if (
-          globalDmpSizeData.length === 0 ||
-          selectedDays !== window.lastSelectedDays
-        ) {
+      const updateCharts = async (selectedDays, selectedServer, selectedRoute) => {
+        if (globalDmpSizeData.length === 0 || selectedDays !== window.lastSelectedDays) {
           const result = await window.electron.getDmpSizeData(selectedDays);
           globalDmpSizeData = result.data;
           window.lastSelectedDays = selectedDays;
@@ -1076,106 +1069,79 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Filtrar datos según las selecciones
         let filteredData = globalDmpSizeData;
-        if (selectedServer !== "all") {
-          const [os, ip] = selectedServer.split(" - ");
-          filteredData = filteredData.filter(
-            (d) => d.serverName === os && d.ip === ip
-          );
-        }
-        if (selectedRoute !== "all") {
-          filteredData = filteredData.filter(
-            (d) => d.backupPath === selectedRoute
-          );
-        }
-
-        // Agrupar datos por servidor, IP y ruta de backup
-        const groupedData = filteredData.reduce((acc, d) => {
-          const key = `${d.serverName}-${d.ip}-${d.backupPath}`;
-          if (!acc[key]) {
-            acc[key] = [];
-          }
-          acc[key].push(d);
-          return acc;
-        }, {});
+  if (selectedServer !== "all") {
+    const [serverName, ip] = selectedServer.split(" - ");
+    filteredData = filteredData.filter(d => d.serverName === serverName && d.ip === ip);
+  }
 
         const chartContainer = document.getElementById("dmpSizeChartContainer");
-      chartContainer.innerHTML = ''; // Limpiar gráficos existentes
+        chartContainer.innerHTML = ""; // Limpiar gráficos existentes
 
-      Object.entries(groupedData).forEach(([key, data], index) => {
-        const [serverName, ip] = key.split("-");
-        const canvasId = `chart-${index}`;
-        const canvasElement = document.createElement('canvas');
-        canvasElement.id = canvasId;
-        chartContainer.appendChild(canvasElement);
+        filteredData.forEach((serverData) => {
+          console.log("Datos para el gráfico:", serverData);
+          const canvasId = `chart-${serverData.identifier}`.replace(/[^a-zA-Z0-9]/g, "_");
+          const canvasElement = document.createElement("canvas");
+          canvasElement.id = canvasId;
+          chartContainer.appendChild(canvasElement);
+      
+          const ctx = canvasElement.getContext("2d");
+      
+          const sortedData = serverData.data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
-        const ctx = canvasElement.getContext("2d");
-
-        new Chart(ctx, {
-          type: "line",
-          data: {
-            datasets: data.reduce((acc, d) => {
-              const routeKey = d.backupPath;
-              if (!acc.find(dataset => dataset.label === routeKey)) {
-                acc.push({
-                  label: routeKey,
-                  data: data.filter(item => item.backupPath === routeKey)
-                    .map(item => ({ x: item.fecha, y: item.tamanoDMP })),
-                  fill: false,
-                  borderColor: getRandomColor(),
-                  tension: 0.1,
-                });
-              }
-              return acc;
-            }, [])
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              title: {
-                display: true,
-                text: `Tamaño del archivo DMP - ${serverName} (${ip})`,
-              },
-              tooltip: {
-                callbacks: {
-                  label: function (context) {
-                    let label = context.dataset.label || "";
-                    if (label) {
-                      label += ": ";
-                    }
-                    if (context.parsed.y !== null) {
-                      label += `${context.parsed.y.toFixed(2)} GB`;
-                    }
-                    return label;
-                  },
-                },
-              },
-            },
-            scales: {
-              x: {
-                type: "time",
-                time: {
-                  unit: "day",
-                  displayFormats: {
-                    day: 'yyyy-MM-dd HH:mm' // Esto mostrará la fecha y hora
-                  }
-                },
-                title: {
-                  display: true,
-                  text: "Fecha",
-                },
-              },
-              y: {
-                title: {
-                  display: true,
-                  text: "Tamaño (GB)",
-                },
-              },
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      datasets: [{
+        label: serverData.identifier,
+        data: sortedData.map(d => ({
+          x: new Date(d.fecha),
+          y: d.tamanoDMP
+        })),
+        fill: false,
+        borderColor: getRandomColor(),
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: {
+          display: true,
+          text: `Tamaño del archivo DMP - ${serverData.serverName} (${serverData.ip})`,
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              return `${context.dataset.label}: ${context.parsed.y.toFixed(2)} GB`;
             },
           },
-        });
-      });
-    };
-
+        },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: {
+            unit: "day",
+            displayFormats: {
+              day: "yyyy-MM-dd",
+            },
+          },
+          title: {
+            display: true,
+            text: "Fecha",
+          },
+        },
+        y: {
+          title: {
+            display: true,
+            text: "Tamaño (GB)",
+          },
+        },
+      },
+    },
+  });
+});
+      };
 
       const populateSelectors = (result) => {
         const serverSelector = document.getElementById("serverSelector");
@@ -1187,54 +1153,71 @@ document.addEventListener("DOMContentLoaded", async () => {
         routeSelector.innerHTML =
           '<option value="all">Todas las rutas</option>';
 
-        // Añadir cada servidor al selector
-        result.allServersAndRoutes.forEach((server) => {
-          const option = document.createElement("option");
-          option.value = `${server.serverName} - ${server.ip}`;
-          option.textContent = `${server.serverName} - ${server.ip}`;
-          serverSelector.appendChild(option);
-        });
-        console.log("Todos los servidores y rutas:", result.allServersAndRoutes);
+        
+        console.log(
+          "Todos los servidores y rutas:",
+          result.allServersAndRoutes
+        );
         console.log("Datos procesados:", result.data);
 
         // Configurar event listener para el selector de servidores
         serverSelector.addEventListener("change", () => {
           const selectedServer = serverSelector.value;
-          routeSelector.innerHTML = '<option value="all">Todas las rutas</option>';
-      
+          routeSelector.innerHTML =
+            '<option value="all">Todas las rutas</option>';
+
           if (selectedServer !== "all") {
-            const serverInfo = result.allServersAndRoutes.find(s => `${s.serverName} - ${s.ip}` === selectedServer);
-            if (serverInfo) {
-              serverInfo.routes.forEach(route => {
-                const option = document.createElement("option");
-                option.value = route;
-                option.textContent = route;
-                routeSelector.appendChild(option);
-              });
-            }
+            const serverData = result.data.filter(
+              (d) => `${d.serverName} - ${d.ip}` === selectedServer
+            );
+            const uniqueIdentifiers = [
+              ...new Set(serverData.map((d) => d.identifier)),
+            ];
+            uniqueIdentifiers.forEach((identifier) => {
+              const option = document.createElement("option");
+              option.value = identifier;
+              option.textContent = identifier;
+              routeSelector.appendChild(option);
+            });
           }
-      
-          updateCharts(parseInt(daySelector.value), selectedServer, routeSelector.value);
+
+          updateCharts(
+            parseInt(daySelector.value),
+            selectedServer,
+            routeSelector.value
+          );
         });
 
         // Configurar event listener para el selector de rutas
         routeSelector.addEventListener("change", () => {
-          updateCharts(parseInt(daySelector.value), serverSelector.value, routeSelector.value);
+          updateCharts(
+            parseInt(daySelector.value),
+            serverSelector.value,
+            routeSelector.value
+          );
         });
       };
 
       // Configurar el selector de días
       const daySelector = document.getElementById("daySelector");
-    if (daySelector) {
-      daySelector.addEventListener("change", () => {
-        updateCharts(parseInt(daySelector.value), serverSelector.value, routeSelector.value);
-      });
-    } else {
-      console.warn("Selector de días no encontrado");
-    }
+      if (daySelector) {
+        daySelector.addEventListener("change", () => {
+          updateCharts(
+            parseInt(daySelector.value),
+            serverSelector.value,
+            routeSelector.value
+          );
+        });
+      } else {
+        console.warn("Selector de días no encontrado");
+      }
 
       // Inicializar el gráfico y los selectores con 30 días por defecto
       const initialResult = await window.electron.getDmpSizeData(30);
+      console.log(
+        "Estructura completa de initialResult:",
+        JSON.stringify(initialResult, null, 2)
+      );
       populateSelectors(initialResult);
       await updateCharts(30, "all", "all");
 
