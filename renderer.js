@@ -1078,11 +1078,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         chartContainer.innerHTML = ""; // Limpiar gráficos existentes
 
         filteredData.forEach((serverData) => {
-          console.log("Datos para el gráfico:", serverData);
-          const canvasId = `chart-${serverData.identifier}`.replace(/[^a-zA-Z0-9]/g, "_");
-          const canvasElement = document.createElement("canvas");
-          canvasElement.id = canvasId;
-          chartContainer.appendChild(canvasElement);
+    console.log("Datos para el gráfico:", serverData);
+    const canvasId = `chart-${serverData.identifier}`.replace(/[^a-zA-Z0-9]/g, "_");
+    const canvasElement = document.createElement("canvas");
+    canvasElement.id = canvasId;
+    chartContainer.appendChild(canvasElement);
         
           const ctx = canvasElement.getContext("2d");
         
@@ -1119,7 +1119,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         second: '2-digit',
                         hour12: false
                       });
-                      return `${formattedDate}: ${context.parsed.y.toFixed(4)} GB`;
+                      return `${formattedDate}: ${context.parsed.y.toFixed(2)} GB`;
                     },
                   },
                 },
@@ -1132,8 +1132,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     displayFormats: {
                       day: 'dd/MM/yyyy'
                     },
+                    tooltipFormat: 'dd/MM/yyyy'
                   },
                   ticks: {
+                    source: 'data',
+                    autoSkip: false,
+                    maxRotation: 45,
+                    minRotation: 45,
                     callback: function(value, index, values) {
                       const date = new Date(value);
                       return date.toLocaleDateString('es-PE', { 
@@ -1144,6 +1149,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                       });
                     }
                   },
+                  distribution: 'linear',
                   title: {
                     display: true,
                     text: 'Fecha'
@@ -1156,7 +1162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                   },
                   ticks: {
                     callback: function(value) {
-                      return value.toFixed(4);
+                      return value.toFixed(2);
                     }
                   }
                 }

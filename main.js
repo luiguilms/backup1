@@ -1649,18 +1649,6 @@ function getConstantIdentifier(fullPath, characterCount = 30) {
   return subdir.substring(0, characterCount);
 }
 
-function groupBackupPaths(backupPaths, characterCount = 30) {
-  const groupedPaths = {};
-  backupPaths.forEach((path) => {
-    const identifier = getConstantIdentifier(path, characterCount);
-    if (!groupedPaths[identifier]) {
-      groupedPaths[identifier] = [];
-    }
-    groupedPaths[identifier].push(path);
-  });
-  return groupedPaths;
-}
-
 async function getDmpSizeData(days = 30) {
   let connection;
   try {
@@ -1707,37 +1695,38 @@ async function getDmpSizeData(days = 30) {
       }
       return 0;
     };
-
+    // Agrupar los datos por los primeros 15 caracteres del backupPath
     const groupedData = dataResult.rows.reduce((acc, row) => {
-      const identifier = getConstantIdentifier(row[2], 30);
+      const identifier = getConstantIdentifier(row[2], 15);
       if (!acc[identifier]) {
-        acc[identifier] = [];
+        acc[identifier] = {
+          identifier,
+          serverName: row[0],
+          ip: row[1],
+          data: []
+        };
       }
-      acc[identifier].push({
-        serverName: row[0],
-        ip: row[1],
+      acc[identifier].data.push({
         backupPath: row[2],
-        fecha: row[3], // Esto ahora es un objeto Date de Oracle
+        fecha: row[3],
         tamanoDMP: convertToGB(row[4])
       });
       return acc;
     }, {});
 
-    const processedData = Object.entries(groupedData).map(([identifier, data]) => ({
-      identifier,
-      serverName: data[0].serverName,
-      ip: data[0].ip,
-      data: data
+    const processedData = Object.values(groupedData);
+
+    console.log("Datos procesados:", processedData);
+
+    // Usar allServersAndRoutesResult para la lista de todos los servidores
+    const allServers = allServersAndRoutesResult.rows.map(row => ({
+      serverName: row[0],
+      ip: row[1]
     }));
-    
 
     return {
       data: processedData,
-      allServersAndRoutes: allServersAndRoutesResult.rows.map(row => ({
-        serverName: row[0],
-        ip: row[1],
-        backupPath: row[2]
-      }))
+      allServersAndRoutes: allServers
     };
   } catch (err) {
     console.error("Error obteniendo datos de tamaño DMP:", err);
