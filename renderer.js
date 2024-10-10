@@ -84,9 +84,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       backupRouteSelect.innerHTML = "<option>Error al cargar rutas</option>";
       backupRouteSelect.disabled = true;
     }
+    ipSelect.addEventListener('change', updateBackupRoutes);
   }
   // Asegúrate de que esta función se llame cada vez que se cambia la IP seleccionada
-    ipSelect.addEventListener('change', updateBackupRoutes);
+    
   // *** Función para cargar servidores ***
   async function loadServers() {
     try {
