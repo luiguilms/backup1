@@ -1679,11 +1679,11 @@ async function getDmpSizeData(days = 30) {
         l.serverName,
         l.ip,
         l.backupPath,
-        TO_CHAR(l.horaFIN, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as fecha,
+        l.horaFIN as fecha,
         l.dumpFileSize
       FROM LogBackup l
       WHERE l.horaFIN >= SYSDATE - :days
-      ORDER BY l.serverName, l.ip, l.backupPath, fecha
+      ORDER BY l.serverName, l.ip, l.backupPath, l.horaFIN
     `,
       { days: days }
     );
@@ -1717,7 +1717,7 @@ async function getDmpSizeData(days = 30) {
         serverName: row[0],
         ip: row[1],
         backupPath: row[2],
-        fecha: row[3],
+        fecha: row[3], // Esto ahora es un objeto Date de Oracle
         tamanoDMP: convertToGB(row[4])
       });
       return acc;
@@ -1733,6 +1733,11 @@ async function getDmpSizeData(days = 30) {
 
     return {
       data: processedData,
+      allServersAndRoutes: allServersAndRoutesResult.rows.map(row => ({
+        serverName: row[0],
+        ip: row[1],
+        backupPath: row[2]
+      }))
     };
   } catch (err) {
     console.error("Error obteniendo datos de tamaño DMP:", err);

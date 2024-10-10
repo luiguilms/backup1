@@ -1083,104 +1083,129 @@ document.addEventListener("DOMContentLoaded", async () => {
           const canvasElement = document.createElement("canvas");
           canvasElement.id = canvasId;
           chartContainer.appendChild(canvasElement);
-      
+        
           const ctx = canvasElement.getContext("2d");
-      
+        
           const sortedData = serverData.data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
-  new Chart(ctx, {
-    type: "line",
-    data: {
-      datasets: [{
-        label: serverData.identifier,
-        data: sortedData.map(d => ({
-          x: new Date(d.fecha),
-          y: d.tamanoDMP
-        })),
-        fill: false,
-        borderColor: getRandomColor(),
-        tension: 0.1
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        title: {
-          display: true,
-          text: `Tamaño del archivo DMP - ${serverData.serverName} (${serverData.ip})`,
-        },
-        tooltip: {
-          callbacks: {
-            label: function (context) {
-              return `${context.dataset.label}: ${context.parsed.y.toFixed(2)} GB`;
+          new Chart(ctx, {
+            type: "line",
+            data: {
+              datasets: [{
+                label: serverData.identifier,
+                data: sortedData.map(d => ({
+                  x: new Date(d.fecha),
+                  y: d.tamanoDMP
+                })),
+                fill: false,
+                borderColor: getRandomColor(),
+                tension: 0.1
+              }]
             },
-          },
-        },
-      },
-      scales: {
-        x: {
-          type: "time",
-          time: {
-            unit: "day",
-            displayFormats: {
-              day: "yyyy-MM-dd",
+            options: {
+              responsive: true,
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      const date = new Date(context.parsed.x);
+                      const formattedDate = date.toLocaleString('es-PE', { 
+                        timeZone: 'America/Lima',
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                      });
+                      return `${formattedDate}: ${context.parsed.y.toFixed(4)} GB`;
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  type: 'time',
+                  time: {
+                    unit: 'day',
+                    displayFormats: {
+                      day: 'dd/MM/yyyy'
+                    },
+                  },
+                  ticks: {
+                    callback: function(value, index, values) {
+                      const date = new Date(value);
+                      return date.toLocaleDateString('es-PE', { 
+                        timeZone: 'America/Lima',
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      });
+                    }
+                  },
+                  title: {
+                    display: true,
+                    text: 'Fecha'
+                  }
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: 'Tamaño (GB)',
+                  },
+                  ticks: {
+                    callback: function(value) {
+                      return value.toFixed(4);
+                    }
+                  }
+                }
+              },
             },
-          },
-          title: {
-            display: true,
-            text: "Fecha",
-          },
-        },
-        y: {
-          title: {
-            display: true,
-            text: "Tamaño (GB)",
-          },
-        },
-      },
-    },
-  });
-});
-      };
+          });
+        });}
 
-      const populateSelectors = (result) => {
-        const serverSelector = document.getElementById("serverSelector");
-        const routeSelector = document.getElementById("routeSelector");
-
-        // Limpiar opciones existentes
-        serverSelector.innerHTML =
-          '<option value="all">Todos los servidores</option>';
-        routeSelector.innerHTML =
-          '<option value="all">Todas las rutas</option>';
-
+        const populateSelectors = (result) => {
+          const serverSelector = document.getElementById("serverSelector");
+          const routeSelector = document.getElementById("routeSelector");
         
-        console.log(
-          "Todos los servidores y rutas:",
-          result.allServersAndRoutes
-        );
-        console.log("Datos procesados:", result.data);
+          // Limpiar opciones existentes
+          serverSelector.innerHTML = '<option value="all">Todos los servidores</option>';
+          routeSelector.innerHTML = '<option value="all">Todas las rutas</option>';
+        
+          console.log("Todos los servidores y rutas:", result.allServersAndRoutes);
+          console.log("Datos procesados:", result.data);
+        
+          // Crear un conjunto de servidores únicos
+          const uniqueServers = new Set();
+          result.allServersAndRoutes.forEach(server => {
+            uniqueServers.add(`${server.serverName} - ${server.ip}`);
+          });
+        
+          // Llenar el selector de servidores
+          uniqueServers.forEach(serverString => {
+            const option = document.createElement("option");
+            option.value = serverString;
+            option.textContent = serverString;
+            serverSelector.appendChild(option);
+          });
 
         // Configurar event listener para el selector de servidores
         serverSelector.addEventListener("change", () => {
           const selectedServer = serverSelector.value;
-          routeSelector.innerHTML =
-            '<option value="all">Todas las rutas</option>';
-
+          routeSelector.innerHTML = '<option value="all">Todas las rutas</option>';
+        
           if (selectedServer !== "all") {
-            const serverData = result.data.filter(
-              (d) => `${d.serverName} - ${d.ip}` === selectedServer
-            );
-            const uniqueIdentifiers = [
-              ...new Set(serverData.map((d) => d.identifier)),
-            ];
-            uniqueIdentifiers.forEach((identifier) => {
+            const [serverName, ip] = selectedServer.split(" - ");
+            const serverRoutes = result.allServersAndRoutes.filter(s => s.serverName === serverName && s.ip === ip);
+            serverRoutes.forEach(route => {
               const option = document.createElement("option");
-              option.value = identifier;
-              option.textContent = identifier;
+              option.value = route.backupPath;
+              option.textContent = route.backupPath;
               routeSelector.appendChild(option);
             });
           }
-
+        
           updateCharts(
             parseInt(daySelector.value),
             selectedServer,
