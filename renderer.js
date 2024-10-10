@@ -67,22 +67,26 @@ document.addEventListener("DOMContentLoaded", async () => {
       //console.log("Rutas de backup obtenidas:", backupRoutes); // Verifica que recibes datos
       // Limpiar las rutas previas
       backupRouteSelect.innerHTML = "";
-      if (backupRoutes.length > 0) {
+      if (backupRoutes && backupRoutes.length > 0) {
         backupRoutes.forEach((route) => {
           const option = document.createElement("option");
           option.value = route.backupPath;
           option.textContent = route.backupPath;
           backupRouteSelect.appendChild(option);
         });
+        backupRouteSelect.disabled = false;
       } else {
-        backupRouteSelect.innerHTML =
-          "<option>No se encontraron rutas</option>";
+        backupRouteSelect.innerHTML = "<option>No se encontraron rutas</option>";
+        backupRouteSelect.disabled = true;
       }
     } catch (error) {
       console.error("Error al obtener las rutas de backup:", error);
       backupRouteSelect.innerHTML = "<option>Error al cargar rutas</option>";
+      backupRouteSelect.disabled = true;
     }
   }
+  // Asegúrate de que esta función se llame cada vez que se cambia la IP seleccionada
+    ipSelect.addEventListener('change', updateBackupRoutes);
   // *** Función para cargar servidores ***
   async function loadServers() {
     try {
