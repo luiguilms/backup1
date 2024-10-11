@@ -1,9 +1,8 @@
 node_modules
 .vscode
 repopack-output.txt
-css/ag-grid.css
-css/ag-theme-alpine.css
 dist
 pruebas
 insertServerInfo.js
 GESCONNEG1.DMP
+output_exp_controln_01-08-2024_21-30-02.log
