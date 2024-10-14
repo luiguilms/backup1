@@ -546,7 +546,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     //console.log("Mostrando resultados de servidores:", results);
     if (gridApi && typeof gridApi.setRowData === "function") {
       const rowData = results.flatMap((serverResult) => {
+        
         const processLogDetail = (logDetail) => {
+          if (!logDetail) {
+            showErrorModal(`No se encontraron rutas de backup para el servidor: ${serverResult.serverName || 'Desconocido'}`, serverResult.ip || 'IP desconocida');
+            return null;
+          }
           const status = serverResult.error
             ? "Error"
             : logDetail.logDetails?.success
@@ -559,10 +564,9 @@ document.addEventListener("DOMContentLoaded", async () => {
               ? "status-success"
               : "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
-          const totalDmpSize = logDetail.dumpFileInfo.reduce(
-            (sum, file) => sum + file.fileSize,
-            0
-          );
+          const totalDmpSize = Array.isArray(logDetail.dumpFileInfo) 
+    ? logDetail.dumpFileInfo.reduce((sum, file) => sum + (file.fileSize || 0), 0)
+    : 0;
           const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
           const formattedFolderSize = logDetail.totalFolderSize
             ? formatFileSize(parseFloat(logDetail.totalFolderSize)) // Si hay tamaño de carpeta, lo formateamos
@@ -597,13 +601,20 @@ document.addEventListener("DOMContentLoaded", async () => {
           };
         };
         if (Array.isArray(serverResult.logDetails)) {
-          return serverResult.logDetails.map((logDetail) =>
-            processLogDetail(logDetail)
-          );
+          return serverResult.logDetails
+            .map((logDetail) => processLogDetail(logDetail))
+            .filter(detail => detail !== null);
+        } else if (serverResult.logDetails) {
+          const processed = processLogDetail(serverResult.logDetails);
+          return processed ? [processed] : [];
         } else {
-          return [processLogDetail(serverResult.logDetails || {})];
+          console.warn("No se encontraron detalles de log para el servidor:", serverResult.serverName);
+          showErrorModal(`No se encontraron detalles de log para el servidor: ${serverResult.serverName || 'Desconocido'}`, serverResult.ip || 'IP desconocida');
+          return [];
         }
       });
+  
+      gridApi.setRowData(rowData);
       let tooltipVisible = false;
       // Configurar el evento de clic en celda para mostrar el tooltip de error
       gridApi.addEventListener("cellClicked", (params) => {
@@ -656,10 +667,44 @@ document.addEventListener("DOMContentLoaded", async () => {
           tooltipVisible = false;
         }
       });
-      gridApi.setRowData(rowData);
     } else {
       console.warn("Grid API no disponible o setRowData no es una función");
     }
+  }
+  function showErrorModal(message, ip) {
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.left = '0';
+    modal.style.top = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+  
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = '#fff';
+    modalContent.style.padding = '20px';
+    modalContent.style.borderRadius = '5px';
+    modalContent.style.maxWidth = '80%';
+  
+    const errorMessage = document.createElement('p');
+    errorMessage.textContent = message;
+  
+    const ipMessage = document.createElement('p');
+    ipMessage.textContent = `IP: ${ip}`;
+  
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Cerrar';
+    closeButton.onclick = () => document.body.removeChild(modal);
+  
+    modalContent.appendChild(errorMessage);
+    modalContent.appendChild(ipMessage);
+    modalContent.appendChild(closeButton);
+    modal.appendChild(modalContent);
+  
+    document.body.appendChild(modal);
   }
   function showErrorMessage(message) {
     console.error("Error:", message);
