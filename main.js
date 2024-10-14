@@ -1066,6 +1066,7 @@ app.whenReady().then(() => {
               serverName,
               ip,
               error: "No se encontraron rutas de backup",
+              logDetails: null  // Asegúrate de incluir esto
             });
             continue; // Continuar con el siguiente servidor
           }
@@ -1094,6 +1095,7 @@ app.whenReady().then(() => {
                   ip,
                   backupPath,
                   error: "No se encontraron detalles de log",
+                  logDetails: null  // Asegúrate de incluir esto
                 });
                 continue; // Continuar con la siguiente ruta de backup
               }
@@ -1139,6 +1141,7 @@ app.whenReady().then(() => {
                 ip,
                 backupPath,
                 error: routeError.message,
+                logDetails: null  // Asegúrate de incluir esto
               });
             }
           }
@@ -1151,6 +1154,7 @@ app.whenReady().then(() => {
             serverName,
             ip,
             error: serverError.message,
+            logDetails: null  // Asegúrate de incluir esto
           });
         }
       }

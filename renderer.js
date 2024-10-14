@@ -76,7 +76,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         backupRouteSelect.disabled = false;
       } else {
-        backupRouteSelect.innerHTML = "<option>No se encontraron rutas</option>";
+        backupRouteSelect.innerHTML =
+          "<option>No se encontraron rutas</option>";
         backupRouteSelect.disabled = true;
       }
     } catch (error) {
@@ -84,10 +85,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       backupRouteSelect.innerHTML = "<option>Error al cargar rutas</option>";
       backupRouteSelect.disabled = true;
     }
-    ipSelect.addEventListener('change', updateBackupRoutes);
+    ipSelect.addEventListener("change", updateBackupRoutes);
   }
   // Asegúrate de que esta función se llame cada vez que se cambia la IP seleccionada
-    
+
   // *** Función para cargar servidores ***
   async function loadServers() {
     try {
@@ -546,10 +547,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     //console.log("Mostrando resultados de servidores:", results);
     if (gridApi && typeof gridApi.setRowData === "function") {
       const rowData = results.flatMap((serverResult) => {
-        
         const processLogDetail = (logDetail) => {
-          if (!logDetail) {
-            showErrorModal(`No se encontraron rutas de backup para el servidor: ${serverResult.serverName || 'Desconocido'}`, serverResult.ip || 'IP desconocida');
+          if (!logDetail || !logDetail.logFileName) {
+            showErrorModal(
+              `No se encontró archivo de log para el servidor: ${
+                serverResult.serverName || "Desconocido"
+              }`,
+              serverResult.ip || "IP desconocida"
+            );
             return null;
           }
           const status = serverResult.error
@@ -564,9 +569,12 @@ document.addEventListener("DOMContentLoaded", async () => {
               ? "status-success"
               : "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
-          const totalDmpSize = Array.isArray(logDetail.dumpFileInfo) 
-    ? logDetail.dumpFileInfo.reduce((sum, file) => sum + (file.fileSize || 0), 0)
-    : 0;
+          const totalDmpSize = Array.isArray(logDetail.dumpFileInfo)
+            ? logDetail.dumpFileInfo.reduce(
+                (sum, file) => sum + (file.fileSize || 0),
+                0
+              )
+            : 0;
           const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
           const formattedFolderSize = logDetail.totalFolderSize
             ? formatFileSize(parseFloat(logDetail.totalFolderSize)) // Si hay tamaño de carpeta, lo formateamos
@@ -603,17 +611,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (Array.isArray(serverResult.logDetails)) {
           return serverResult.logDetails
             .map((logDetail) => processLogDetail(logDetail))
-            .filter(detail => detail !== null);
+            .filter((detail) => detail !== null);
         } else if (serverResult.logDetails) {
           const processed = processLogDetail(serverResult.logDetails);
           return processed ? [processed] : [];
         } else {
-          console.warn("No se encontraron detalles de log para el servidor:", serverResult.serverName);
-          showErrorModal(`No se encontraron detalles de log para el servidor: ${serverResult.serverName || 'Desconocido'}`, serverResult.ip || 'IP desconocida');
+          showErrorModal(
+            `No se encontraron rutas para el servidor: ${
+              serverResult.serverName || "Desconocido"
+            }`,
+            serverResult.ip || "IP desconocida"
+          );
           return [];
         }
       });
-  
+
       gridApi.setRowData(rowData);
       let tooltipVisible = false;
       // Configurar el evento de clic en celda para mostrar el tooltip de error
@@ -1103,8 +1115,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       let globalDmpSizeData = [];
 
-      const updateCharts = async (selectedDays, selectedServer, selectedRoute) => {
-        if (globalDmpSizeData.length === 0 || selectedDays !== window.lastSelectedDays) {
+      const updateCharts = async (
+        selectedDays,
+        selectedServer,
+        selectedRoute
+      ) => {
+        if (
+          globalDmpSizeData.length === 0 ||
+          selectedDays !== window.lastSelectedDays
+        ) {
           const result = await window.electron.getDmpSizeData(selectedDays);
           globalDmpSizeData = result.data;
           window.lastSelectedDays = selectedDays;
@@ -1119,38 +1138,47 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         // Filtrar datos según las selecciones
         let filteredData = globalDmpSizeData;
-  if (selectedServer !== "all") {
-    const [serverName, ip] = selectedServer.split(" - ");
-    filteredData = filteredData.filter(d => d.serverName === serverName && d.ip === ip);
-  }
+        if (selectedServer !== "all") {
+          const [serverName, ip] = selectedServer.split(" - ");
+          filteredData = filteredData.filter(
+            (d) => d.serverName === serverName && d.ip === ip
+          );
+        }
 
         const chartContainer = document.getElementById("dmpSizeChartContainer");
         chartContainer.innerHTML = ""; // Limpiar gráficos existentes
 
         filteredData.forEach((serverData) => {
-    console.log("Datos para el gráfico:", serverData);
-    const canvasId = `chart-${serverData.identifier}`.replace(/[^a-zA-Z0-9]/g, "_");
-    const canvasElement = document.createElement("canvas");
-    canvasElement.id = canvasId;
-    chartContainer.appendChild(canvasElement);
-        
+          console.log("Datos para el gráfico:", serverData);
+          const canvasId = `chart-${serverData.identifier}`.replace(
+            /[^a-zA-Z0-9]/g,
+            "_"
+          );
+          const canvasElement = document.createElement("canvas");
+          canvasElement.id = canvasId;
+          chartContainer.appendChild(canvasElement);
+
           const ctx = canvasElement.getContext("2d");
-        
-          const sortedData = serverData.data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+          const sortedData = serverData.data.sort(
+            (a, b) => new Date(a.fecha) - new Date(b.fecha)
+          );
 
           new Chart(ctx, {
             type: "line",
             data: {
-              datasets: [{
-                label: serverData.identifier,
-                data: sortedData.map(d => ({
-                  x: new Date(d.fecha),
-                  y: d.tamanoDMP
-                })),
-                fill: false,
-                borderColor: getRandomColor(),
-                tension: 0.1
-              }]
+              datasets: [
+                {
+                  label: serverData.identifier,
+                  data: sortedData.map((d) => ({
+                    x: new Date(d.fecha),
+                    y: d.tamanoDMP,
+                  })),
+                  fill: false,
+                  borderColor: getRandomColor(),
+                  tension: 0.1,
+                },
+              ],
             },
             options: {
               responsive: true,
@@ -1159,109 +1187,120 @@ document.addEventListener("DOMContentLoaded", async () => {
                   callbacks: {
                     label: function (context) {
                       const date = new Date(context.parsed.x);
-                      const formattedDate = date.toLocaleString('es-PE', { 
-                        timeZone: 'America/Lima',
-                        year: 'numeric', 
-                        month: '2-digit', 
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: false
+                      const formattedDate = date.toLocaleString("es-PE", {
+                        timeZone: "America/Lima",
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: false,
                       });
-                      return `${formattedDate}: ${context.parsed.y.toFixed(2)} GB`;
+                      return `${formattedDate}: ${context.parsed.y.toFixed(
+                        2
+                      )} GB`;
                     },
                   },
                 },
               },
               scales: {
                 x: {
-                  type: 'time',
+                  type: "time",
                   time: {
-                    unit: 'day',
+                    unit: "day",
                     displayFormats: {
-                      day: 'dd/MM/yyyy'
+                      day: "dd/MM/yyyy",
                     },
-                    tooltipFormat: 'dd/MM/yyyy'
+                    tooltipFormat: "dd/MM/yyyy",
                   },
                   ticks: {
-                    source: 'data',
+                    source: "data",
                     autoSkip: false,
                     maxRotation: 45,
                     minRotation: 45,
-                    callback: function(value, index, values) {
+                    callback: function (value, index, values) {
                       const date = new Date(value);
-                      return date.toLocaleDateString('es-PE', { 
-                        timeZone: 'America/Lima',
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
+                      return date.toLocaleDateString("es-PE", {
+                        timeZone: "America/Lima",
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
                       });
-                    }
+                    },
                   },
-                  distribution: 'linear',
+                  distribution: "linear",
                   title: {
                     display: true,
-                    text: 'Fecha'
-                  }
+                    text: "Fecha",
+                  },
                 },
                 y: {
                   title: {
                     display: true,
-                    text: 'Tamaño (GB)',
+                    text: "Tamaño (GB)",
                   },
                   ticks: {
-                    callback: function(value) {
+                    callback: function (value) {
                       return value.toFixed(2);
-                    }
-                  }
-                }
+                    },
+                  },
+                },
               },
             },
           });
-        });}
+        });
+      };
 
-        const populateSelectors = (result) => {
-          const serverSelector = document.getElementById("serverSelector");
-          const routeSelector = document.getElementById("routeSelector");
-        
-          // Limpiar opciones existentes
-          serverSelector.innerHTML = '<option value="all">Todos los servidores</option>';
-          routeSelector.innerHTML = '<option value="all">Todas las rutas</option>';
-        
-          console.log("Todos los servidores y rutas:", result.allServersAndRoutes);
-          console.log("Datos procesados:", result.data);
-        
-          // Crear un conjunto de servidores únicos
-          const uniqueServers = new Set();
-          result.allServersAndRoutes.forEach(server => {
-            uniqueServers.add(`${server.serverName} - ${server.ip}`);
-          });
-        
-          // Llenar el selector de servidores
-          uniqueServers.forEach(serverString => {
-            const option = document.createElement("option");
-            option.value = serverString;
-            option.textContent = serverString;
-            serverSelector.appendChild(option);
-          });
+      const populateSelectors = (result) => {
+        const serverSelector = document.getElementById("serverSelector");
+        const routeSelector = document.getElementById("routeSelector");
+
+        // Limpiar opciones existentes
+        serverSelector.innerHTML =
+          '<option value="all">Todos los servidores</option>';
+        routeSelector.innerHTML =
+          '<option value="all">Todas las rutas</option>';
+
+        console.log(
+          "Todos los servidores y rutas:",
+          result.allServersAndRoutes
+        );
+        console.log("Datos procesados:", result.data);
+
+        // Crear un conjunto de servidores únicos
+        const uniqueServers = new Set();
+        result.allServersAndRoutes.forEach((server) => {
+          uniqueServers.add(`${server.serverName} - ${server.ip}`);
+        });
+
+        // Llenar el selector de servidores
+        uniqueServers.forEach((serverString) => {
+          const option = document.createElement("option");
+          option.value = serverString;
+          option.textContent = serverString;
+          serverSelector.appendChild(option);
+        });
 
         // Configurar event listener para el selector de servidores
         serverSelector.addEventListener("change", () => {
           const selectedServer = serverSelector.value;
-          routeSelector.innerHTML = '<option value="all">Todas las rutas</option>';
-        
+          routeSelector.innerHTML =
+            '<option value="all">Todas las rutas</option>';
+
           if (selectedServer !== "all") {
             const [serverName, ip] = selectedServer.split(" - ");
-            const serverRoutes = result.allServersAndRoutes.filter(s => s.serverName === serverName && s.ip === ip);
-            serverRoutes.forEach(route => {
+            const serverRoutes = result.allServersAndRoutes.filter(
+              (s) => s.serverName === serverName && s.ip === ip
+            );
+            serverRoutes.forEach((route) => {
               const option = document.createElement("option");
               option.value = route.backupPath;
               option.textContent = route.backupPath;
               routeSelector.appendChild(option);
             });
           }
-        
+
           updateCharts(
             parseInt(daySelector.value),
             selectedServer,
