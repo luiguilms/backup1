@@ -1605,7 +1605,7 @@ async function sendEmailAlert(ip, serverName, message) {
         {
           From: {
             Email: "luiguilmsz3@gmail.com",
-            Name: "Sistema de Backup",
+            Name: "Monitoreo de Backup",
           },
           To: [
             {

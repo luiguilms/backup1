@@ -5,17 +5,20 @@ body {
   padding: 20px;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   min-height: 100vh;
   position: relative;
   box-sizing: border-box;
 }
 .container {
   display: flex;
+  justify-content: space-between; /* Separa el formulario y los resultados */
   flex-direction: column;
   gap: 20px;
   max-width: 100%;
   width: 100%;
+  position: relative;
+  align-items: flex-start;
 }
 .card {
   background-color: white;
@@ -93,6 +96,7 @@ button:hover {
   align-items: center; /* Centrado vertical */
   z-index: 9999;
   flex-direction: column; /* Para que el loader y el texto se coloquen uno debajo del otro */
+  transition: opacity 0.3s ease;
 }
 .loader {
   border: 5px solid #f3f3f3;
@@ -161,20 +165,21 @@ button:hover {
   display: block;
 }
 #result {
-  max-width: 600px;
-  margin: 20px auto;
-  padding: 20px;
-  background: #fff;
+  background: #f9f9f9;
+  border: 1px solid #dcdcdc;
+  border-left: 4px solid #3498db; /* Añadir un borde izquierdo más llamativo */
   border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  font-size: 16px;
-  color: #333;
-  display: none; /* Ocultar inicialmente */
-  padding-top: -155px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Sombra ligera */
+  transition: opacity 0.4s ease;
+  display: none;
+  margin-left: 50px; 
+  width: 40%;
 }
 #result h2 {
   margin-bottom: 10px;
   font-size: 20px;
+  line-height: 1.6;
   color: #007bff;
 }
 #result p {
