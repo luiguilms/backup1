@@ -684,38 +684,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
   function showErrorModal(message, ip) {
-    const modal = document.createElement('div');
-    modal.style.position = 'fixed';
-    modal.style.left = '0';
-    modal.style.top = '0';
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
-  
-    const modalContent = document.createElement('div');
-    modalContent.style.backgroundColor = '#fff';
-    modalContent.style.padding = '20px';
-    modalContent.style.borderRadius = '5px';
-    modalContent.style.maxWidth = '80%';
-  
-    const errorMessage = document.createElement('p');
+    const modal = document.createElement("div");
+    modal.style.position = "fixed";
+    modal.style.left = "0";
+    modal.style.top = "0";
+    modal.style.width = "100%";
+    modal.style.height = "100%";
+    modal.style.backgroundColor = "rgba(0,0,0,0.5)";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+
+    const modalContent = document.createElement("div");
+    modalContent.style.backgroundColor = "#fff";
+    modalContent.style.padding = "20px";
+    modalContent.style.borderRadius = "5px";
+    modalContent.style.maxWidth = "80%";
+
+    const errorMessage = document.createElement("p");
     errorMessage.textContent = message;
-  
-    const ipMessage = document.createElement('p');
+
+    const ipMessage = document.createElement("p");
     ipMessage.textContent = `IP: ${ip}`;
-  
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'Cerrar';
+
+    const closeButton = document.createElement("button");
+    closeButton.textContent = "Cerrar";
     closeButton.onclick = () => document.body.removeChild(modal);
-  
+
     modalContent.appendChild(errorMessage);
     modalContent.appendChild(ipMessage);
     modalContent.appendChild(closeButton);
     modal.appendChild(modalContent);
-  
+
     document.body.appendChild(modal);
   }
   function showErrorMessage(message) {
@@ -1379,12 +1379,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       const ip = ipSelect.value;
       const username = form.username.value;
       const password = form.password.value;
+      const port = form.port.value;
       // Guardar los datos de conexión en el almacenamiento local
       window.localStorage.setItem(
         "connectionData",
         JSON.stringify({ os, ip, port, username, password })
       );
       try {
+        const connectionResult = await window.electron.connectToServer(ip, port, username, password);
+            if (!connectionResult.success) {
+                throw new Error("Error al intentar conectar con el servidor"); // Si la conexión falla, lanzar el error devuelto
+            }
+        console.log("Connection successful");
         // Verificar las credenciales del usuario
         const result = await window.electron.verifyCredentials(
           ip,
@@ -1395,13 +1401,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           throw new Error(result.message); // Lanzar error si la verificación falla
         }
         const os = result.osType;
-        const port = result.port;
+        
         // Si el sistema operativo ha cambiado, limpiamos los logs anteriores
         if (currentOS !== os) {
           clearLogEntries();
           currentOS = os; // Actualizamos el sistema operativo actual
         }
-        console.log("Connection successful");
+        
         // Obtener las rutas de backup desde la base de datos usando la IP seleccionada
         const backupRoutes = await window.electron.getBackupRoutesByIP(ip);
         let directoryPath = "";
@@ -1421,7 +1427,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           showAuthErrorModal("No se encontraron rutas de backup para esta IP.");
           return;
         }
-        try {
+        
           // Obtener los detalles del log
           console.log("Fetching log details...");
           const logDetailsArray = await window.electron.getLogDetails(
@@ -1469,18 +1475,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               );
             }
           } else {
-            console.log(
-              "No se encontraron detalles de log o el formato es inesperado:",
-              logDetailsArray
-            );
-            showAuthErrorModal(
-              "No se encontraron detalles de log o el formato es inesperado."
-            );
-          }
-        } catch (error) {
-          showAuthErrorModal(
-            `Error al obtener detalles del log: ${error.message}`
-          );
+            throw new Error("Formato de log inesperado.");
         }
       } catch (error) {
         console.log("Connection error", error);

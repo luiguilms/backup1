@@ -61,16 +61,16 @@ function createWindow() {
 }
 app.whenReady().then(() => {
   createWindow();
-  ipcMain.handle(
-    "connect-to-server",
-    async (event, { ip, port, username, password }) => {
-      console.log(
-        `Attempting to connect to ${ip}:${port} with username ${username}`
-      );
-      const isConnected = await checkConnection(ip, port, username, password);
-      return isConnected;
+  ipcMain.handle("connect-to-server", async (event, { ip, port, username, password }) => {
+    console.log(`Attempting to connect to ${ip}:${port} with username ${username}`);
+    try {
+        await checkConnection(ip, port, username, password); // Esperar el resultado de la conexión
+        return { success: true, message: "Connected successfully." };
+    } catch (error) {
+        console.error("Connection error:", error);
+        return { success: false, message: error.message }; // Devolver el error si la conexión falla
     }
-  );
+});
   function executeSSHCommand(conn, command) {
     return new Promise((resolve, reject) => {
       conn.exec(command, (err, stream) => {
@@ -1270,45 +1270,49 @@ function createSSHClient(ip, port, username, password) {
 }
 function checkConnection(ip, port, username, password) {
   return new Promise((resolve, reject) => {
-    const conn = new Client();
-    conn
-      .on("ready", () => {
-        console.log("Initial connection successful");
-        conn.exec('echo "Connection test"', (err, stream) => {
-          if (err) {
-            console.error("Exec error:", err);
-            conn.end();
-            reject(new Error(`Exec failed: ${err.message}`));
-          }
-          stream
-            .on("close", (code, signal) => {
-              conn.end();
-              resolve(true);
-            })
-            .on("data", (data) => {
-              console.log("Received:", data.toString());
-            })
-            .stderr.on("data", (data) => {
-              console.error("STDERR:", data.toString());
-            });
-        });
-      })
-      .on("error", (err) => {
-        resolve(false);
-      })
-      .connect({
-        host: ip,
-        port: port,
-        username: username,
-        password: password,
-        algorithms: {
-          kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
-          cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
-          hmac: ["hmac-sha1", "hmac-sha2-256", "hmac-sha2-512"],
-        },
-      });
+      const conn = new Client();
+      
+      conn
+          .on("ready", () => {
+              console.log("Initial connection successful");
+              conn.exec('echo "Connection test"', (err, stream) => {
+                  if (err) {
+                      console.error("Exec error:", err);
+                      conn.end();
+                      return reject(new Error(`Exec failed: ${err.message}`)); // Rechazar en caso de error
+                  }
+
+                  stream
+                      .on("close", (code, signal) => {
+                          conn.end();
+                          resolve(true); // Resolver cuando el comando se cierra correctamente
+                      })
+                      .on("data", (data) => {
+                          console.log("Received:", data.toString());
+                      })
+                      .stderr.on("data", (data) => {
+                          console.error("STDERR:", data.toString());
+                      });
+              });
+          })
+          .on("error", (err) => {
+              console.error("Connection error:", err);
+              reject(new Error(`Connection failed: ${err.message}`)); // Rechazar en caso de error de conexión
+          })
+          .connect({
+              host: ip,
+              port: port,
+              username: username,
+              password: password,
+              algorithms: {
+                  kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
+                  cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
+                  hmac: ["hmac-sha1", "hmac-sha2-256", "hmac-sha2-512"],
+              },
+          });
   });
 }
+
 // Función para parsear las fechas en el log y formatearlas para Oracle
 function formatDateForOracle(date) {
   if (!date) return null;
