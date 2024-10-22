@@ -547,6 +547,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     //console.log("Mostrando resultados de servidores:", results);
     if (gridApi && typeof gridApi.setRowData === "function") {
       const rowData = results.flatMap((serverResult) => {
+        if (serverResult.error) {
+          showErrorModal(
+              `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
+              serverResult.ip || "IP desconocida"
+          );
+          return []; // No añadir nada al grid
+      }
         const processLogDetail = (logDetail) => {
           if (!logDetail || !logDetail.logFileName) {
             showErrorModal(
@@ -683,6 +690,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.warn("Grid API no disponible o setRowData no es una función");
     }
   }
+
   function showErrorModal(message, ip) {
     const modal = document.createElement("div");
     modal.style.position = "fixed";
@@ -1386,10 +1394,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         JSON.stringify({ os, ip, port, username, password })
       );
       try {
-        const connectionResult = await window.electron.connectToServer(ip, port, username, password);
-            if (!connectionResult.success) {
-                throw new Error("Error al intentar conectar con el servidor"); // Si la conexión falla, lanzar el error devuelto
-            }
+        const connectionResult = await window.electron.connectToServer(
+          ip,
+          port,
+          username,
+          password
+        );
+        if (!connectionResult.success) {
+          throw new Error("Error al intentar conectar con el servidor"); // Si la conexión falla, lanzar el error devuelto
+        }
         console.log("Connection successful");
         // Verificar las credenciales del usuario
         const result = await window.electron.verifyCredentials(
@@ -1401,13 +1414,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           throw new Error(result.message); // Lanzar error si la verificación falla
         }
         const os = result.osType;
-        
+
         // Si el sistema operativo ha cambiado, limpiamos los logs anteriores
         if (currentOS !== os) {
           clearLogEntries();
           currentOS = os; // Actualizamos el sistema operativo actual
         }
-        
+
         // Obtener las rutas de backup desde la base de datos usando la IP seleccionada
         const backupRoutes = await window.electron.getBackupRoutesByIP(ip);
         let directoryPath = "";
@@ -1427,40 +1440,22 @@ document.addEventListener("DOMContentLoaded", async () => {
           showAuthErrorModal("No se encontraron rutas de backup para esta IP.");
           return;
         }
-        
-          // Obtener los detalles del log
-          console.log("Fetching log details...");
-          const logDetailsArray = await window.electron.getLogDetails(
-            directoryPath,
-            ip,
-            port,
-            username,
-            password,
-            os
-          );
-          // Procesar los detalles del log
-          if (Array.isArray(logDetailsArray)) {
-            for (const logData of logDetailsArray) {
-              //console.log("Adding log entry:", logData);
-              addLogEntry({ ...logData, ip });
-              if (
-                logData.logDetails &&
-                Object.keys(logData.logDetails).length > 0
-              ) {
-                await window.electron.saveLogToDatabase(
-                  logData.logDetails,
-                  logData.dumpFileInfo,
-                  os,
-                  logData.logFileName,
-                  logData.ip,
-                  logData.backupPath
-                );
-              }
-            }
-          } else if (logDetailsArray && typeof logDetailsArray === "object") {
-            const logData = { ...logDetailsArray, ip };
-            console.log("Adding log entry:", logData);
-            addLogEntry(logData);
+
+        // Obtener los detalles del log
+        console.log("Fetching log details...");
+        const logDetailsArray = await window.electron.getLogDetails(
+          directoryPath,
+          ip,
+          port,
+          username,
+          password,
+          os
+        );
+        // Procesar los detalles del log
+        if (Array.isArray(logDetailsArray)) {
+          for (const logData of logDetailsArray) {
+            //console.log("Adding log entry:", logData);
+            addLogEntry({ ...logData, ip });
             if (
               logData.logDetails &&
               Object.keys(logData.logDetails).length > 0
@@ -1474,8 +1469,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                 logData.backupPath
               );
             }
-          } else {
-            throw new Error("Formato de log inesperado.");
+          }
+        } else if (logDetailsArray && typeof logDetailsArray === "object") {
+          const logData = { ...logDetailsArray, ip };
+          console.log("Adding log entry:", logData);
+          addLogEntry(logData);
+          if (
+            logData.logDetails &&
+            Object.keys(logData.logDetails).length > 0
+          ) {
+            await window.electron.saveLogToDatabase(
+              logData.logDetails,
+              logData.dumpFileInfo,
+              os,
+              logData.logFileName,
+              logData.ip,
+              logData.backupPath
+            );
+          }
+        } else {
+          throw new Error("Formato de log inesperado.");
         }
       } catch (error) {
         console.log("Connection error", error);

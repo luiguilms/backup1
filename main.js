@@ -1051,25 +1051,29 @@ app.whenReady().then(() => {
           const decryptedPassword = await decrypt(
             await readLob(encryptedPasswordLob)
           );
-
-          // Obtener rutas de backup
-          const backupRoutes = await getBackupRoutesByIPInternal(
-            ip,
-            connection
-          );
-
-          if (backupRoutes.length === 0) {
-            console.log(
-              `No se encontraron rutas de backup para el servidor ${serverName}`
-            );
+          const connectionResult = await checkConnection(ip, port, decryptedUser, decryptedPassword);
+          if (!connectionResult) {
             results.push({
               serverName,
               ip,
-              error: "No se encontraron rutas de backup",
-              logDetails: null  // Asegúrate de incluir esto
+              error: `No se pudo conectar al servidor ${serverName}`,
+              logDetails: null
             });
-            continue; // Continuar con el siguiente servidor
+            continue;  // Continuar con el siguiente servidor
           }
+
+          // Obtener rutas de backup
+        const backupRoutes = await getBackupRoutesByIPInternal(ip, connection);
+        if (backupRoutes.length === 0) {
+          console.log(`No se encontraron rutas de backup para el servidor ${serverName}`);
+          results.push({
+            serverName,
+            ip,
+            error: `No se encontraron rutas de backup para el servidor ${serverName}`,
+            logDetails: null  // Asegúrate de incluir esto
+          });
+          continue;  // Si no hay rutas de backup, saltar este servidor
+        }
 
           for (const route of backupRoutes) {
             const backupPath = route.backupPath;
@@ -1082,25 +1086,19 @@ app.whenReady().then(() => {
                 decryptedPassword,
                 osType
               );
-
-              if (
-                !logDetails ||
-                (Array.isArray(logDetails) && logDetails.length === 0)
-              ) {
-                console.log(
-                  `No se encontraron detalles de log para ${serverName} en la ruta ${backupPath}`
-                );
+  
+              if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
                 results.push({
                   serverName,
                   ip,
                   backupPath,
                   error: "No se encontraron detalles de log",
-                  logDetails: null  // Asegúrate de incluir esto
+                  logDetails: null
                 });
-                continue; // Continuar con la siguiente ruta de backup
+                continue; // Saltar si no hay detalles de log
               }
-
-              // Guardar los detalles en la base de datos
+  
+              // Guardar los detalles de log en la base de datos
               if (Array.isArray(logDetails)) {
                 for (const detail of logDetails) {
                   const fullBackupPath = detail.backupPath;
@@ -1124,18 +1122,17 @@ app.whenReady().then(() => {
                   fullBackupPath
                 );
               }
-
-              results.push({
-                serverName,
-                ip,
-                backupPath: backupPath,
-                logDetails,
-              });
+  
+              // Solo agregar servidores exitosos al grid
+            results.push({
+              serverName,
+              ip,
+              backupPath,
+              logDetails,
+              error: null
+            });
             } catch (routeError) {
-              console.error(
-                `Error procesando la ruta ${backupPath} del servidor ${serverName}:`,
-                routeError
-              );
+              console.error(`Error procesando la ruta ${backupPath} del servidor ${serverName}:`, routeError);
               results.push({
                 serverName,
                 ip,
@@ -1143,21 +1140,18 @@ app.whenReady().then(() => {
                 error: routeError.message,
                 logDetails: null  // Asegúrate de incluir esto
               });
+              // No agregar al grid si hay error en el log
             }
           }
         } catch (serverError) {
-          console.error(
-            `Error procesando el servidor ${serverName}:`,
-            serverError
-          );
+          console.error(`Error procesando el servidor ${serverName}:`, serverError);
           results.push({
             serverName,
             ip,
             error: serverError.message,
             logDetails: null  // Asegúrate de incluir esto
           });
-        }
-      }
+        }}
     } catch (err) {
       console.error("Error al procesar todos los servidores:", err);
     } finally {
