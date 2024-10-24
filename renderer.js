@@ -332,6 +332,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("loading-overlay").style.display = "none";
   }
   function showAuthErrorModal(errorMessage) {
+    console.log("Entrando en showAuthErrorModal");
     requestAnimationFrame(() => {
       const modalAuthError = document.getElementById("authErrorModal");
       const message = document.getElementById("errorMessage");
@@ -549,11 +550,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       const rowData = results.flatMap((serverResult) => {
         if (serverResult.error) {
           showErrorModal(
-              `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
-              serverResult.ip || "IP desconocida"
+            `No se realizó la conexión con el servidor: ${
+              serverResult.serverName || "Desconocido"
+            }`,
+            serverResult.ip || "IP desconocida"
           );
           return []; // No añadir nada al grid
-      }
+        }
+        if (serverResult.warning) {
+          showErrorModal(
+            `Backup Incompleto en servidor: ${
+              serverResult.serverName || "Desconocido"
+            }`,
+            serverResult.ip || "IP desconocida" // Asegúrate de pasar la IP aquí
+          );
+          return []; // No añadir nada al grid
+        }
         const processLogDetail = (logDetail) => {
           if (!logDetail || !logDetail.logFileName) {
             showErrorModal(
@@ -692,6 +704,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function showErrorModal(message, ip) {
+    console.log("Entrando en showErrorModal");
     const modal = document.createElement("div");
     modal.style.position = "fixed";
     modal.style.left = "0";
@@ -1400,6 +1413,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           username,
           password
         );
+        console.log("Resultado de conexión:", connectionResult);
         if (!connectionResult.success) {
           throw new Error("Error al intentar conectar con el servidor"); // Si la conexión falla, lanzar el error devuelto
         }
@@ -1410,6 +1424,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           username,
           password
         );
+        console.log("Resultado de verificación de credenciales:", result);
         if (!result.success) {
           throw new Error(result.message); // Lanzar error si la verificación falla
         }
@@ -1451,10 +1466,22 @@ document.addEventListener("DOMContentLoaded", async () => {
           password,
           os
         );
+        console.log("logDetailsArray:", logDetailsArray);
+        // Verifica si hay elementos en logDetailsArray
+        // Antes del bucle que procesa los detalles del log
+        let hasShownBackupIncompleteError = false;
         // Procesar los detalles del log
         if (Array.isArray(logDetailsArray)) {
           for (const logData of logDetailsArray) {
             //console.log("Adding log entry:", logData);
+            if (logData.backupIncomplete === true && !hasShownBackupIncompleteError) {
+              console.log("Mostrando modal de error por backup incompleto");
+              showErrorModal(
+                `Backup Incompleto: Se esperaban 7 carpetas pero se encontraron ${logData.foundFolders}`,
+                ip
+              );
+              hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
+            }
             addLogEntry({ ...logData, ip });
             if (
               logData.logDetails &&
@@ -1471,6 +1498,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
           }
         } else if (logDetailsArray && typeof logDetailsArray === "object") {
+          if (logDetailsArray.backupIncomplete === true && !hasShownBackupIncompleteError) {
+            console.log("Mostrando modal de error por backup incompleto");
+            showErrorModal(
+              `Backup Incompleto: Se esperaban 7 carpetas pero se encontraron ${logDetailsArray.foundFolders}`,
+              ip
+            );
+            hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
+          }
           const logData = { ...logDetailsArray, ip };
           console.log("Adding log entry:", logData);
           addLogEntry(logData);

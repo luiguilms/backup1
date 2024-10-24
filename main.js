@@ -160,6 +160,16 @@ app.whenReady().then(() => {
             resolve(files);
           });
         });
+        // Verificar el número de subcarpetas
+  const directories = files.filter(file => file.attrs.isDirectory());
+  const isBackupComplete = directories.length === 7;
+
+  if (!isBackupComplete) {
+    // Agregamos una propiedad para indicar backup incompleto
+    allLogDetails.backupIncomplete = true;
+    allLogDetails.expectedFolders = 7;
+    allLogDetails.foundFolders = directories.length;
+  }
         for (const file of files) {
           if (file.attrs.isDirectory()) {
             const subDirPath = joinPath(directoryPath, file.filename, targetOS);
@@ -292,6 +302,9 @@ app.whenReady().then(() => {
               hasWarning: logInfo ? logInfo.hasWarning : false,
               warningNumber: logInfo ? logInfo.warningNumber : null,
               lastLine: lastLine, // Añadimos la última línea aquí
+              backupIncomplete: !isBackupComplete,
+              expectedFolders: 7,
+              foundFolders: directories.length,
             });
             // Añade este log para verificar el valor
             //console.log(
@@ -1087,7 +1100,15 @@ app.whenReady().then(() => {
                 osType
               );
   
-              if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
+              if (logDetails && logDetails.backupIncomplete) {
+                results.push({
+                  serverName,
+                  ip,
+                  backupPath,
+                  warning: `Backup incompleto. Se esperaban 7 carpetas pero se encontraron ${logDetails.foundFolders}`,
+                  logDetails: logDetails  // Mantenemos los detalles de las carpetas existentes
+                });
+              } else if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
                 results.push({
                   serverName,
                   ip,
@@ -1095,7 +1116,7 @@ app.whenReady().then(() => {
                   error: "No se encontraron detalles de log",
                   logDetails: null
                 });
-                continue; // Saltar si no hay detalles de log
+                continue;
               }
   
               // Guardar los detalles de log en la base de datos
