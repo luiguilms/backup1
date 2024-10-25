@@ -762,9 +762,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         0
       );
       const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
-      const formattedFolderSize = logData.totalFolderSize
-        ? formatFileSize(parseFloat(logData.totalFolderSize)) // Si hay tamaño de carpeta, lo formateamos
-        : "N/A"; // Si no hay tamaño de carpeta, mostramos "N/A"
+      // Manejo de `totalFolderSize` para asegurar que sea un número válido
+      const folderSizeValue = Array.isArray(logData.totalFolderSize)
+      ? logData.totalFolderSize[0]?.sizeInMB || "N/A"
+      : logData.totalFolderSize;
+    
+    const formattedFolderSize = !isNaN(parseFloat(folderSizeValue))
+      ? formatFileSize(parseFloat(folderSizeValue))
+      : "Tamaño no disponible";
       // Añadir el estado del backup
       const backupStatus = logData.logDetails.backupStatus || "N/A";
       entryDiv.innerHTML = `

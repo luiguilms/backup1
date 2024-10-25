@@ -61,16 +61,21 @@ function createWindow() {
 }
 app.whenReady().then(() => {
   createWindow();
-  ipcMain.handle("connect-to-server", async (event, { ip, port, username, password }) => {
-    console.log(`Attempting to connect to ${ip}:${port} with username ${username}`);
-    try {
+  ipcMain.handle(
+    "connect-to-server",
+    async (event, { ip, port, username, password }) => {
+      console.log(
+        `Attempting to connect to ${ip}:${port} with username ${username}`
+      );
+      try {
         await checkConnection(ip, port, username, password); // Esperar el resultado de la conexión
         return { success: true, message: "Connected successfully." };
-    } catch (error) {
+      } catch (error) {
         console.error("Connection error:", error);
         return { success: false, message: error.message }; // Devolver el error si la conexión falla
+      }
     }
-});
+  );
   function executeSSHCommand(conn, command) {
     return new Promise((resolve, reject) => {
       conn.exec(command, (err, stream) => {
@@ -135,18 +140,19 @@ app.whenReady().then(() => {
         });
       });
       // Llamada a getFolderSize para Solaris, Linux, y Windows
-      const folderSizes = await getFolderSize(
+      let folderSizes = await getFolderSize(
         conn,
         directoryPath,
         targetOS,
         sftp
       );
       //console.log("Tamaños de las subcarpetas:", folderSizes);
-      if (targetOS === "solaris") {
+      if (targetOS === "solaris" || targetOS === "linux") {
         // Asegurarse de que folderSizes sea un arreglo solo para Solaris
-        if (!Array.isArray(folderSizes)) {
-          throw new Error("folderSizes no es un arreglo válido para Solaris.");
-        }
+        let folderSizeInfo;
+
+       
+        
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
             if (err) {
@@ -161,15 +167,21 @@ app.whenReady().then(() => {
           });
         });
         // Verificar el número de subcarpetas
-  const directories = files.filter(file => file.attrs.isDirectory());
-  const isBackupComplete = directories.length === 7;
+        const directories = files.filter((file) => file.attrs.isDirectory());
+        if (directories.length === 0) {
+          console.warn(
+            "No se encontraron subcarpetas en el directorio principal."
+          );
+          return allLogDetails; // Retornar vacío o un mensaje específico
+        }
+        const isBackupComplete = directories.length === 7;
 
-  if (!isBackupComplete) {
-    // Agregamos una propiedad para indicar backup incompleto
-    allLogDetails.backupIncomplete = true;
-    allLogDetails.expectedFolders = 7;
-    allLogDetails.foundFolders = directories.length;
-  }
+        if (!isBackupComplete) {
+          // Agregamos una propiedad para indicar backup incompleto
+          allLogDetails.backupIncomplete = true;
+          allLogDetails.expectedFolders = 7;
+          allLogDetails.foundFolders = directories.length;
+        }
         for (const file of files) {
           if (file.attrs.isDirectory()) {
             const subDirPath = joinPath(directoryPath, file.filename, targetOS);
@@ -187,10 +199,26 @@ app.whenReady().then(() => {
                 resolve(files);
               });
             });
-            // Encuentra el tamaño del subdirectorio directamente desde folderSizes sin realizar comparaciones
-            const folderSizeInfo = folderSizes.find((folder) =>
-              folder.folderPath.includes(file.filename)
-            );
+             // Verificar si `folderSizes` es un arreglo
+        if (Array.isArray(folderSizes)) {
+          // Si es un arreglo, busca el tamaño de la subcarpeta correspondiente
+          folderSizeInfo = folderSizes.find((folder) =>
+            folder.folderPath.includes(file.filename)
+          );
+        } else if (typeof folderSizes === "number") {
+          // Si es un número, simplemente asigna el tamaño directamente
+          console.warn(
+            "folderSizes es un número, asignando directamente:",
+            folderSizes
+          );
+          folderSizeInfo = { sizeInMB: folderSizes }; // Lo tratamos como un objeto con el tamaño
+        } else {
+          console.error(
+            "folderSizes tiene un formato inesperado:",
+            folderSizes
+          );
+          folderSizeInfo = { sizeInMB: "N/A" }; // Manejo de error si es otro tipo inesperado
+        }
             const totalFolderSize = folderSizeInfo
               ? `${folderSizeInfo.sizeInMB} MB`
               : "N/A";
@@ -1064,29 +1092,39 @@ app.whenReady().then(() => {
           const decryptedPassword = await decrypt(
             await readLob(encryptedPasswordLob)
           );
-          const connectionResult = await checkConnection(ip, port, decryptedUser, decryptedPassword);
+          const connectionResult = await checkConnection(
+            ip,
+            port,
+            decryptedUser,
+            decryptedPassword
+          );
           if (!connectionResult) {
             results.push({
               serverName,
               ip,
               error: `No se pudo conectar al servidor ${serverName}`,
-              logDetails: null
+              logDetails: null,
             });
-            continue;  // Continuar con el siguiente servidor
+            continue; // Continuar con el siguiente servidor
           }
 
           // Obtener rutas de backup
-        const backupRoutes = await getBackupRoutesByIPInternal(ip, connection);
-        if (backupRoutes.length === 0) {
-          console.log(`No se encontraron rutas de backup para el servidor ${serverName}`);
-          results.push({
-            serverName,
+          const backupRoutes = await getBackupRoutesByIPInternal(
             ip,
-            error: `No se encontraron rutas de backup para el servidor ${serverName}`,
-            logDetails: null  // Asegúrate de incluir esto
-          });
-          continue;  // Si no hay rutas de backup, saltar este servidor
-        }
+            connection
+          );
+          if (backupRoutes.length === 0) {
+            console.log(
+              `No se encontraron rutas de backup para el servidor ${serverName}`
+            );
+            results.push({
+              serverName,
+              ip,
+              error: `No se encontraron rutas de backup para el servidor ${serverName}`,
+              logDetails: null, // Asegúrate de incluir esto
+            });
+            continue; // Si no hay rutas de backup, saltar este servidor
+          }
 
           for (const route of backupRoutes) {
             const backupPath = route.backupPath;
@@ -1099,26 +1137,29 @@ app.whenReady().then(() => {
                 decryptedPassword,
                 osType
               );
-  
+
               if (logDetails && logDetails.backupIncomplete) {
                 results.push({
                   serverName,
                   ip,
                   backupPath,
                   warning: `Backup incompleto. Se esperaban 7 carpetas pero se encontraron ${logDetails.foundFolders}`,
-                  logDetails: logDetails  // Mantenemos los detalles de las carpetas existentes
+                  logDetails: logDetails, // Mantenemos los detalles de las carpetas existentes
                 });
-              } else if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
+              } else if (
+                !logDetails ||
+                (Array.isArray(logDetails) && logDetails.length === 0)
+              ) {
                 results.push({
                   serverName,
                   ip,
                   backupPath,
                   error: "No se encontraron detalles de log",
-                  logDetails: null
+                  logDetails: null,
                 });
                 continue;
               }
-  
+
               // Guardar los detalles de log en la base de datos
               if (Array.isArray(logDetails)) {
                 for (const detail of logDetails) {
@@ -1143,36 +1184,43 @@ app.whenReady().then(() => {
                   fullBackupPath
                 );
               }
-  
+
               // Solo agregar servidores exitosos al grid
-            results.push({
-              serverName,
-              ip,
-              backupPath,
-              logDetails,
-              error: null
-            });
+              results.push({
+                serverName,
+                ip,
+                backupPath,
+                logDetails,
+                error: null,
+              });
             } catch (routeError) {
-              console.error(`Error procesando la ruta ${backupPath} del servidor ${serverName}:`, routeError);
+              console.error(
+                `Error procesando la ruta ${backupPath} del servidor ${serverName}:`,
+                routeError
+              );
               results.push({
                 serverName,
                 ip,
                 backupPath,
                 error: routeError.message,
-                logDetails: null  // Asegúrate de incluir esto
+                logDetails: null, // Asegúrate de incluir esto
               });
               // No agregar al grid si hay error en el log
             }
           }
         } catch (serverError) {
-          console.error(`Error procesando el servidor ${serverName}:`, serverError);
+          console.error(
+            `Error procesando el servidor ${serverName}:`,
+            serverError
+          );
           results.push({
             serverName,
             ip,
             error: serverError.message,
-            logDetails: null  // Asegúrate de incluir esto
+            logDetails: null, // Asegúrate de incluir esto
           });
-        }}
+        }
+      }
     } catch (err) {
       console.error("Error al procesar todos los servidores:", err);
     } finally {
@@ -1285,46 +1333,46 @@ function createSSHClient(ip, port, username, password) {
 }
 function checkConnection(ip, port, username, password) {
   return new Promise((resolve, reject) => {
-      const conn = new Client();
-      
-      conn
-          .on("ready", () => {
-              console.log("Initial connection successful");
-              conn.exec('echo "Connection test"', (err, stream) => {
-                  if (err) {
-                      console.error("Exec error:", err);
-                      conn.end();
-                      return reject(new Error(`Exec failed: ${err.message}`)); // Rechazar en caso de error
-                  }
+    const conn = new Client();
 
-                  stream
-                      .on("close", (code, signal) => {
-                          conn.end();
-                          resolve(true); // Resolver cuando el comando se cierra correctamente
-                      })
-                      .on("data", (data) => {
-                          console.log("Received:", data.toString());
-                      })
-                      .stderr.on("data", (data) => {
-                          console.error("STDERR:", data.toString());
-                      });
-              });
-          })
-          .on("error", (err) => {
-              console.error("Connection error:", err);
-              reject(new Error(`Connection failed: ${err.message}`)); // Rechazar en caso de error de conexión
-          })
-          .connect({
-              host: ip,
-              port: port,
-              username: username,
-              password: password,
-              algorithms: {
-                  kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
-                  cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
-                  hmac: ["hmac-sha1", "hmac-sha2-256", "hmac-sha2-512"],
-              },
-          });
+    conn
+      .on("ready", () => {
+        console.log("Initial connection successful");
+        conn.exec('echo "Connection test"', (err, stream) => {
+          if (err) {
+            console.error("Exec error:", err);
+            conn.end();
+            return reject(new Error(`Exec failed: ${err.message}`)); // Rechazar en caso de error
+          }
+
+          stream
+            .on("close", (code, signal) => {
+              conn.end();
+              resolve(true); // Resolver cuando el comando se cierra correctamente
+            })
+            .on("data", (data) => {
+              console.log("Received:", data.toString());
+            })
+            .stderr.on("data", (data) => {
+              console.error("STDERR:", data.toString());
+            });
+        });
+      })
+      .on("error", (err) => {
+        console.error("Connection error:", err);
+        reject(new Error(`Connection failed: ${err.message}`)); // Rechazar en caso de error de conexión
+      })
+      .connect({
+        host: ip,
+        port: port,
+        username: username,
+        password: password,
+        algorithms: {
+          kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
+          cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
+          hmac: ["hmac-sha1", "hmac-sha2-256", "hmac-sha2-512"],
+        },
+      });
   });
 }
 
@@ -1726,13 +1774,13 @@ async function getDmpSizeData(days = 30) {
           identifier,
           serverName: row[0],
           ip: row[1],
-          data: []
+          data: [],
         };
       }
       acc[identifier].data.push({
         backupPath: row[2],
         fecha: row[3],
-        tamanoDMP: convertToGB(row[4])
+        tamanoDMP: convertToGB(row[4]),
       });
       return acc;
     }, {});
@@ -1742,14 +1790,14 @@ async function getDmpSizeData(days = 30) {
     console.log("Datos procesados:", processedData);
 
     // Usar allServersAndRoutesResult para la lista de todos los servidores
-    const allServers = allServersAndRoutesResult.rows.map(row => ({
+    const allServers = allServersAndRoutesResult.rows.map((row) => ({
       serverName: row[0],
-      ip: row[1]
+      ip: row[1],
     }));
 
     return {
       data: processedData,
-      allServersAndRoutes: allServers
+      allServersAndRoutes: allServers,
     };
   } catch (err) {
     console.error("Error obteniendo datos de tamaño DMP:", err);
