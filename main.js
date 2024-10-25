@@ -151,7 +151,22 @@ app.whenReady().then(() => {
         // Asegurarse de que folderSizes sea un arreglo solo para Solaris
         let folderSizeInfo;
 
-       
+        if (Array.isArray(folderSizes)) {
+          // Si es un arreglo, busca el tamaño correspondiente a cada subcarpeta
+          folderSizeInfo = folderSizes.find((folder) =>
+            folder.folderPath.includes(file.filename)
+          );
+        } else if (typeof folderSizes === "number") {
+          // Si es un número, simplemente asigna el tamaño directamente
+          console.warn("folderSizes es un número, asignando directamente:", folderSizes);
+          folderSizeInfo = { sizeInMB: folderSizes }; // Tratar como un objeto con el tamaño
+        } else {
+          console.error("folderSizes tiene un formato inesperado:", folderSizes);
+          folderSizeInfo = { sizeInMB: "N/A" }; // Manejo de error si el tipo es inesperado
+        }
+        
+        // Definir el valor de totalFolderSize una vez fuera del bucle
+        const totalFolderSize = folderSizeInfo ? `${folderSizeInfo.sizeInMB} MB` : "N/A";
         
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
@@ -199,29 +214,8 @@ app.whenReady().then(() => {
                 resolve(files);
               });
             });
-             // Verificar si `folderSizes` es un arreglo
-        if (Array.isArray(folderSizes)) {
-          // Si es un arreglo, busca el tamaño de la subcarpeta correspondiente
-          folderSizeInfo = folderSizes.find((folder) =>
-            folder.folderPath.includes(file.filename)
-          );
-        } else if (typeof folderSizes === "number") {
-          // Si es un número, simplemente asigna el tamaño directamente
-          console.warn(
-            "folderSizes es un número, asignando directamente:",
-            folderSizes
-          );
-          folderSizeInfo = { sizeInMB: folderSizes }; // Lo tratamos como un objeto con el tamaño
-        } else {
-          console.error(
-            "folderSizes tiene un formato inesperado:",
-            folderSizes
-          );
-          folderSizeInfo = { sizeInMB: "N/A" }; // Manejo de error si es otro tipo inesperado
-        }
-            const totalFolderSize = folderSizeInfo
-              ? `${folderSizeInfo.sizeInMB} MB`
-              : "N/A";
+            const folderSize = await getFolderSize(conn, subDirPath, targetOS, sftp);
+            const totalFolderSize = `${folderSize} MB`; 
             //console.log(
             //   "Tamaño total de la carpeta (totalFolderSize):",
             //  totalFolderSize
@@ -236,23 +230,22 @@ app.whenReady().then(() => {
             let logInfo = null; // Reemplaza last10Lines y has95Warning
             let logLines = null;
             let lastLine = null; // Añadimos la última línea aquí
-            for (const logFile of logFiles) {
-              logFileName = logFile.filename;
-              const logFilePath = joinPath(subDirPath, logFileName, targetOS);
-              //console.log("Attempting to read log file:", logFilePath);
-              await new Promise((resolve, reject) => {
-                sftp.stat(logFilePath, (err, stats) => {
-                  if (err) {
-                    console.error("Stat error:", err);
-                    sftp.end();
-                    conn.end();
-                    return reject(
-                      new Error(`Failed to stat log file: ${err.message}`)
-                    );
-                  }
-                  resolve(stats);
-                });
-              });
+            for (let i = 0; i < logFiles.length; i += 10) {
+              await Promise.all(
+                logFiles.slice(i, i + 10).map(async (logFile) => {
+                  logFileName = logFile.filename;
+                  const logFilePath = joinPath(subDirPath, logFileName, targetOS);
+                  await new Promise((resolve, reject) => {
+                    sftp.stat(logFilePath, (err, stats) => {
+                      if (err) {
+                        console.error("Stat error:", err);
+                        sftp.end();
+                        conn.end();
+                        return reject(new Error(`Failed to stat log file: ${err.message}`));
+                      }
+                      resolve(stats);
+                    });
+                  });
               const logData = await new Promise((resolve, reject) => {
                 sftp.readFile(logFilePath, "utf8", (err, data) => {
                   if (err) {
@@ -286,25 +279,21 @@ app.whenReady().then(() => {
                   path.extname(file.filename).toUpperCase()
                 )
               );
-              for (const dumpFile of dumpFiles) {
-                const dumpFilePath = joinPath(
-                  subDirPath,
-                  dumpFile.filename,
-                  targetOS
-                );
-                const dumpStats = await new Promise((resolve, reject) => {
-                  sftp.stat(dumpFilePath, (err, stats) => {
-                    if (err) {
-                      console.error("Stat error:", err);
-                      sftp.end();
-                      conn.end();
-                      return reject(
-                        new Error(`Failed to stat dump file: ${err.message}`)
-                      );
-                    }
-                    resolve(stats);
-                  });
-                });
+              for (let i = 0; i < dumpFiles.length; i += 10) {
+                await Promise.all(
+                  dumpFiles.slice(i, i + 10).map(async (dumpFile) => {
+                    const dumpFilePath = joinPath(subDirPath, dumpFile.filename, targetOS);
+                    const dumpStats = await new Promise((resolve, reject) => {
+                      sftp.stat(dumpFilePath, (err, stats) => {
+                        if (err) {
+                          console.error("Stat error:", err);
+                          sftp.end();
+                          conn.end();
+                          return reject(new Error(`Failed to stat dump file: ${err.message}`));
+                        }
+                        resolve(stats);
+                      });
+                    });
                 const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
                 totalDmpSize += dumpFileSizeInMB;
                 dumpFileInfo.push({
@@ -313,9 +302,10 @@ app.whenReady().then(() => {
                     dumpFileSizeInMB > 0
                       ? parseFloat(dumpFileSizeInMB.toFixed(2))
                       : 0,
-                });
+                    });
+                  })
+                );
               }
-            }
             allLogDetails.push({
               logDetails,
               dumpFileInfo,
@@ -334,13 +324,11 @@ app.whenReady().then(() => {
               expectedFolders: 7,
               foundFolders: directories.length,
             });
-            // Añade este log para verificar el valor
-            //console.log(
-            //"Tamaño de la carpeta (totalFolderSize):",
-            //totalFolderSize
-            //);
-          }
-        }
+          })
+        );
+      }
+    }
+  }
         return allLogDetails;
       } else {
         if (typeof folderSizes !== "number") {
@@ -1244,58 +1232,50 @@ app.whenReady().then(() => {
     }
   });
   async function getFolderSize(conn, directoryPath, os, sftp) {
-    if (os === "solaris") {
-      // Lógica para Solaris: Usar `du` para obtener el tamaño de todas las subcarpetas en un solo comando
-      const command = `du -sk ${directoryPath}/* | awk '{print $1/1024, $2}'`; // Cambiamos aquí el awk para que no incluya "MB"
-      const output = await executeSSHCommand(conn, command);
-      //console.log("Salida del comando du:", output);
-      if (!output || output.trim() === "") {
-        throw new Error("No se obtuvo salida del comando du");
-      }
-      // Aquí ajustamos cómo se parsea la salida del comando `du`
-      return output
-        .trim()
-        .split("\n")
-        .map((line) => {
-          const parts = line.split(/\s+/); // Separar por cualquier espacio en blanco
-          const sizeInMB = parts[0]; // El primer valor es el tamaño
-          const folderPath = parts.slice(1).join(" "); // El resto es el folder path completo
-          return {
-            folderPath: folderPath.trim(), // Asegurarse de eliminar espacios en blanco
-            sizeInMB: parseFloat(sizeInMB).toFixed(2), // Formatear el tamaño a dos decimales
-          };
-        });
-    } else {
-      // Nueva lógica para Windows y Linux
-      async function calculateSize(path) {
-        let totalSize = 0;
-        const files = await new Promise((resolve, reject) => {
-          sftp.readdir(path, (err, fileList) => {
-            if (err) return reject(err);
-            resolve(fileList || []);
-          });
-        });
-        for (const file of files) {
-          const filePath =
-            path + (os === "windows" ? "\\" : "/") + file.filename;
-          const stats = await new Promise((resolve, reject) => {
-            sftp.stat(filePath, (err, stats) => {
-              if (err) return reject(err);
-              resolve(stats);
-            });
-          });
-          if (stats.isDirectory()) {
-            totalSize += await calculateSize(filePath);
-          } else {
-            totalSize += stats.size;
-          }
-        }
-        return totalSize;
-      }
-      const totalSize = await calculateSize(directoryPath);
-      return parseFloat((totalSize / (1024 * 1024)).toFixed(2)); // Tamaño en MB
+  if (os === "solaris" || os === "linux") {
+    // Comando `du` para obtener el tamaño total en lugar de cada subcarpeta
+    const command = `du -sk ${directoryPath} | awk '{print $1/1024}'`; // Directamente en MB
+    const output = await executeSSHCommand(conn, command);
+
+    // Verificar si hay salida del comando
+    if (!output || output.trim() === "") {
+      throw new Error("No se obtuvo salida del comando du");
     }
+
+    // Convertir la salida en MB y retornarla
+    const totalSizeInMB = parseFloat(output.trim()).toFixed(2);
+    return parseFloat(totalSizeInMB); // Tamaño en MB
+  } else {
+    // Lógica para Windows o sistemas no Unix
+    async function calculateSize(path) {
+      let totalSize = 0;
+      const files = await new Promise((resolve, reject) => {
+        sftp.readdir(path, (err, fileList) => {
+          if (err) return reject(err);
+          resolve(fileList || []);
+        });
+      });
+      for (const file of files) {
+        const filePath = path + (os === "windows" ? "\\" : "/") + file.filename;
+        const stats = await new Promise((resolve, reject) => {
+          sftp.stat(filePath, (err, stats) => {
+            if (err) return reject(err);
+            resolve(stats);
+          });
+        });
+        if (stats.isDirectory()) {
+          totalSize += await calculateSize(filePath);
+        } else {
+          totalSize += stats.size;
+        }
+      }
+      return totalSize;
+    }
+    const totalSize = await calculateSize(directoryPath);
+    return parseFloat((totalSize / (1024 * 1024)).toFixed(2)); // Tamaño en MB
   }
+}
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
