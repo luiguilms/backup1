@@ -1790,9 +1790,9 @@ async function getDmpSizeData(days = 30) {
       }
       return 0;
     };
-    // Agrupar los datos por los primeros 15 caracteres del backupPath
+    // Agrupar los datos por los primeros 12 caracteres del backupPath
     const groupedData = dataResult.rows.reduce((acc, row) => {
-      const identifier = getConstantIdentifier(row[2], 15);
+      const identifier = getConstantIdentifier(row[2], 12);
       if (!acc[identifier]) {
         acc[identifier] = {
           identifier,
