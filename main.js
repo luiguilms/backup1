@@ -158,14 +158,19 @@ app.whenReady().then(() => {
           );
         } else if (typeof folderSizes === "number") {
           // Si es un número, simplemente asigna el tamaño directamente
-          console.warn("folderSizes es un número, asignando directamente:", folderSizes);
+          console.warn(
+            "folderSizes es un número, asignando directamente:",
+            folderSizes
+          );
           folderSizeInfo = { sizeInMB: folderSizes }; // Tratar como un objeto con el tamaño
         } else {
-          console.error("folderSizes tiene un formato inesperado:", folderSizes);
+          console.error(
+            "folderSizes tiene un formato inesperado:",
+            folderSizes
+          );
           folderSizeInfo = { sizeInMB: "N/A" }; // Manejo de error si el tipo es inesperado
         }
-        
-        
+
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
             if (err) {
@@ -176,29 +181,36 @@ app.whenReady().then(() => {
                 new Error(`Failed to read directory: ${err.message}`)
               );
             }
-            console.log("Files found:", files.map(f => ({ filename: f.filename, mode: f.attrs.mode })));
+            console.log(
+              "Files found:",
+              files.map((f) => ({ filename: f.filename, mode: f.attrs.mode }))
+            );
             resolve(files);
           });
         });
         // Filtrar los subdirectorios
-    const directories = files.filter((file) => file.attrs && (file.attrs.mode & 0o40000) === 0o40000);
+        const directories = files.filter(
+          (file) => file.attrs && (file.attrs.mode & 0o40000) === 0o40000
+        );
 
-    console.log(
-      "Detected directories:",
-      directories.map((dir) => dir.filename)
-    );
-    if (directories.length === 0) {
-      console.warn("No se encontraron subcarpetas en el directorio principal.");
-      allLogDetails.push({
-          logDetails: null,
-          backupIncomplete: true,
-          foundFolders: 0,
-          expectedFolders: 7,
-      });
-      return allLogDetails;
-  }
-  
-  const isBackupComplete = directories.length === 7;
+        console.log(
+          "Detected directories:",
+          directories.map((dir) => dir.filename)
+        );
+        if (directories.length === 0) {
+          console.warn(
+            "No se encontraron subcarpetas en el directorio principal."
+          );
+          allLogDetails.push({
+            logDetails: null,
+            backupIncomplete: true,
+            foundFolders: 0,
+            expectedFolders: 7,
+          });
+          return allLogDetails;
+        }
+
+        const isBackupComplete = directories.length === 7;
         for (const file of files) {
           if (file.attrs.isDirectory()) {
             const subDirPath = joinPath(directoryPath, file.filename, targetOS);
@@ -216,8 +228,13 @@ app.whenReady().then(() => {
                 resolve(files);
               });
             });
-            const folderSize = await getFolderSize(conn, subDirPath, targetOS, sftp);
-            const totalFolderSize = `${folderSize} MB`; 
+            const folderSize = await getFolderSize(
+              conn,
+              subDirPath,
+              targetOS,
+              sftp
+            );
+            const totalFolderSize = `${folderSize} MB`;
             //console.log(
             //   "Tamaño total de la carpeta (totalFolderSize):",
             //  totalFolderSize
@@ -236,104 +253,125 @@ app.whenReady().then(() => {
               await Promise.all(
                 logFiles.slice(i, i + 10).map(async (logFile) => {
                   logFileName = logFile.filename;
-                  const logFilePath = joinPath(subDirPath, logFileName, targetOS);
+                  const logFilePath = joinPath(
+                    subDirPath,
+                    logFileName,
+                    targetOS
+                  );
                   await new Promise((resolve, reject) => {
                     sftp.stat(logFilePath, (err, stats) => {
                       if (err) {
                         console.error("Stat error:", err);
                         sftp.end();
                         conn.end();
-                        return reject(new Error(`Failed to stat log file: ${err.message}`));
+                        return reject(
+                          new Error(`Failed to stat log file: ${err.message}`)
+                        );
                       }
                       resolve(stats);
                     });
                   });
-              const logData = await new Promise((resolve, reject) => {
-                sftp.readFile(logFilePath, "utf8", (err, data) => {
-                  if (err) {
-                    console.error("ReadFile error:", err);
-                    sftp.end();
-                    conn.end();
-                    return reject(
-                      new Error(`Failed to read log file: ${err.message}`)
+                  const logData = await new Promise((resolve, reject) => {
+                    sftp.readFile(logFilePath, "utf8", (err, data) => {
+                      if (err) {
+                        console.error("ReadFile error:", err);
+                        sftp.end();
+                        conn.end();
+                        return reject(
+                          new Error(`Failed to read log file: ${err.message}`)
+                        );
+                      }
+                      resolve(data);
+                    });
+                  });
+
+                  logLines = logData.trim().split("\n");
+                  lastLine = logLines[logLines.length - 1].trim();
+                  logInfo = getLast10LogLines(logData);
+                  logDetails = parseLogLine(logData);
+
+                  if (logInfo.hasWarning) {
+                    const warningMessage = `Se detectó una advertencia de espacio al ${
+                      logInfo.warningNumber
+                    }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
+                      "\n"
+                    )}`;
+                    await sendEmailAlert(ip, serverName, warningMessage);
+                  }
+                  logDetails = parseLogLine(logData);
+                  const dumpFiles = subDirFiles.filter((file) =>
+                    [".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(
+                      path.extname(file.filename).toUpperCase()
+                    )
+                  );
+                  for (let i = 0; i < dumpFiles.length; i += 10) {
+                    await Promise.all(
+                      dumpFiles.slice(i, i + 10).map(async (dumpFile) => {
+                        const dumpFilePath = joinPath(
+                          subDirPath,
+                          dumpFile.filename,
+                          targetOS
+                        );
+                        const dumpStats = await new Promise(
+                          (resolve, reject) => {
+                            sftp.stat(dumpFilePath, (err, stats) => {
+                              if (err) {
+                                console.error("Stat error:", err);
+                                sftp.end();
+                                conn.end();
+                                return reject(
+                                  new Error(
+                                    `Failed to stat dump file: ${err.message}`
+                                  )
+                                );
+                              }
+                              resolve(stats);
+                            });
+                          }
+                        );
+                        // Agrega esta línea para imprimir el tamaño de cada archivo .dmp
+                        console.log(
+                          `Carpeta: ${subDirPath}, Tamaño del archivo ${
+                            dumpFile.filename
+                          }: ${(dumpStats.size / (1024 * 1024)).toFixed(2)} MB`
+                        );
+
+                        const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
+                        totalDmpSize += dumpFileSizeInMB;
+                        dumpFileInfo.push({
+                          filePath: dumpFilePath,
+                          fileSize:
+                            dumpFileSizeInMB > 0
+                              ? parseFloat(dumpFileSizeInMB.toFixed(2))
+                              : 0,
+                        });
+                      })
                     );
                   }
-                  resolve(data);
-                });
-              });
-
-              logLines = logData.trim().split("\n");
-              lastLine = logLines[logLines.length - 1].trim();
-              logInfo = getLast10LogLines(logData);
-              logDetails = parseLogLine(logData);
-
-              if (logInfo.hasWarning) {
-                const warningMessage = `Se detectó una advertencia de espacio al ${
-                  logInfo.warningNumber
-                }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
-                  "\n"
-                )}`;
-                await sendEmailAlert(ip, serverName, warningMessage);
-              }
-              logDetails = parseLogLine(logData);
-              const dumpFiles = subDirFiles.filter((file) =>
-                [".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(
-                  path.extname(file.filename).toUpperCase()
-                )
+                  allLogDetails.push({
+                    logDetails,
+                    dumpFileInfo,
+                    logFileName,
+                    ip,
+                    backupPath: subDirPath,
+                    os: targetOS,
+                    totalDmpSize:
+                      totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
+                    totalFolderSize,
+                    serverName: serverName,
+                    last10Lines: logInfo ? logInfo.relevantLines : [],
+                    hasWarning: logInfo ? logInfo.hasWarning : false,
+                    warningNumber: logInfo ? logInfo.warningNumber : null,
+                    lastLine: lastLine, // Añadimos la última línea aquí
+                    backupIncomplete: !isBackupComplete,
+                    expectedFolders: 7,
+                    foundFolders: directories.length,
+                  });
+                })
               );
-              for (let i = 0; i < dumpFiles.length; i += 10) {
-                await Promise.all(
-                  dumpFiles.slice(i, i + 10).map(async (dumpFile) => {
-                    const dumpFilePath = joinPath(subDirPath, dumpFile.filename, targetOS);
-                    const dumpStats = await new Promise((resolve, reject) => {
-                      sftp.stat(dumpFilePath, (err, stats) => {
-                        if (err) {
-                          console.error("Stat error:", err);
-                          sftp.end();
-                          conn.end();
-                          return reject(new Error(`Failed to stat dump file: ${err.message}`));
-                        }
-                        resolve(stats);
-                      });
-                    });
-                    // Agrega esta línea para imprimir el tamaño de cada archivo .dmp
-                    console.log(`Carpeta: ${subDirPath}, Tamaño del archivo ${dumpFile.filename}: ${(dumpStats.size / (1024 * 1024)).toFixed(2)} MB`);
-
-                const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
-                totalDmpSize += dumpFileSizeInMB;
-                dumpFileInfo.push({
-                  filePath: dumpFilePath,
-                  fileSize:
-                    dumpFileSizeInMB > 0
-                      ? parseFloat(dumpFileSizeInMB.toFixed(2))
-                      : 0,
-                    });
-                  })
-                );
-              }
-            allLogDetails.push({
-              logDetails,
-              dumpFileInfo,
-              logFileName,
-              ip,
-              backupPath: subDirPath,
-              os: targetOS,
-              totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
-              totalFolderSize,
-              serverName: serverName,
-              last10Lines: logInfo ? logInfo.relevantLines : [],
-              hasWarning: logInfo ? logInfo.hasWarning : false,
-              warningNumber: logInfo ? logInfo.warningNumber : null,
-              lastLine: lastLine, // Añadimos la última línea aquí
-              backupIncomplete: !isBackupComplete,
-              expectedFolders: 7,
-              foundFolders: directories.length,
-            });
-          })
-        );
-      }
-    }
-  }
+            }
+          }
+        }
         return allLogDetails;
       } else {
         if (typeof folderSizes !== "number") {
@@ -1237,49 +1275,50 @@ app.whenReady().then(() => {
     }
   });
   async function getFolderSize(conn, directoryPath, os, sftp) {
-  if (os === "solaris" || os === "linux") {
-    // Comando `du` para obtener el tamaño total en lugar de cada subcarpeta
-    const command = `du -sk ${directoryPath} | awk '{print $1/1024}'`; // Directamente en MB
-    const output = await executeSSHCommand(conn, command);
+    if (os === "solaris" || os === "linux") {
+      // Comando `du` para obtener el tamaño total en lugar de cada subcarpeta
+      const command = `du -sk ${directoryPath} | awk '{print $1/1024}'`; // Directamente en MB
+      const output = await executeSSHCommand(conn, command);
 
-    // Verificar si hay salida del comando
-    if (!output || output.trim() === "") {
-      throw new Error("No se obtuvo salida del comando du");
-    }
+      // Verificar si hay salida del comando
+      if (!output || output.trim() === "") {
+        throw new Error("No se obtuvo salida del comando du");
+      }
 
-    // Convertir la salida en MB y retornarla
-    const totalSizeInMB = parseFloat(output.trim()).toFixed(2);
-    return parseFloat(totalSizeInMB); // Tamaño en MB
-  } else {
-    // Lógica para Windows o sistemas no Unix
-    async function calculateSize(path) {
-      let totalSize = 0;
-      const files = await new Promise((resolve, reject) => {
-        sftp.readdir(path, (err, fileList) => {
-          if (err) return reject(err);
-          resolve(fileList || []);
-        });
-      });
-      for (const file of files) {
-        const filePath = path + (os === "windows" ? "\\" : "/") + file.filename;
-        const stats = await new Promise((resolve, reject) => {
-          sftp.stat(filePath, (err, stats) => {
+      // Convertir la salida en MB y retornarla
+      const totalSizeInMB = parseFloat(output.trim()).toFixed(2);
+      return parseFloat(totalSizeInMB); // Tamaño en MB
+    } else {
+      // Lógica para Windows o sistemas no Unix
+      async function calculateSize(path) {
+        let totalSize = 0;
+        const files = await new Promise((resolve, reject) => {
+          sftp.readdir(path, (err, fileList) => {
             if (err) return reject(err);
-            resolve(stats);
+            resolve(fileList || []);
           });
         });
-        if (stats.isDirectory()) {
-          totalSize += await calculateSize(filePath);
-        } else {
-          totalSize += stats.size;
+        for (const file of files) {
+          const filePath =
+            path + (os === "windows" ? "\\" : "/") + file.filename;
+          const stats = await new Promise((resolve, reject) => {
+            sftp.stat(filePath, (err, stats) => {
+              if (err) return reject(err);
+              resolve(stats);
+            });
+          });
+          if (stats.isDirectory()) {
+            totalSize += await calculateSize(filePath);
+          } else {
+            totalSize += stats.size;
+          }
         }
+        return totalSize;
       }
-      return totalSize;
+      const totalSize = await calculateSize(directoryPath);
+      return parseFloat((totalSize / (1024 * 1024)).toFixed(2)); // Tamaño en MB
     }
-    const totalSize = await calculateSize(directoryPath);
-    return parseFloat((totalSize / (1024 * 1024)).toFixed(2)); // Tamaño en MB
   }
-}
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1797,6 +1836,80 @@ async function getDmpSizeData(days = 30) {
     }
   }
 }
+ipcMain.handle("addBackupRoute", async (event, ip, backupPath) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `INSERT INTO BackupRoutes (BackupPath, ServerID)
+       SELECT :backupPath, ID FROM ServerInfo WHERE IP = :ip`,
+      { backupPath, ip },
+      { autoCommit: true }
+    );
+    return { success: result.rowsAffected > 0 };
+  } catch (error) {
+    console.error("Error al agregar la ruta de backup:", error);
+    return { success: false, error: error.message };
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (error) {
+        console.error("Error al cerrar la conexión:", error);
+      }
+    }
+  }
+});
+
+ipcMain.handle("updateBackupRoute", async (event, ip, oldPath, newPath) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `UPDATE BackupRoutes
+       SET BackupPath = :newPath
+       WHERE BackupPath = :oldPath AND ServerID = (SELECT ID FROM ServerInfo WHERE IP = :ip)`,
+      { newPath, oldPath, ip },
+      { autoCommit: true }
+    );
+    return { success: result.rowsAffected > 0 };
+  } catch (error) {
+    console.error("Error al actualizar la ruta de backup:", error);
+    return { success: false, error: error.message };
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (error) {
+        console.error("Error al cerrar la conexión:", error);
+      }
+    }
+  }
+});
+ipcMain.handle("deleteBackupRoute", async (event, ip, backupPath) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `DELETE FROM BackupRoutes
+       WHERE BackupPath = :backupPath AND ServerID = (SELECT ID FROM ServerInfo WHERE IP = :ip)`,
+      { backupPath, ip },
+      { autoCommit: true }
+    );
+    return { success: result.rowsAffected > 0 };
+  } catch (error) {
+    console.error("Error al eliminar la ruta de backup:", error);
+    return { success: false, error: error.message };
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (error) {
+        console.error("Error al cerrar la conexión:", error);
+      }
+    }
+  }
+});
 // Agregar un nuevo manejador IPC para esta función
 ipcMain.handle("get-dmp-size-data", async (event, days) => {
   try {

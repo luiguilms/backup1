@@ -764,12 +764,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
       // Manejo de `totalFolderSize` para asegurar que sea un número válido
       const folderSizeValue = Array.isArray(logData.totalFolderSize)
-      ? logData.totalFolderSize[0]?.sizeInMB || "N/A"
-      : logData.totalFolderSize;
-    
-    const formattedFolderSize = !isNaN(parseFloat(folderSizeValue))
-      ? formatFileSize(parseFloat(folderSizeValue))
-      : "Tamaño no disponible";
+        ? logData.totalFolderSize[0]?.sizeInMB || "N/A"
+        : logData.totalFolderSize;
+
+      const formattedFolderSize = !isNaN(parseFloat(folderSizeValue))
+        ? formatFileSize(parseFloat(folderSizeValue))
+        : "Tamaño no disponible";
       // Añadir el estado del backup
       const backupStatus = logData.logDetails.backupStatus || "N/A";
       entryDiv.innerHTML = `
@@ -1397,6 +1397,188 @@ document.addEventListener("DOMContentLoaded", async () => {
     const b = Math.floor(Math.random() * 255);
     return `rgb(${r}, ${g}, ${b})`;
   }
+  const addRouteModal = document.createElement("div");
+  addRouteModal.id = "add-route-modal";
+  addRouteModal.className = "modal";
+  addRouteModal.style.display = "none"; // Inicialmente oculto
+  addRouteModal.innerHTML = `
+    <div class="modal-content">
+      <span id="close-modal" class="close">&times;</span>
+      <h2>Agregar Nueva Ruta de Backup</h2>
+      <form id="add-route-form">
+        <label for="new-backup-path">Ruta de Backup:</label>
+        <input type="text" id="new-backup-path" name="new-backup-path" required />
+        <button type="submit">Guardar Ruta</button>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(addRouteModal);
+
+  // Configuración de botones e interacciones
+  const addRouteBtn = document.getElementById("add-route-btn");
+  const closeModal = document.getElementById("close-modal");
+  const addRouteForm = document.getElementById("add-route-form");
+  const backupRoutesSelect = document.getElementById("backup-routes");
+
+  // Mostrar el modal al hacer clic en el botón de agregar ruta
+  addRouteBtn.addEventListener("click", () => {
+    addRouteModal.style.display = "block";
+  });
+
+  // Cerrar el modal al hacer clic en la "x" del modal
+  closeModal.addEventListener("click", () => {
+    addRouteModal.style.display = "none";
+  });
+
+  // Cerrar el modal al hacer clic fuera del contenido del modal
+  window.onclick = function (event) {
+    if (event.target === addRouteModal) {
+      addRouteModal.style.display = "none";
+    }
+  };
+
+  // Manejar el envío del formulario de agregar ruta
+  addRouteForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const newBackupPath = document.getElementById("new-backup-path").value;
+    const selectedIP = document.getElementById("ip").value;
+
+    try {
+      // Llamada al backend para agregar la nueva ruta
+      const response = await window.electron.addBackupRoute(
+        selectedIP,
+        newBackupPath
+      );
+      if (response.success) {
+        // Añadir la nueva ruta al select de rutas
+        const option = document.createElement("option");
+        option.value = newBackupPath;
+        option.textContent = newBackupPath;
+        backupRoutesSelect.appendChild(option);
+        alert("Ruta agregada correctamente");
+
+        // Cerrar el modal y reiniciar el formulario
+        addRouteModal.style.display = "none";
+        addRouteForm.reset();
+      } else {
+        alert("Error al agregar la ruta. Por favor, intenta de nuevo.");
+      }
+    } catch (error) {
+      console.error("Error al agregar la ruta:", error);
+      alert("Error al agregar la ruta.");
+    }
+  });
+
+  // Crear el modal para editar una ruta de backup
+  const editRouteModal = document.createElement("div");
+  editRouteModal.id = "edit-route-modal";
+  editRouteModal.className = "modal";
+  editRouteModal.style.display = "none"; // Inicialmente oculto
+  editRouteModal.innerHTML = `
+  <div class="modal-content">
+    <span id="close-edit-modal" class="close">&times;</span>
+    <h2>Editar Ruta de Backup</h2>
+    <form id="edit-route-form">
+      <label for="edit-backup-path">Nueva Ruta de Backup:</label>
+      <input type="text" id="edit-backup-path" name="edit-backup-path" required />
+      <button type="submit">Guardar Cambios</button>
+    </form>
+  </div>
+`;
+  document.body.appendChild(editRouteModal);
+  const editRouteBtn = document.getElementById("edit-route-btn");
+  const closeEditModal = document.getElementById("close-edit-modal");
+  const editRouteForm = document.getElementById("edit-route-form");
+  const editBackupPathInput = document.getElementById("edit-backup-path");
+
+  // Mostrar el modal de edición al hacer clic en el botón de editar ruta
+  editRouteBtn.addEventListener("click", () => {
+    const selectedOption =
+      backupRoutesSelect.options[backupRoutesSelect.selectedIndex];
+    if (selectedOption) {
+      editBackupPathInput.value = selectedOption.value; // Cargar el valor actual en el input
+      editRouteModal.style.display = "block";
+    } else {
+      alert("Por favor, selecciona una ruta de backup para editar.");
+    }
+  });
+
+  // Cerrar el modal de edición al hacer clic en la "x"
+  closeEditModal.addEventListener("click", () => {
+    editRouteModal.style.display = "none";
+  });
+
+  // Cerrar el modal al hacer clic fuera del contenido del modal
+  window.onclick = function (event) {
+    if (event.target === editRouteModal) {
+      editRouteModal.style.display = "none";
+    }
+  };
+
+  // Manejar el envío del formulario para editar la ruta
+  editRouteForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const newBackupPath = editBackupPathInput.value;
+    const selectedOption =
+      backupRoutesSelect.options[backupRoutesSelect.selectedIndex];
+    const selectedIP = document.getElementById("ip").value;
+
+    try {
+      // Llamada al backend para actualizar la ruta en la base de datos
+      const response = await window.electron.updateBackupRoute(
+        selectedIP,
+        selectedOption.value,
+        newBackupPath
+      );
+      if (response.success) {
+        // Actualizar el valor de la ruta en el select
+        selectedOption.value = newBackupPath;
+        selectedOption.textContent = newBackupPath;
+        alert("Ruta actualizada correctamente");
+
+        // Cerrar el modal y reiniciar el formulario
+        editRouteModal.style.display = "none";
+        editRouteForm.reset();
+      } else {
+        alert("Error al actualizar la ruta. Por favor, intenta de nuevo.");
+      }
+    } catch (error) {
+      console.error("Error al actualizar la ruta:", error);
+      alert("Error al actualizar la ruta.");
+    }
+  });
+
+  const deleteRouteBtn = document.getElementById("delete-route-btn");
+
+// Manejar el clic en el botón de eliminar ruta
+deleteRouteBtn.addEventListener("click", async () => {
+  const selectedOption = backupRoutesSelect.options[backupRoutesSelect.selectedIndex];
+  const selectedIP = document.getElementById("ip").value;
+
+  if (selectedOption) {
+    // Mostrar alerta de confirmación
+    const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar la ruta "${selectedOption.value}"?`);
+    if (confirmDelete) {
+      try {
+        // Llamada al backend para eliminar la ruta
+        const response = await window.electron.deleteBackupRoute(selectedIP, selectedOption.value);
+        if (response.success) {
+          // Eliminar la opción de la lista si la eliminación fue exitosa
+          selectedOption.remove();
+          alert("Ruta eliminada correctamente");
+        } else {
+          alert("Error al eliminar la ruta. Por favor, intenta de nuevo.");
+        }
+      } catch (error) {
+        console.error("Error al eliminar la ruta:", error);
+        alert("Error al eliminar la ruta.");
+      }
+    }
+  } else {
+    alert("Por favor, selecciona una ruta de backup para eliminar.");
+  }
+});
+
   const form = document.getElementById("server-form");
   if (form) {
     form.addEventListener("submit", async (event) => {
@@ -1479,7 +1661,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (Array.isArray(logDetailsArray)) {
           for (const logData of logDetailsArray) {
             //console.log("Adding log entry:", logData);
-            if (logData.backupIncomplete === true && !hasShownBackupIncompleteError) {
+            if (
+              logData.backupIncomplete === true &&
+              !hasShownBackupIncompleteError
+            ) {
               console.log("Mostrando modal de error por backup incompleto");
               showErrorModal(
                 `Backup Incompleto: Se esperaban 7 carpetas pero se encontraron ${logData.foundFolders}`,
@@ -1503,7 +1688,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
           }
         } else if (logDetailsArray && typeof logDetailsArray === "object") {
-          if (logDetailsArray.backupIncomplete === true && !hasShownBackupIncompleteError) {
+          if (
+            logDetailsArray.backupIncomplete === true &&
+            !hasShownBackupIncompleteError
+          ) {
             console.log("Mostrando modal de error por backup incompleto");
             showErrorModal(
               `Backup Incompleto: Se esperaban 7 carpetas pero se encontraron ${logDetailsArray.foundFolders}`,
