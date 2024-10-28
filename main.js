@@ -165,8 +165,6 @@ app.whenReady().then(() => {
           folderSizeInfo = { sizeInMB: "N/A" }; // Manejo de error si el tipo es inesperado
         }
         
-        // Definir el valor de totalFolderSize una vez fuera del bucle
-        const totalFolderSize = folderSizeInfo ? `${folderSizeInfo.sizeInMB} MB` : "N/A";
         
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
@@ -178,25 +176,29 @@ app.whenReady().then(() => {
                 new Error(`Failed to read directory: ${err.message}`)
               );
             }
+            console.log("Files found:", files.map(f => ({ filename: f.filename, mode: f.attrs.mode })));
             resolve(files);
           });
         });
-        // Verificar el número de subcarpetas
-        const directories = files.filter((file) => file.attrs.isDirectory());
-        if (directories.length === 0) {
-          console.warn(
-            "No se encontraron subcarpetas en el directorio principal."
-          );
-          return allLogDetails; // Retornar vacío o un mensaje específico
-        }
-        const isBackupComplete = directories.length === 7;
+        // Filtrar los subdirectorios
+    const directories = files.filter((file) => file.attrs && (file.attrs.mode & 0o40000) === 0o40000);
 
-        if (!isBackupComplete) {
-          // Agregamos una propiedad para indicar backup incompleto
-          allLogDetails.backupIncomplete = true;
-          allLogDetails.expectedFolders = 7;
-          allLogDetails.foundFolders = directories.length;
-        }
+    console.log(
+      "Detected directories:",
+      directories.map((dir) => dir.filename)
+    );
+    if (directories.length === 0) {
+      console.warn("No se encontraron subcarpetas en el directorio principal.");
+      allLogDetails.push({
+          logDetails: null,
+          backupIncomplete: true,
+          foundFolders: 0,
+          expectedFolders: 7,
+      });
+      return allLogDetails;
+  }
+  
+  const isBackupComplete = directories.length === 7;
         for (const file of files) {
           if (file.attrs.isDirectory()) {
             const subDirPath = joinPath(directoryPath, file.filename, targetOS);
@@ -275,7 +277,7 @@ app.whenReady().then(() => {
               }
               logDetails = parseLogLine(logData);
               const dumpFiles = subDirFiles.filter((file) =>
-                [".DMP", ".dmp"].includes(
+                [".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(
                   path.extname(file.filename).toUpperCase()
                 )
               );
@@ -294,6 +296,9 @@ app.whenReady().then(() => {
                         resolve(stats);
                       });
                     });
+                    // Agrega esta línea para imprimir el tamaño de cada archivo .dmp
+                    console.log(`Carpeta: ${subDirPath}, Tamaño del archivo ${dumpFile.filename}: ${(dumpStats.size / (1024 * 1024)).toFixed(2)} MB`);
+
                 const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
                 totalDmpSize += dumpFileSizeInMB;
                 dumpFileInfo.push({
