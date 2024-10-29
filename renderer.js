@@ -544,6 +544,33 @@ document.addEventListener("DOMContentLoaded", async () => {
       showErrorMessage("Error: " + error.message);
     }
   }
+  function showEmptyFolderModal(serverName, ip, folderPath) {
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    modal.innerHTML = `
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Carpeta Vacía Detectada</h2>
+            <p>Servidor: ${serverName}</p>
+            <p>IP: ${ip}</p>
+            <p>Carpeta: ${folderPath}</p>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    const closeBtn = modal.querySelector(".close");
+    closeBtn.onclick = function () {
+        modal.style.display = "none";
+        document.body.removeChild(modal);
+    };
+    window.onclick = function (event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+            document.body.removeChild(modal);
+        }
+    };
+}
+
   function displayAllServersResults(results) {
     //console.log("Mostrando resultados de servidores:", results);
     if (gridApi && typeof gridApi.setRowData === "function") {
@@ -559,14 +586,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (serverResult.warning) {
           showErrorModal(
-            `Backup Incompleto en servidor: ${
-              serverResult.serverName || "Desconocido"
-            }`,
-            serverResult.ip || "IP desconocida" // Asegúrate de pasar la IP aquí
-          );
+            "Backup Incompleto",
+            serverResult.warning,
+            serverResult.serverName,
+            serverResult.ip
+        );
           return []; // No añadir nada al grid
         }
         const processLogDetail = (logDetail) => {
+          if (logDetail?.type === "emptyFolder") {
+            // Mostrar el modal para carpetas vacías
+            showEmptyFolderModal(
+                serverResult.serverName,
+                serverResult.ip,
+                logDetail.folderPath
+            );return null
+          }
           if (!logDetail || !logDetail.logFileName) {
             showErrorModal(
               `No se encontró archivo de log para el servidor: ${

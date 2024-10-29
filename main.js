@@ -173,44 +173,49 @@ app.whenReady().then(() => {
 
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
-            if (err) {
-              console.error("Readdir error:", err);
-              sftp.end();
-              conn.end();
-              return reject(
-                new Error(`Failed to read directory: ${err.message}`)
-              );
-            }
-            console.log(
-              "Files found:",
-              files.map((f) => ({ filename: f.filename, mode: f.attrs.mode }))
-            );
-            resolve(files);
+              if (err) {
+                  console.error("Readdir error:", err);
+                  sftp.end();
+                  conn.end();
+                  return reject(new Error(`Failed to read directory: ${err.message}`));
+              }
+              resolve(files);
           });
-        });
+      });
         // Filtrar los subdirectorios
         const directories = files.filter(
           (file) => file.attrs && (file.attrs.mode & 0o40000) === 0o40000
         );
-
-        console.log(
-          "Detected directories:",
-          directories.map((dir) => dir.filename)
-        );
-        if (directories.length === 0) {
-          console.warn(
-            "No se encontraron subcarpetas en el directorio principal."
-          );
-          allLogDetails.push({
-            logDetails: null,
-            backupIncomplete: true,
-            foundFolders: 0,
-            expectedFolders: 7,
+        
+        // Verificar si alguna carpeta está vacía
+        for (const dir of directories) {
+          const subDirPath = joinPath(directoryPath, dir.filename, targetOS); // Genera la ruta completa de la subcarpeta
+          const subDirFiles = await new Promise((resolve, reject) => {
+            sftp.readdir(subDirPath, (err, files) => {
+              // Lee el contenido de la subcarpeta
+              if (err) {
+                console.error(
+                  `Failed to read subdirectory: ${subDirPath}`,
+                  err
+                );
+                return reject(
+                  new Error(`Failed to read subdirectory: ${err.message}`)
+                );
+              }
+              resolve(files);
+            });
           });
-          return allLogDetails;
         }
 
+        
+
         const isBackupComplete = directories.length === 7;
+        if (!isBackupComplete) {
+          // Agregamos una propiedad para indicar backup incompleto
+          allLogDetails.backupIncomplete = true;
+          allLogDetails.expectedFolders = 7;
+          allLogDetails.foundFolders = directories.length;
+        }
         for (const file of files) {
           if (file.attrs.isDirectory()) {
             const subDirPath = joinPath(directoryPath, file.filename, targetOS);
@@ -348,25 +353,36 @@ app.whenReady().then(() => {
                       })
                     );
                   }
-                  allLogDetails.push({
-                    logDetails,
-                    dumpFileInfo,
-                    logFileName,
-                    ip,
-                    backupPath: subDirPath,
-                    os: targetOS,
-                    totalDmpSize:
-                      totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
-                    totalFolderSize,
-                    serverName: serverName,
-                    last10Lines: logInfo ? logInfo.relevantLines : [],
-                    hasWarning: logInfo ? logInfo.hasWarning : false,
-                    warningNumber: logInfo ? logInfo.warningNumber : null,
-                    lastLine: lastLine, // Añadimos la última línea aquí
-                    backupIncomplete: !isBackupComplete,
-                    expectedFolders: 7,
-                    foundFolders: directories.length,
-                  });
+                  // Verifica si la carpeta está vacía
+                  if (subDirFiles.length === 0) {
+                    allLogDetails.push({
+                      type: "emptyFolder", // Indicador de tipo
+                      isEmpty: true,
+                      serverName: serverName,
+                      ip: ip,
+                      folderPath: subDirPath,
+                    });
+                  } else {
+                    allLogDetails.push({
+                      logDetails,
+                      dumpFileInfo,
+                      logFileName,
+                      ip,
+                      backupPath: subDirPath,
+                      os: targetOS,
+                      totalDmpSize:
+                        totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
+                      totalFolderSize,
+                      serverName: serverName,
+                      last10Lines: logInfo ? logInfo.relevantLines : [],
+                      hasWarning: logInfo ? logInfo.hasWarning : false,
+                      warningNumber: logInfo ? logInfo.warningNumber : null,
+                      lastLine: lastLine, // Añadimos la última línea aquí
+                      backupIncomplete: !isBackupComplete,
+                      expectedFolders: 7,
+                      foundFolders: directories.length,
+                    });
+                  }
                 })
               );
             }
@@ -1174,7 +1190,7 @@ app.whenReady().then(() => {
                   serverName,
                   ip,
                   backupPath,
-                  warning: `Backup incompleto. Se esperaban 7 carpetas pero se encontraron ${logDetails.foundFolders}`,
+                  warning: `${ip} Backup incompleto en el servidor ${serverName}. Se esperaban 7 carpetas, pero se encontraron ${logDetails.foundFolders}.`,
                   logDetails: logDetails, // Mantenemos los detalles de las carpetas existentes
                 });
               } else if (
