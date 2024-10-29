@@ -186,28 +186,6 @@ app.whenReady().then(() => {
         const directories = files.filter(
           (file) => file.attrs && (file.attrs.mode & 0o40000) === 0o40000
         );
-        
-        // Verificar si alguna carpeta está vacía
-        for (const dir of directories) {
-          const subDirPath = joinPath(directoryPath, dir.filename, targetOS); // Genera la ruta completa de la subcarpeta
-          const subDirFiles = await new Promise((resolve, reject) => {
-            sftp.readdir(subDirPath, (err, files) => {
-              // Lee el contenido de la subcarpeta
-              if (err) {
-                console.error(
-                  `Failed to read subdirectory: ${subDirPath}`,
-                  err
-                );
-                return reject(
-                  new Error(`Failed to read subdirectory: ${err.message}`)
-                );
-              }
-              resolve(files);
-            });
-          });
-        }
-
-        
 
         const isBackupComplete = directories.length === 7;
         if (!isBackupComplete) {
@@ -353,16 +331,6 @@ app.whenReady().then(() => {
                       })
                     );
                   }
-                  // Verifica si la carpeta está vacía
-                  if (subDirFiles.length === 0) {
-                    allLogDetails.push({
-                      type: "emptyFolder", // Indicador de tipo
-                      isEmpty: true,
-                      serverName: serverName,
-                      ip: ip,
-                      folderPath: subDirPath,
-                    });
-                  } else {
                     allLogDetails.push({
                       logDetails,
                       dumpFileInfo,
@@ -382,7 +350,6 @@ app.whenReady().then(() => {
                       expectedFolders: 7,
                       foundFolders: directories.length,
                     });
-                  }
                 })
               );
             }

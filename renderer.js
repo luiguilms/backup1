@@ -594,14 +594,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           return []; // No añadir nada al grid
         }
         const processLogDetail = (logDetail) => {
-          if (logDetail?.type === "emptyFolder") {
-            // Mostrar el modal para carpetas vacías
-            showEmptyFolderModal(
-                serverResult.serverName,
-                serverResult.ip,
-                logDetail.folderPath
-            );return null
-          }
           if (!logDetail || !logDetail.logFileName) {
             showErrorModal(
               `No se encontró archivo de log para el servidor: ${
