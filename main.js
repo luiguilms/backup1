@@ -1214,7 +1214,7 @@ app.whenReady().then(() => {
                   serverName,
                   ip,
                   backupPath,
-                  warning1: `${ip} Una o más carpetas en el servidor ${serverName} están vacías.`,
+                  warning: `${ip} Una o más carpetas en el servidor ${serverName} están vacías.`,
                   logDetails: logDetails,
                 });
                 continue;
