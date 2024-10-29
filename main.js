@@ -186,6 +186,8 @@ app.whenReady().then(() => {
         const directories = files.filter(
           (file) => file.attrs && (file.attrs.mode & 0o40000) === 0o40000
         );
+        // Mostrar los subdirectorios en la consola
+        console.log("Subdirectorios encontrados:", directories.map(dir => dir.filename));
 
         const isBackupComplete = directories.length === 7;
         if (!isBackupComplete) {
@@ -193,6 +195,11 @@ app.whenReady().then(() => {
           allLogDetails.backupIncomplete = true;
           allLogDetails.expectedFolders = 7;
           allLogDetails.foundFolders = directories.length;
+        }
+        const isBackupVoid = directories.length === 0;
+        if (isBackupVoid) {
+          // Agregamos una propiedad para indicar backup incompleto
+          allLogDetails.backupVoid = true;
         }
         for (const file of files) {
           if (file.attrs.isDirectory()) {
@@ -211,6 +218,32 @@ app.whenReady().then(() => {
                 resolve(files);
               });
             });
+            // Verifica si el subdirectorio está vacío
+    const isSubDirEmpty = subDirFiles.length === 0;
+
+    // Si el subdirectorio está vacío, añade una entrada a `allLogDetails` con `backupVoid: true`
+    if (isSubDirEmpty) {
+      allLogDetails.push({
+        logDetails: null,
+        dumpFileInfo: [],
+        logFileName: null,
+        ip,
+        backupPath: subDirPath,
+        os: targetOS,
+        totalDmpSize: 0,
+        totalFolderSize: "0 MB",
+        serverName: serverName,
+        last10Lines: [],
+        hasWarning: false,
+        warningNumber: null,
+        lastLine: null,
+        backupIncomplete: !isBackupComplete,
+        expectedFolders: 7,
+        foundFolders: directories.length,
+        backupVoid: true, // Indica que este subdirectorio está vacío
+      });
+      continue; // Salta al siguiente subdirectorio
+    }
             const folderSize = await getFolderSize(
               conn,
               subDirPath,
@@ -349,12 +382,14 @@ app.whenReady().then(() => {
                       backupIncomplete: !isBackupComplete,
                       expectedFolders: 7,
                       foundFolders: directories.length,
+                      backupVoid: false
                     });
                 })
               );
             }
           }
         }
+        console.log("Detalles completos de log (incluyendo vacíos):", allLogDetails);
         return allLogDetails;
       } else {
         if (typeof folderSizes !== "number") {
@@ -1173,31 +1208,44 @@ app.whenReady().then(() => {
                 });
                 continue;
               }
-
-              // Guardar los detalles de log en la base de datos
-              if (Array.isArray(logDetails)) {
-                for (const detail of logDetails) {
-                  const fullBackupPath = detail.backupPath;
-                  await saveLogToDatabase(
-                    detail.logDetails,
-                    detail.dumpFileInfo,
-                    osType,
-                    detail.logFileName,
-                    ip,
-                    fullBackupPath
-                  );
-                }
-              } else if (logDetails && logDetails.logDetails) {
-                const fullBackupPath = logDetails.backupPath;
-                await saveLogToDatabase(
-                  logDetails.logDetails,
-                  logDetails.dumpFileInfo,
-                  osType,
-                  logDetails.logFileName,
+              // Verificar si el backup o alguna subcarpeta está vacía
+              if (logDetails && logDetails.backupVoid) {
+                results.push({
+                  serverName,
                   ip,
-                  fullBackupPath
-                );
+                  backupPath,
+                  warning1: `${ip} Una o más carpetas en el servidor ${serverName} están vacías.`,
+                  logDetails: logDetails,
+                });
+                continue;
               }
+
+              // **Guardado en la base de datos** (solo si el log está completo y tiene datos)
+    if (Array.isArray(logDetails)) {
+      for (const detail of logDetails) {
+        if (detail.logDetails && detail.logDetails.startTime) {
+          const fullBackupPath = detail.backupPath;
+          await saveLogToDatabase(
+            detail.logDetails,
+            detail.dumpFileInfo,
+            osType,
+            detail.logFileName,
+            ip,
+            fullBackupPath
+          );
+        }
+      }
+    } else if (logDetails && logDetails.logDetails && logDetails.logDetails.startTime) {
+      const fullBackupPath = logDetails.backupPath;
+      await saveLogToDatabase(
+        logDetails.logDetails,
+        logDetails.dumpFileInfo,
+        osType,
+        logDetails.logFileName,
+        ip,
+        fullBackupPath
+      );
+    }
 
               // Solo agregar servidores exitosos al grid
               results.push({
@@ -1559,6 +1607,10 @@ async function saveLogToDatabase(
   ip,
   backupPath
 ) {
+  if (logDetails?.backupVoid) {
+    console.log(`Skipping save for empty backup path: ${backupPath}`);
+    return;
+  }
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);

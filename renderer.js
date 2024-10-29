@@ -594,6 +594,16 @@ document.addEventListener("DOMContentLoaded", async () => {
           return []; // No añadir nada al grid
         }
         const processLogDetail = (logDetail) => {
+          // Verificar si el logDetail indica carpeta vacía
+          if (logDetail.backupVoid) {
+            showErrorModal(
+              "Carpeta Vacía Detectada",
+              `La carpeta en la ruta ${logDetail.backupPath} está vacía.`,
+              serverResult.serverName,
+              serverResult.ip
+            );
+            return null; // No añadir al grid
+          }
           if (!logDetail || !logDetail.logFileName) {
             showErrorModal(
               `No se encontró archivo de log para el servidor: ${
@@ -771,6 +781,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     alert(message);
   }
   function addLogEntry(logData) {
+    if (logData.backupVoid) {
+      // Si la carpeta está vacía, no hacer nada y simplemente regresar
+      return;
+  }
     if (logEntriesContainer) {
       const entryDiv = document.createElement("div");
       entryDiv.className = "log-entry";
@@ -783,7 +797,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       //);
       //console.log("Datos del log:", logData); // Para depuración
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
-      const successClass = logData.logDetails.success ? "" : "error-box";
+      const successClass = logData.logDetails?.success ? "" : "error-box";
       const totalDmpSize = logData.dumpFileInfo.reduce(
         (sum, file) => sum + file.fileSize,
         0
@@ -1699,6 +1713,14 @@ deleteRouteBtn.addEventListener("click", async () => {
               );
               hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
             }
+            // Verificación para mostrar modal si se detecta carpeta vacía
+    if (logData.backupVoid === true) {
+      console.log("Mostrando modal de advertencia por carpeta vacía");
+      showErrorModal(
+        `Advertencia: Se detectó una carpeta vacía en la ruta ${logData.backupPath}`,
+        ip
+      );
+    }
             addLogEntry({ ...logData, ip });
             if (
               logData.logDetails &&
@@ -1726,6 +1748,14 @@ deleteRouteBtn.addEventListener("click", async () => {
             );
             hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
           }
+           // Verificación para mostrar modal si se detecta carpeta vacía
+  if (logDetailsArray.backupVoid === true) {
+    console.log("Mostrando modal de advertencia por carpeta vacía");
+    showErrorModal(
+      `Advertencia: Se detectó una carpeta vacía en la ruta ${logDetailsArray.backupPath}`,
+      ip
+    );
+  }
           const logData = { ...logDetailsArray, ip };
           console.log("Adding log entry:", logData);
           addLogEntry(logData);
