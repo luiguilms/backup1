@@ -869,48 +869,59 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
   let tooltipError = null;
-  if (logEntriesContainer) {
-    logEntriesContainer.addEventListener("click", function (event) {
-      if (event.target && event.target.classList.contains("error-box")) {
-        if (!tooltipError) {
-          tooltipError = document.createElement("div");
-          tooltipError.classList.add("tooltip-error");
-          document.body.appendChild(tooltipError);
-        }
-        const logEntry = event.target.closest(".log-entry");
-        const errorDetails = logEntry ? logEntry.dataset.oraError : null;
-        if (errorDetails) {
-          const oraError = JSON.parse(errorDetails);
-          tooltipError.innerHTML = `
+if (logEntriesContainer) {
+    logEntriesContainer.addEventListener("click", function(event) {
+        if (event.target && event.target.classList.contains("error-box")) {
+            // Eliminar tooltip existente si hay uno
+            if (tooltipError) {
+                tooltipError.remove();
+            }
+
+            // Crear nuevo tooltip
+            tooltipError = document.createElement("div");
+            tooltipError.classList.add("tooltip-error");
+            document.body.appendChild(tooltipError);
+
+            const logEntry = event.target.closest(".log-entry");
+            const errorDetails = logEntry ? logEntry.dataset.oraError : null;
+
+            if (errorDetails) {
+                const oraError = JSON.parse(errorDetails);
+                tooltipError.innerHTML = `
                     <p><strong>Error ORA encontrado:</strong></p>
                     <p>${oraError.previousLine}</p>
                     <p><strong>${oraError.errorLine}</strong></p>
                     <p>${oraError.nextLine}</p>
                 `;
-        } else {
-          tooltipError.textContent =
-            "No se encontraron detalles específicos del error.";
+            } else {
+                tooltipError.textContent = "No se encontraron detalles específicos del error.";
+            }
+
+            const rect = event.target.getBoundingClientRect();
+            tooltipError.style.top = `${rect.top + window.scrollY}px`;
+            tooltipError.style.left = `${rect.right + 10}px`;
+            tooltipError.style.display = "block";
+
+            // Prevenir que el click se propague al documento
+            event.stopPropagation();
         }
-        const rect = event.target.getBoundingClientRect();
-        tooltipError.style.top = `${rect.top + window.scrollY}px`;
-        tooltipError.style.left = `${rect.right + 10}px`;
-        tooltipError.style.display = "block";
-      }
     });
-  }
-  // Cerrar la ventana flotante cuando se hace clic fuera de ella
-  window.onclick = function (event) {
-    if (
-      tooltipError &&
-      !event.target.classList.contains("error-box") &&
-      !tooltipError.contains(event.target)
-    ) {
-      tooltipError.style.display = "none"; // Esconde el tooltip
-      // Eliminar el tooltip si ya no es necesario
+
+    // Manejar el click en cualquier parte del documento
+    document.addEventListener("click", function(event) {
+        if (tooltipError && !event.target.classList.contains("error-box")) {
+            tooltipError.remove();
+            tooltipError = null;
+        }
+    });
+}
+  // Agregar también el manejo de la tecla Escape
+document.addEventListener("keydown", function(event) {
+  if (event.key === "Escape" && tooltipError) {
       tooltipError.remove();
       tooltipError = null;
-    }
-  };
+  }
+});
   async function exportToExcel(gridApi) {
     // Obtener las columnas visibles, excluyendo 'last10Lines'
     const columns = gridApi
