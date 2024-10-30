@@ -1422,6 +1422,8 @@ function checkConnection(ip, port, username, password) {
         port: port,
         username: username,
         password: password,
+        readyTimeout: 3000,    // Timeout de conexión de 3 segundos
+        timeout: 3000,         // Timeout general de 3 segundos
         algorithms: {
           kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
           cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],

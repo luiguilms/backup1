@@ -1653,10 +1653,6 @@ deleteRouteBtn.addEventListener("click", async () => {
           password
         );
         console.log("Resultado de conexión:", connectionResult);
-        if (!connectionResult.success) {
-          throw new Error("Error al intentar conectar con el servidor"); // Si la conexión falla, lanzar el error devuelto
-        }
-        console.log("Connection successful");
         // Verificar las credenciales del usuario
         const result = await window.electron.verifyCredentials(
           ip,
@@ -1667,6 +1663,11 @@ deleteRouteBtn.addEventListener("click", async () => {
         if (!result.success) {
           throw new Error(result.message); // Lanzar error si la verificación falla
         }
+        if (!connectionResult.success) {
+          throw new Error("Error al intentar conectar con el servidor"); // Si la conexión falla, lanzar el error devuelto
+        }
+        console.log("Connection successful");
+        
         const os = result.osType;
 
         // Si el sistema operativo ha cambiado, limpiamos los logs anteriores
