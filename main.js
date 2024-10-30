@@ -1775,10 +1775,11 @@ async function sendEmailAlert(ip, serverName, message) {
 }
 // Añade estas funciones en algún lugar apropiado en tu main.js
 
-function getConstantIdentifier(fullPath, characterCount = 30) {
+function getConstantIdentifier(fullPath, serverIdentifier, characterCount = 12) {
   const parts = fullPath.split("/");
   const subdir = parts[parts.length - 1];
-  return subdir.substring(0, characterCount);
+  // Incluye `serverIdentifier` en el identificador único
+  return `${serverIdentifier}-${subdir.substring(0, characterCount)}`;
 }
 
 async function getDmpSizeData(days = 30) {
@@ -1827,9 +1828,10 @@ async function getDmpSizeData(days = 30) {
       }
       return 0;
     };
-    // Agrupar los datos por los primeros 12 caracteres del backupPath
+    // Agrupar los datos por IP y los primeros 12 caracteres del backupPath
     const groupedData = dataResult.rows.reduce((acc, row) => {
-      const identifier = getConstantIdentifier(row[2], 12);
+      // Usar IP + primeros 12 caracteres de backupPath para agrupar solo dentro del mismo servidor
+      const identifier = getConstantIdentifier(row[2], row[1], 12);
       if (!acc[identifier]) {
         acc[identifier] = {
           identifier,
