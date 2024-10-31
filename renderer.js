@@ -491,7 +491,7 @@ if (osSelect) {
           field: "last10Lines",
           cellRenderer: (params) => {
             const button = document.createElement("button");
-            button.innerHTML = "Ver";
+            button.innerHTML = params.data.groupControlInfo;
             button.addEventListener("click", () => {
               showLast10LinesModal(
                 params.data.last10Lines,
