@@ -13,17 +13,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   const deleteServerBtn = document.getElementById("delete-server-btn");
   const backupRouteSelect = document.getElementById("backup-routes");
   const exportExcelButton = document.getElementById("exportExcel");
+  
+  
+  if (currentPage.includes("index.html")) {
   document.getElementById("verify-connection-btn").addEventListener("click", async () => {
     // Obtén los valores del formulario
     const ip = document.getElementById("ip").value;
     const port = document.getElementById("port").value || 22; // Usa 22 como puerto por defecto
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
-  
+
     try {
       // Llama a la función de conexión en el backend usando ipcRenderer
       const result = await window.electron.connectToServer(ip, port, username, password);
-  
+
       if (result.success) {
         alert("Conexión existosa al servidor");
       } else {
@@ -34,7 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       alert("Ocurrió un error inesperado al intentar conectar.");
     }
   });
-
+  }
   if (exportExcelButton) {
     exportExcelButton.addEventListener("click", () => handleExport("excel"));
   }
@@ -312,52 +315,52 @@ document.addEventListener("DOMContentLoaded", async () => {
   // *** Función para actualizar las opciones de IP en base al sistema operativo ***
   async function updateIPOptions() {
     if (currentPage.includes("index.html")) {
-        try {
-            // Obtén la lista de servidores desde el proceso principal a través de Electron
-            const servers = (await window.electron.getServers()) || [];
-            const selectedOS = osSelect.value;
+      try {
+        // Obtén la lista de servidores desde el proceso principal a través de Electron
+        const servers = (await window.electron.getServers()) || [];
+        const selectedOS = osSelect.value;
 
-            // Limpia las opciones previas en el select de IP
-            ipSelect.innerHTML = "";
+        // Limpia las opciones previas en el select de IP
+        ipSelect.innerHTML = "";
 
-            // Filtra los servidores según el sistema operativo seleccionado
-            const filteredServers = servers.filter(server => server.os === selectedOS);
+        // Filtra los servidores según el sistema operativo seleccionado
+        const filteredServers = servers.filter(server => server.os === selectedOS);
 
-            if (filteredServers.length > 0) {
-                // Si hay servidores que coinciden, agrégalos al select de IP
-                filteredServers.forEach(server => {
-                    const option = document.createElement("option");
-                    option.value = server.ip;
-                    option.textContent = server.ip;
-                    ipSelect.appendChild(option);
-                });
+        if (filteredServers.length > 0) {
+          // Si hay servidores que coinciden, agrégalos al select de IP
+          filteredServers.forEach(server => {
+            const option = document.createElement("option");
+            option.value = server.ip;
+            option.textContent = server.display;
+            ipSelect.appendChild(option);
+          });
 
-                // Habilita el selector de IP y selecciona la primera IP por defecto
-                ipSelect.disabled = false;
-                ipSelect.value = ipSelect.options[0].value;
-                updateBackupRoutes(); // Actualiza las rutas de backup
+          // Habilita el selector de IP y selecciona la primera IP por defecto
+          ipSelect.disabled = false;
+          ipSelect.value = ipSelect.options[0].value;
+          updateBackupRoutes(); // Actualiza las rutas de backup
 
-            } else {
-                // Si no hay servidores que coincidan, deshabilita el selector de IP y muestra un mensaje
-                const option = document.createElement("option");
-                option.textContent = "No se encontraron IPs";
-                option.disabled = true;
-                ipSelect.appendChild(option);
-                ipSelect.disabled = true;
-                console.log("No hay servidores disponibles para este sistema operativo.");
-            }
-
-        } catch (error) {
-            console.error("Error al actualizar las opciones de IP:", error);
+        } else {
+          // Si no hay servidores que coincidan, deshabilita el selector de IP y muestra un mensaje
+          const option = document.createElement("option");
+          option.textContent = "No se encontraron IPs";
+          option.disabled = true;
+          ipSelect.appendChild(option);
+          ipSelect.disabled = true;
+          console.log("No hay servidores disponibles para este sistema operativo.");
         }
-    }
-}
 
-// Configura el evento para actualizar las IPs al cambiar el sistema operativo
-if (osSelect) {
+      } catch (error) {
+        console.error("Error al actualizar las opciones de IP:", error);
+      }
+    }
+  }
+
+  // Configura el evento para actualizar las IPs al cambiar el sistema operativo
+  if (osSelect) {
     osSelect.addEventListener("change", updateIPOptions);
     updateIPOptions(); // Llama a la función al cargar para llenar las IPs del OS seleccionado por defecto
-}
+  }
   function showLoading() {
     document.getElementById("loading-overlay").style.display = "flex";
   }
@@ -620,26 +623,26 @@ if (osSelect) {
       const rowData = results.flatMap((serverResult) => {
         if (serverResult.error) {
           if (serverResult.error.includes("no existe")) {
-              // Mostrar modal específico para la ruta inexistente
-              showErrorpathModal(
-                  "Ruta de Backup No Existente",
-                  `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
-              );
+            // Mostrar modal específico para la ruta inexistente
+            showErrorpathModal(
+              "Ruta de Backup No Existente",
+              `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
+            );
           } else {
-              showErrorModal(
-                  `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
-                  serverResult.ip || "IP desconocida"
-              );
+            showErrorModal(
+              `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
+              serverResult.ip || "IP desconocida"
+            );
           }
           return []; // No añadir nada al grid
-      }
+        }
         if (serverResult.warning) {
           showErrorModal(
             "Backup Incompleto",
             serverResult.warning,
             serverResult.serverName,
             serverResult.ip
-        );
+          );
           return []; // No añadir nada al grid
         }
         const processLogDetail = (logDetail) => {
@@ -653,11 +656,10 @@ if (osSelect) {
             );
             return null; // No añadir al grid
           }
-          
+
           if (!logDetail || !logDetail.logFileName) {
             showErrorModal(
-              `No se encontró archivo de log para el servidor: ${
-                serverResult.serverName || "Desconocido"
+              `No se encontró archivo de log para el servidor: ${serverResult.serverName || "Desconocido"
               }`,
               serverResult.ip || "IP desconocida"
             );
@@ -666,20 +668,20 @@ if (osSelect) {
           const status = serverResult.error
             ? "Error"
             : logDetail.logDetails?.success
-            ? "Éxito"
-            : "Fallo";
+              ? "Éxito"
+              : "Fallo";
           const statusClass =
             status === "Fallo"
               ? "status-failure"
               : status === "Éxito"
-              ? "status-success"
-              : "status-error";
+                ? "status-success"
+                : "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
           const totalDmpSize = Array.isArray(logDetail.dumpFileInfo)
             ? logDetail.dumpFileInfo.reduce(
-                (sum, file) => sum + (file.fileSize || 0),
-                0
-              )
+              (sum, file) => sum + (file.fileSize || 0),
+              0
+            )
             : 0;
           const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
           const formattedFolderSize = logDetail.totalFolderSize
@@ -723,8 +725,7 @@ if (osSelect) {
           return processed ? [processed] : [];
         } else {
           showErrorModal(
-            `No se encontraron rutas para el servidor: ${
-              serverResult.serverName || "Desconocido"
+            `No se encontraron rutas para el servidor: ${serverResult.serverName || "Desconocido"
             }`,
             serverResult.ip || "IP desconocida"
           );
@@ -834,7 +835,7 @@ if (osSelect) {
     if (logData.backupVoid) {
       // Si la carpeta está vacía, no hacer nada y simplemente regresar
       return;
-  }
+    }
     if (logEntriesContainer) {
       const entryDiv = document.createElement("div");
       entryDiv.className = "log-entry";
@@ -864,30 +865,23 @@ if (osSelect) {
       // Añadir el estado del backup
       const backupStatus = logData.logDetails.backupStatus || "N/A";
       entryDiv.innerHTML = `
-            <p><strong>IP:</strong> ${
-              logData.ip
-            }<strong> Nombre del servidor:</strong> ${serverName}</p>
-            <p><strong>Tiempo de inicio:</strong> ${
-              logData.logDetails.startTime || "N/A"
-            }</p>
-            <p><strong>Tiempo de fin:</strong> ${
-              logData.logDetails.endTime || "N/A"
-            }</p>
+            <p><strong>IP:</strong> ${logData.ip
+        }<strong> Nombre del servidor:</strong> ${serverName}</p>
+            <p><strong>Tiempo de inicio:</strong> ${logData.logDetails.startTime || "N/A"
+        }</p>
+            <p><strong>Tiempo de fin:</strong> ${logData.logDetails.endTime || "N/A"
+        }</p>
             <p><strong>Estado del backup:</strong> ${backupStatus}</p>
-            <p><strong>Duración:</strong> ${
-              logData.logDetails.duration || "N/A"
-            }</p>
+            <p><strong>Duración:</strong> ${logData.logDetails.duration || "N/A"
+        }</p>
             <!-- Aplica la clase 'error' al párrafo si success es No -->
-            <p class="${successClass}"><strong>Exitoso?:</strong> ${
-        logData.logDetails.success ? "Yes" : "No"
-      }</p>
+            <p class="${successClass}"><strong>Exitoso?:</strong> ${logData.logDetails.success ? "Yes" : "No"
+        }</p>
             <p><strong>Peso total de archivo .dmp:</strong> ${formattedDmpSize}</p> <!-- Aquí -->
-            <p><strong>Nombre del archivo .log:</strong> ${
-              logData.logFileName || "N/A"
-            }</p>
-            <p><strong>Ruta del backup:</strong> ${
-              logData.backupPath || "N/A"
-            } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
+            <p><strong>Nombre del archivo .log:</strong> ${logData.logFileName || "N/A"
+        }</p>
+            <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"
+        } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
         `;
       if (logData.logDetails.oraError) {
         entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
@@ -919,59 +913,59 @@ if (osSelect) {
     }
   }
   let tooltipError = null;
-if (logEntriesContainer) {
-    logEntriesContainer.addEventListener("click", function(event) {
-        if (event.target && event.target.classList.contains("error-box")) {
-            // Eliminar tooltip existente si hay uno
-            if (tooltipError) {
-                tooltipError.remove();
-            }
+  if (logEntriesContainer) {
+    logEntriesContainer.addEventListener("click", function (event) {
+      if (event.target && event.target.classList.contains("error-box")) {
+        // Eliminar tooltip existente si hay uno
+        if (tooltipError) {
+          tooltipError.remove();
+        }
 
-            // Crear nuevo tooltip
-            tooltipError = document.createElement("div");
-            tooltipError.classList.add("tooltip-error");
-            document.body.appendChild(tooltipError);
+        // Crear nuevo tooltip
+        tooltipError = document.createElement("div");
+        tooltipError.classList.add("tooltip-error");
+        document.body.appendChild(tooltipError);
 
-            const logEntry = event.target.closest(".log-entry");
-            const errorDetails = logEntry ? logEntry.dataset.oraError : null;
+        const logEntry = event.target.closest(".log-entry");
+        const errorDetails = logEntry ? logEntry.dataset.oraError : null;
 
-            if (errorDetails) {
-                const oraError = JSON.parse(errorDetails);
-                tooltipError.innerHTML = `
+        if (errorDetails) {
+          const oraError = JSON.parse(errorDetails);
+          tooltipError.innerHTML = `
                     <p><strong>Error ORA encontrado:</strong></p>
                     <p>${oraError.previousLine}</p>
                     <p><strong>${oraError.errorLine}</strong></p>
                     <p>${oraError.nextLine}</p>
                 `;
-            } else {
-                tooltipError.textContent = "No se encontraron detalles específicos del error.";
-            }
-
-            const rect = event.target.getBoundingClientRect();
-            tooltipError.style.top = `${rect.top + window.scrollY}px`;
-            tooltipError.style.left = `${rect.right + 10}px`;
-            tooltipError.style.display = "block";
-
-            // Prevenir que el click se propague al documento
-            event.stopPropagation();
+        } else {
+          tooltipError.textContent = "No se encontraron detalles específicos del error.";
         }
+
+        const rect = event.target.getBoundingClientRect();
+        tooltipError.style.top = `${rect.top + window.scrollY}px`;
+        tooltipError.style.left = `${rect.right + 10}px`;
+        tooltipError.style.display = "block";
+
+        // Prevenir que el click se propague al documento
+        event.stopPropagation();
+      }
     });
 
     // Manejar el click en cualquier parte del documento
-    document.addEventListener("click", function(event) {
-        if (tooltipError && !event.target.classList.contains("error-box")) {
-            tooltipError.remove();
-            tooltipError = null;
-        }
+    document.addEventListener("click", function (event) {
+      if (tooltipError && !event.target.classList.contains("error-box")) {
+        tooltipError.remove();
+        tooltipError = null;
+      }
     });
-}
+  }
   // Agregar también el manejo de la tecla Escape
-document.addEventListener("keydown", function(event) {
-  if (event.key === "Escape" && tooltipError) {
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && tooltipError) {
       tooltipError.remove();
       tooltipError = null;
-  }
-});
+    }
+  });
   async function exportToExcel(gridApi) {
     // Obtener las columnas visibles, excluyendo 'last10Lines'
     const columns = gridApi
@@ -1051,11 +1045,10 @@ document.addEventListener("keydown", function(event) {
     modal.innerHTML = `
       <div class="modal-content">
         <span class="close">&times;</span>
-        <h2>${
-          hasWarning
-            ? "Grupos de control (Advertencia)"
-            : "Última línea del log"
-        }</h2>
+        <h2>${hasWarning
+        ? "Grupos de control (Advertencia)"
+        : "Última línea del log"
+      }</h2>
         <pre>${Array.isArray(lines) ? lines.join("\n") : lines}</pre>
       </div>
     `;
@@ -1652,34 +1645,34 @@ document.addEventListener("keydown", function(event) {
 
   const deleteRouteBtn = document.getElementById("delete-route-btn");
 
-// Manejar el clic en el botón de eliminar ruta
-deleteRouteBtn.addEventListener("click", async () => {
-  const selectedOption = backupRoutesSelect.options[backupRoutesSelect.selectedIndex];
-  const selectedIP = document.getElementById("ip").value;
+  // Manejar el clic en el botón de eliminar ruta
+  deleteRouteBtn.addEventListener("click", async () => {
+    const selectedOption = backupRoutesSelect.options[backupRoutesSelect.selectedIndex];
+    const selectedIP = document.getElementById("ip").value;
 
-  if (selectedOption) {
-    // Mostrar alerta de confirmación
-    const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar la ruta "${selectedOption.value}"?`);
-    if (confirmDelete) {
-      try {
-        // Llamada al backend para eliminar la ruta
-        const response = await window.electron.deleteBackupRoute(selectedIP, selectedOption.value);
-        if (response.success) {
-          // Eliminar la opción de la lista si la eliminación fue exitosa
-          selectedOption.remove();
-          alert("Ruta eliminada correctamente");
-        } else {
-          alert("Error al eliminar la ruta. Por favor, intenta de nuevo.");
+    if (selectedOption) {
+      // Mostrar alerta de confirmación
+      const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar la ruta "${selectedOption.value}"?`);
+      if (confirmDelete) {
+        try {
+          // Llamada al backend para eliminar la ruta
+          const response = await window.electron.deleteBackupRoute(selectedIP, selectedOption.value);
+          if (response.success) {
+            // Eliminar la opción de la lista si la eliminación fue exitosa
+            selectedOption.remove();
+            alert("Ruta eliminada correctamente");
+          } else {
+            alert("Error al eliminar la ruta. Por favor, intenta de nuevo.");
+          }
+        } catch (error) {
+          console.error("Error al eliminar la ruta:", error);
+          alert("Error al eliminar la ruta.");
         }
-      } catch (error) {
-        console.error("Error al eliminar la ruta:", error);
-        alert("Error al eliminar la ruta.");
       }
+    } else {
+      alert("Por favor, selecciona una ruta de backup para eliminar.");
     }
-  } else {
-    alert("Por favor, selecciona una ruta de backup para eliminar.");
-  }
-});
+  });
 
   const form = document.getElementById("server-form");
   if (form) {
@@ -1717,7 +1710,7 @@ deleteRouteBtn.addEventListener("click", async () => {
           throw new Error("Error al intentar conectar con el servidor"); // Si la conexión falla, lanzar el error devuelto
         }
         console.log("Connection successful");
-        
+
         const os = result.osType;
 
         // Si el sistema operativo ha cambiado, limpiamos los logs anteriores
@@ -1760,13 +1753,13 @@ deleteRouteBtn.addEventListener("click", async () => {
         // Verificar si se devolvió un error sobre la ruta
         if (logDetailsArray?.error) {
           showErrorModal(
-              logDetailsArray.error,
-              logDetailsArray.ip,
-              logDetailsArray.serverName,
-              logDetailsArray.backupPath
+            logDetailsArray.error,
+            logDetailsArray.ip,
+            logDetailsArray.serverName,
+            logDetailsArray.backupPath
           );
           return;
-      }
+        }
         // Verifica si hay elementos en logDetailsArray
         // Antes del bucle que procesa los detalles del log
         let hasShownBackupIncompleteError = false;
@@ -1775,7 +1768,7 @@ deleteRouteBtn.addEventListener("click", async () => {
           for (const logData of logDetailsArray) {
             //console.log("Adding log entry:", logData);
             if (
-              logData.backupIncomplete === true &&
+              logData.backupIncomplete &&
               !hasShownBackupIncompleteError
             ) {
               console.log("Mostrando modal de error por backup incompleto");
@@ -1786,13 +1779,13 @@ deleteRouteBtn.addEventListener("click", async () => {
               hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
             }
             // Verificación para mostrar modal si se detecta carpeta vacía
-    if (logData.backupVoid === true) {
-      console.log("Mostrando modal de advertencia por carpeta vacía");
-      showErrorModal(
-        `Advertencia: Se detectó una carpeta vacía en la ruta ${logData.backupPath}`,
-        ip
-      );
-    }
+            if (logData.backupVoid === true) {
+              console.log("Mostrando modal de advertencia por carpeta vacía");
+              showErrorModal(
+                `Advertencia: Se detectó una carpeta vacía en la ruta ${logData.backupPath}`,
+                ip
+              );
+            }
             addLogEntry({ ...logData, ip });
             if (
               logData.logDetails &&
@@ -1820,14 +1813,14 @@ deleteRouteBtn.addEventListener("click", async () => {
             );
             hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
           }
-           // Verificación para mostrar modal si se detecta carpeta vacía
-  if (logDetailsArray.backupVoid === true) {
-    console.log("Mostrando modal de advertencia por carpeta vacía");
-    showErrorModal(
-      `Advertencia: Se detectó una carpeta vacía en la ruta ${logDetailsArray.backupPath}`,
-      ip
-    );
-  }
+          // Verificación para mostrar modal si se detecta carpeta vacía
+          if (logDetailsArray.backupVoid === true) {
+            console.log("Mostrando modal de advertencia por carpeta vacía");
+            showErrorModal(
+              `Advertencia: Se detectó una carpeta vacía en la ruta ${logDetailsArray.backupPath}`,
+              ip
+            );
+          }
           const logData = { ...logDetailsArray, ip };
           console.log("Adding log entry:", logData);
           addLogEntry(logData);
@@ -1851,7 +1844,7 @@ deleteRouteBtn.addEventListener("click", async () => {
         console.log("Connection error", error);
         showAuthErrorModal(
           error.message ||
-            "Error de conexión. Por favor, verifique sus credenciales."
+          "Error de conexión. Por favor, verifique sus credenciales."
         );
       } finally {
         hideLoading(); // Ocultar loading overlay

@@ -141,19 +141,19 @@ app.whenReady().then(() => {
       });
       const directoryExists = await new Promise((resolve) => {
         sftp.stat(directoryPath, (err) => {
-            resolve(!err); // Devuelve `false` si hay un error (no existe), `true` si existe
+          resolve(!err); // Devuelve `false` si hay un error (no existe), `true` si existe
         });
-    });
+      });
 
-    if (!directoryExists) {
+      if (!directoryExists) {
         conn.end();
         return {
-            error: `La ruta de backup "${directoryPath}" no existe en el servidor "${serverName}".`,
-            ip,
-            serverName,
-            backupPath: directoryPath
+          error: `La ruta de backup "${directoryPath}" no existe en el servidor "${serverName}".`,
+          ip,
+          serverName,
+          backupPath: directoryPath
         };
-    }
+      }
       // Llamada a getFolderSize para Solaris, Linux, y Windows
       let folderSizes = await getFolderSize(
         conn,
@@ -204,17 +204,22 @@ app.whenReady().then(() => {
         // Mostrar los subdirectorios en la consola
         console.log("Subdirectorios encontrados:", directories.map(dir => dir.filename));
 
-        const isBackupComplete = directories.length === 7;
-        if (!isBackupComplete) {
-          // Agregamos una propiedad para indicar backup incompleto
-          allLogDetails.backupIncomplete = true;
-          allLogDetails.expectedFolders = 7;
-          allLogDetails.foundFolders = directories.length;
+        if (targetOS === "solaris") {
+          // Solo para Solaris, verificar el backup incompleto
+          const isBackupComplete = directories.length >= 7; // Considerado completo si hay 7 o más carpetas
+
+          if (!isBackupComplete) {
+            // Solo activar si hay menos de 7 carpetas
+            allLogDetails.backupIncomplete = true;
+            allLogDetails.expectedFolders = 7;
+            allLogDetails.foundFolders = directories.length;
+          }
         }
         const isBackupVoid = directories.length === 0;
         if (isBackupVoid) {
           // Agregamos una propiedad para indicar backup incompleto
           allLogDetails.backupVoid = true;
+          allLogDetails.backupPath = directoryPath;
         }
         for (const file of files) {
           if (file.attrs.isDirectory()) {
@@ -392,9 +397,9 @@ app.whenReady().then(() => {
                     hasWarning: logInfo ? logInfo.hasWarning : false,
                     warningNumber: logInfo ? logInfo.warningNumber : null,
                     lastLine: lastLine, // Añadimos la última línea aquí
-                    backupIncomplete: !isBackupComplete,
-                    expectedFolders: 7,
-                    foundFolders: directories.length,
+                    backupIncomplete: targetOS === "solaris" && !isBackupComplete, // Solo para Solaris
+                    expectedFolders: targetOS === "solaris" ? 7 : null, // Solo para Solaris
+                    foundFolders: targetOS === "solaris" ? directories.length : null, // Solo para Solaris
                     backupVoid: false
                   });
                 })
@@ -784,6 +789,7 @@ app.whenReady().then(() => {
         ip: row[2],
         os: row[3],
         port: row[4],
+        display: `${row[2]} - ${row[1]}`, // Formato "IP - NombreDelServidor"
       }));
     } catch (err) {
       console.error("Error al recuperar datos de la base de datos:", err);
@@ -1200,14 +1206,14 @@ app.whenReady().then(() => {
 
               if (logDetails.error) {
                 results.push({
-                    serverName,
-                    ip,
-                    backupPath,
-                    error: logDetails.error,
-                    logDetails: null
+                  serverName,
+                  ip,
+                  backupPath,
+                  error: logDetails.error,
+                  logDetails: null
                 });
                 continue;
-            }
+              }
 
               if (logDetails && logDetails.backupIncomplete) {
                 results.push({
@@ -1448,7 +1454,7 @@ function checkConnection(ip, port, username, password) {
         } else {
           errorMessage = "Error de conexión: " + err.message;
         }
-        
+
         reject(new Error(errorMessage)); // Rechazar en caso de error de conexión
       })
       .connect({
@@ -1456,8 +1462,8 @@ function checkConnection(ip, port, username, password) {
         port: port,
         username: username,
         password: password,
-        readyTimeout: 3000,    // Timeout de conexión de 3 segundos
-        timeout: 3000,         // Timeout general de 3 segundos
+        readyTimeout: 5000,    // Timeout de conexión de 3 segundos
+        timeout: 5000,         // Timeout general de 3 segundos
         algorithms: {
           kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
           cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
