@@ -1425,7 +1425,7 @@ function checkConnection(ip, port, username, password) {
           stream
             .on("close", (code, signal) => {
               conn.end();
-              resolve(true); // Resolver cuando el comando se cierra correctamente
+              resolve({ success: true, message: "Conexión exitosa" }); // Resolver cuando el comando se cierra correctamente
             })
             .on("data", (data) => {
               console.log("Received:", data.toString());
@@ -1437,7 +1437,19 @@ function checkConnection(ip, port, username, password) {
       })
       .on("error", (err) => {
         console.error("Connection error:", err);
-        reject(new Error(`Connection failed: ${err.message}`)); // Rechazar en caso de error de conexión
+        // Diferencia entre errores de conexión y autenticación
+        let errorMessage;
+        if (err.level === "client-authentication") {
+          errorMessage = "Usuario o contraseña incorrecta";
+        } else if (err.code === "ECONNREFUSED") {
+          errorMessage = "Conexión rechazada por el servidor";
+        } else if (err.code === "ENOTFOUND") {
+          errorMessage = "Servidor no encontrado. Verifique la IP";
+        } else {
+          errorMessage = "Error de conexión: " + err.message;
+        }
+        
+        reject(new Error(errorMessage)); // Rechazar en caso de error de conexión
       })
       .connect({
         host: ip,

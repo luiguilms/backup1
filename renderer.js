@@ -13,6 +13,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   const deleteServerBtn = document.getElementById("delete-server-btn");
   const backupRouteSelect = document.getElementById("backup-routes");
   const exportExcelButton = document.getElementById("exportExcel");
+  document.getElementById("verify-connection-btn").addEventListener("click", async () => {
+    // Obtén los valores del formulario
+    const ip = document.getElementById("ip").value;
+    const port = document.getElementById("port").value || 22; // Usa 22 como puerto por defecto
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+  
+    try {
+      // Llama a la función de conexión en el backend usando ipcRenderer
+      const result = await window.electron.connectToServer(ip, port, username, password);
+  
+      if (result.success) {
+        alert("Conexión existosa al servidor");
+      } else {
+        alert(`Error en la conexión: ${result.message}`);
+      }
+    } catch (error) {
+      console.error("Error al intentar conectar:", error);
+      alert("Ocurrió un error inesperado al intentar conectar.");
+    }
+  });
 
   if (exportExcelButton) {
     exportExcelButton.addEventListener("click", () => handleExport("excel"));
