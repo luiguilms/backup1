@@ -40,9 +40,9 @@ function joinPath(directoryPath, filename, targetOS) {
 }
 // Configuración de conexión a la base de datos
 const dbConfig = {
-  user: "USRMONBK",
-  password: "USRMONBK_2024",
-  connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
+  user: "USRMONBAK",
+  password: "U$po_resp4ld",
+  connectString: "INFO7499.cmac-arequipa.com.pe:1523/monbakpdb",
 };
 // Crea una ventana de aplicación
 function createWindow() {
@@ -173,15 +173,15 @@ app.whenReady().then(() => {
 
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
-              if (err) {
-                  console.error("Readdir error:", err);
-                  sftp.end();
-                  conn.end();
-                  return reject(new Error(`Failed to read directory: ${err.message}`));
-              }
-              resolve(files);
+            if (err) {
+              console.error("Readdir error:", err);
+              sftp.end();
+              conn.end();
+              return reject(new Error(`Failed to read directory: ${err.message}`));
+            }
+            resolve(files);
           });
-      });
+        });
         // Filtrar los subdirectorios
         const directories = files.filter(
           (file) => file.attrs && (file.attrs.mode & 0o40000) === 0o40000
@@ -219,31 +219,31 @@ app.whenReady().then(() => {
               });
             });
             // Verifica si el subdirectorio está vacío
-    const isSubDirEmpty = subDirFiles.length === 0;
+            const isSubDirEmpty = subDirFiles.length === 0;
 
-    // Si el subdirectorio está vacío, añade una entrada a `allLogDetails` con `backupVoid: true`
-    if (isSubDirEmpty) {
-      allLogDetails.push({
-        logDetails: null,
-        dumpFileInfo: [],
-        logFileName: null,
-        ip,
-        backupPath: subDirPath,
-        os: targetOS,
-        totalDmpSize: 0,
-        totalFolderSize: "0 MB",
-        serverName: serverName,
-        last10Lines: [],
-        hasWarning: false,
-        warningNumber: null,
-        lastLine: null,
-        backupIncomplete: !isBackupComplete,
-        expectedFolders: 7,
-        foundFolders: directories.length,
-        backupVoid: true, // Indica que este subdirectorio está vacío
-      });
-      continue; // Salta al siguiente subdirectorio
-    }
+            // Si el subdirectorio está vacío, añade una entrada a `allLogDetails` con `backupVoid: true`
+            if (isSubDirEmpty) {
+              allLogDetails.push({
+                logDetails: null,
+                dumpFileInfo: [],
+                logFileName: null,
+                ip,
+                backupPath: subDirPath,
+                os: targetOS,
+                totalDmpSize: 0,
+                totalFolderSize: "0 MB",
+                serverName: serverName,
+                last10Lines: [],
+                hasWarning: false,
+                warningNumber: null,
+                lastLine: null,
+                backupIncomplete: !isBackupComplete,
+                expectedFolders: 7,
+                foundFolders: directories.length,
+                backupVoid: true, // Indica que este subdirectorio está vacío
+              });
+              continue; // Salta al siguiente subdirectorio
+            }
             const folderSize = await getFolderSize(
               conn,
               subDirPath,
@@ -307,11 +307,10 @@ app.whenReady().then(() => {
                   logDetails = parseLogLine(logData);
 
                   if (logInfo.hasWarning) {
-                    const warningMessage = `Se detectó una advertencia de espacio al ${
-                      logInfo.warningNumber
-                    }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
-                      "\n"
-                    )}`;
+                    const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
+                      }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
+                        "\n"
+                      )}`;
                     await sendEmailAlert(ip, serverName, warningMessage);
                   }
                   logDetails = parseLogLine(logData);
@@ -347,8 +346,7 @@ app.whenReady().then(() => {
                         );
                         // Agrega esta línea para imprimir el tamaño de cada archivo .dmp
                         console.log(
-                          `Carpeta: ${subDirPath}, Tamaño del archivo ${
-                            dumpFile.filename
+                          `Carpeta: ${subDirPath}, Tamaño del archivo ${dumpFile.filename
                           }: ${(dumpStats.size / (1024 * 1024)).toFixed(2)} MB`
                         );
 
@@ -364,26 +362,26 @@ app.whenReady().then(() => {
                       })
                     );
                   }
-                    allLogDetails.push({
-                      logDetails,
-                      dumpFileInfo,
-                      logFileName,
-                      ip,
-                      backupPath: subDirPath,
-                      os: targetOS,
-                      totalDmpSize:
-                        totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
-                      totalFolderSize,
-                      serverName: serverName,
-                      last10Lines: logInfo ? logInfo.relevantLines : [],
-                      hasWarning: logInfo ? logInfo.hasWarning : false,
-                      warningNumber: logInfo ? logInfo.warningNumber : null,
-                      lastLine: lastLine, // Añadimos la última línea aquí
-                      backupIncomplete: !isBackupComplete,
-                      expectedFolders: 7,
-                      foundFolders: directories.length,
-                      backupVoid: false
-                    });
+                  allLogDetails.push({
+                    logDetails,
+                    dumpFileInfo,
+                    logFileName,
+                    ip,
+                    backupPath: subDirPath,
+                    os: targetOS,
+                    totalDmpSize:
+                      totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
+                    totalFolderSize,
+                    serverName: serverName,
+                    last10Lines: logInfo ? logInfo.relevantLines : [],
+                    hasWarning: logInfo ? logInfo.hasWarning : false,
+                    warningNumber: logInfo ? logInfo.warningNumber : null,
+                    lastLine: lastLine, // Añadimos la última línea aquí
+                    backupIncomplete: !isBackupComplete,
+                    expectedFolders: 7,
+                    foundFolders: directories.length,
+                    backupVoid: false
+                  });
                 })
               );
             }
@@ -474,11 +472,10 @@ app.whenReady().then(() => {
               const logInfo = getLast10LogLines(logData);
 
               if (logInfo.hasWarning) {
-                const warningMessage = `Se detectó una advertencia de espacio al ${
-                  logInfo.warningNumber
-                }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
-                  "\n"
-                )}`;
+                const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
+                  }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
+                    "\n"
+                  )}`;
                 await sendEmailAlert(ip, serverName, warningMessage);
               }
               const logDetails = parseLogLine(logData);
@@ -579,11 +576,10 @@ app.whenReady().then(() => {
             const logInfo = getLast10LogLines(logData);
 
             if (logInfo.hasWarning) {
-              const warningMessage = `Se detectó una advertencia de espacio al ${
-                logInfo.warningNumber
-              }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
-                "\n"
-              )}`;
+              const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
+                }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
+                  "\n"
+                )}`;
               await sendEmailAlert(ip, serverName, warningMessage);
             }
             const logDetails = parseLogLine(logData);
@@ -679,9 +675,9 @@ app.whenReady().then(() => {
     let connection;
     try {
       connection = await oracledb.getConnection({
-        user: "USRMONBK",
-        password: "USRMONBK_2024",
-        connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
+        user: "USRMONBAK",
+        password: "U$po_resp4ld",
+        connectString: "10.0.202.63:1523/monbakpdb",
       });
       // Insertar datos en la base de datos, incluyendo un ID definido
       const result = await connection.execute(
@@ -759,9 +755,9 @@ app.whenReady().then(() => {
     let connection;
     try {
       connection = await oracledb.getConnection({
-        user: "USRMONBK",
-        password: "USRMONBK_2024",
-        connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
+        user: "USRMONBAK",
+        password: "U$po_resp4ld",
+        connectString: "10.0.202.63:1523/monbakpdb",
       });
 
       const result = await connection.execute(
@@ -897,9 +893,9 @@ app.whenReady().then(() => {
     try {
       // Establecer conexión a la base de datos
       connection = await oracledb.getConnection({
-        user: "USRMONBK",
-        password: "USRMONBK_2024",
-        connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
+        user: "USRMONBAK",
+        password: "U$po_resp4ld",
+        connectString: "10.0.202.63:1523/monbakpdb",
       });
       // Ejecutar la consulta de eliminación
       const result = await connection.execute(
@@ -1005,9 +1001,9 @@ app.whenReady().then(() => {
     let connection;
     try {
       connection = await oracledb.getConnection({
-        user: "USRMONBK",
-        password: "USRMONBK_2024",
-        connectString: "10.0.211.58:1521/MONBKPDB.cmac-arequipa.com.pe",
+        user: "USRMONBAK",
+        password: "U$po_resp4ld",
+        connectString: "10.0.202.63:1523/monbakpdb",
       });
       // Actualizar datos del servidor
       const result = await connection.execute(
@@ -1221,31 +1217,31 @@ app.whenReady().then(() => {
               }
 
               // **Guardado en la base de datos** (solo si el log está completo y tiene datos)
-    if (Array.isArray(logDetails)) {
-      for (const detail of logDetails) {
-        if (detail.logDetails && detail.logDetails.startTime) {
-          const fullBackupPath = detail.backupPath;
-          await saveLogToDatabase(
-            detail.logDetails,
-            detail.dumpFileInfo,
-            osType,
-            detail.logFileName,
-            ip,
-            fullBackupPath
-          );
-        }
-      }
-    } else if (logDetails && logDetails.logDetails && logDetails.logDetails.startTime) {
-      const fullBackupPath = logDetails.backupPath;
-      await saveLogToDatabase(
-        logDetails.logDetails,
-        logDetails.dumpFileInfo,
-        osType,
-        logDetails.logFileName,
-        ip,
-        fullBackupPath
-      );
-    }
+              if (Array.isArray(logDetails)) {
+                for (const detail of logDetails) {
+                  if (detail.logDetails && detail.logDetails.startTime) {
+                    const fullBackupPath = detail.backupPath;
+                    await saveLogToDatabase(
+                      detail.logDetails,
+                      detail.dumpFileInfo,
+                      osType,
+                      detail.logFileName,
+                      ip,
+                      fullBackupPath
+                    );
+                  }
+                }
+              } else if (logDetails && logDetails.logDetails && logDetails.logDetails.startTime) {
+                const fullBackupPath = logDetails.backupPath;
+                await saveLogToDatabase(
+                  logDetails.logDetails,
+                  logDetails.dumpFileInfo,
+                  osType,
+                  logDetails.logFileName,
+                  ip,
+                  fullBackupPath
+                );
+              }
 
               // Solo agregar servidores exitosos al grid
               results.push({

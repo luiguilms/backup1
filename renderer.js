@@ -291,40 +291,52 @@ document.addEventListener("DOMContentLoaded", async () => {
   // *** Función para actualizar las opciones de IP en base al sistema operativo ***
   async function updateIPOptions() {
     if (currentPage.includes("index.html")) {
-      try {
-        const servers = (await window.electron.getServers()) || [];
-        const selectedOS = osSelect.value;
-        ipSelect.innerHTML = ""; // Limpia las opciones previas
-        const filteredServers = servers.filter(
-          (server) => server.os === selectedOS
-        );
-        if (filteredServers.length > 0) {
-          filteredServers.forEach((server) => {
-            const option = document.createElement("option");
-            option.value = server.ip;
-            option.textContent = server.ip;
-            ipSelect.appendChild(option);
-          });
-          // Si hay opciones de IP disponibles, selecciona la primera por defecto
-          if (ipSelect.options.length > 0) {
-            ipSelect.value = ipSelect.options[0].value;
-            updateBackupRoutes(); // Forzar la actualización de las rutas de backup
-          }
-        } else {
-          ipSelect.disabled = true;
-          console.log(
-            "No hay servidores disponibles para este sistema operativo."
-          );
+        try {
+            // Obtén la lista de servidores desde el proceso principal a través de Electron
+            const servers = (await window.electron.getServers()) || [];
+            const selectedOS = osSelect.value;
+
+            // Limpia las opciones previas en el select de IP
+            ipSelect.innerHTML = "";
+
+            // Filtra los servidores según el sistema operativo seleccionado
+            const filteredServers = servers.filter(server => server.os === selectedOS);
+
+            if (filteredServers.length > 0) {
+                // Si hay servidores que coinciden, agrégalos al select de IP
+                filteredServers.forEach(server => {
+                    const option = document.createElement("option");
+                    option.value = server.ip;
+                    option.textContent = server.ip;
+                    ipSelect.appendChild(option);
+                });
+
+                // Habilita el selector de IP y selecciona la primera IP por defecto
+                ipSelect.disabled = false;
+                ipSelect.value = ipSelect.options[0].value;
+                updateBackupRoutes(); // Actualiza las rutas de backup
+
+            } else {
+                // Si no hay servidores que coincidan, deshabilita el selector de IP y muestra un mensaje
+                const option = document.createElement("option");
+                option.textContent = "No se encontraron IPs";
+                option.disabled = true;
+                ipSelect.appendChild(option);
+                ipSelect.disabled = true;
+                console.log("No hay servidores disponibles para este sistema operativo.");
+            }
+
+        } catch (error) {
+            console.error("Error al actualizar las opciones de IP:", error);
         }
-      } catch (error) {
-        console.error("Error al actualizar las opciones de IP:", error);
-      }
     }
-  }
-  if (osSelect) {
-    osSelect.addEventListener("change", updateIPOptions); // Cuando cambie el OS, actualiza las IPs
+}
+
+// Configura el evento para actualizar las IPs al cambiar el sistema operativo
+if (osSelect) {
+    osSelect.addEventListener("change", updateIPOptions);
     updateIPOptions(); // Llama a la función al cargar para llenar las IPs del OS seleccionado por defecto
-  }
+}
   function showLoading() {
     document.getElementById("loading-overlay").style.display = "flex";
   }
