@@ -556,46 +556,62 @@ if (osSelect) {
       showErrorMessage("Error: " + error.message);
     }
   }
-  function showEmptyFolderModal(serverName, ip, folderPath) {
+  function showErrorpathModal(message, ip) {
+    console.log("Entrando en showErrorModal");
     const modal = document.createElement("div");
-    modal.className = "modal";
-    modal.innerHTML = `
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Carpeta Vacía Detectada</h2>
-            <p>Servidor: ${serverName}</p>
-            <p>IP: ${ip}</p>
-            <p>Carpeta: ${folderPath}</p>
-        </div>
-    `;
-    document.body.appendChild(modal);
+    modal.style.position = "fixed";
+    modal.style.left = "0";
+    modal.style.top = "0";
+    modal.style.width = "100%";
+    modal.style.height = "100%";
+    modal.style.backgroundColor = "rgba(0,0,0,0.5)";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
 
-    const closeBtn = modal.querySelector(".close");
-    closeBtn.onclick = function () {
-        modal.style.display = "none";
-        document.body.removeChild(modal);
-    };
-    window.onclick = function (event) {
-        if (event.target == modal) {
-            modal.style.display = "none";
-            document.body.removeChild(modal);
-        }
-    };
-}
+    const modalContent = document.createElement("div");
+    modalContent.style.backgroundColor = "#fff";
+    modalContent.style.padding = "20px";
+    modalContent.style.borderRadius = "5px";
+    modalContent.style.maxWidth = "80%";
+
+    const errorMessage = document.createElement("p");
+    errorMessage.textContent = message;
+
+    const ipMessage = document.createElement("p");
+    ipMessage.textContent = `IP: ${ip}`;
+
+    const closeButton = document.createElement("button");
+    closeButton.textContent = "Cerrar";
+    closeButton.onclick = () => document.body.removeChild(modal);
+
+    modalContent.appendChild(errorMessage);
+    modalContent.appendChild(ipMessage);
+    modalContent.appendChild(closeButton);
+    modal.appendChild(modalContent);
+
+    document.body.appendChild(modal);
+  }
 
   function displayAllServersResults(results) {
     //console.log("Mostrando resultados de servidores:", results);
     if (gridApi && typeof gridApi.setRowData === "function") {
       const rowData = results.flatMap((serverResult) => {
         if (serverResult.error) {
-          showErrorModal(
-            `No se realizó la conexión con el servidor: ${
-              serverResult.serverName || "Desconocido"
-            }`,
-            serverResult.ip || "IP desconocida"
-          );
+          if (serverResult.error.includes("no existe")) {
+              // Mostrar modal específico para la ruta inexistente
+              showErrorpathModal(
+                  "Ruta de Backup No Existente",
+                  `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
+              );
+          } else {
+              showErrorModal(
+                  `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
+                  serverResult.ip || "IP desconocida"
+              );
+          }
           return []; // No añadir nada al grid
-        }
+      }
         if (serverResult.warning) {
           showErrorModal(
             "Backup Incompleto",
@@ -610,12 +626,13 @@ if (osSelect) {
           if (logDetail.backupVoid) {
             showErrorModal(
               "Carpeta Vacía Detectada",
-              `La carpeta en la ruta ${logDetail.backupPath} está vacía.`,
+              `${serverResult.ip} La carpeta en la ruta ${logDetail.backupPath} está vacía.`,
               serverResult.serverName,
               serverResult.ip
             );
             return null; // No añadir al grid
           }
+          
           if (!logDetail || !logDetail.logFileName) {
             showErrorModal(
               `No se encontró archivo de log para el servidor: ${
@@ -1719,6 +1736,16 @@ deleteRouteBtn.addEventListener("click", async () => {
           os
         );
         console.log("logDetailsArray:", logDetailsArray);
+        // Verificar si se devolvió un error sobre la ruta
+        if (logDetailsArray?.error) {
+          showErrorModal(
+              logDetailsArray.error,
+              logDetailsArray.ip,
+              logDetailsArray.serverName,
+              logDetailsArray.backupPath
+          );
+          return;
+      }
         // Verifica si hay elementos en logDetailsArray
         // Antes del bucle que procesa los detalles del log
         let hasShownBackupIncompleteError = false;

@@ -139,6 +139,21 @@ app.whenReady().then(() => {
           resolve(sftp);
         });
       });
+      const directoryExists = await new Promise((resolve) => {
+        sftp.stat(directoryPath, (err) => {
+            resolve(!err); // Devuelve `false` si hay un error (no existe), `true` si existe
+        });
+    });
+
+    if (!directoryExists) {
+        conn.end();
+        return {
+            error: `La ruta de backup "${directoryPath}" no existe en el servidor "${serverName}".`,
+            ip,
+            serverName,
+            backupPath: directoryPath
+        };
+    }
       // Llamada a getFolderSize para Solaris, Linux, y Windows
       let folderSizes = await getFolderSize(
         conn,
@@ -1182,6 +1197,17 @@ app.whenReady().then(() => {
                 decryptedPassword,
                 osType
               );
+
+              if (logDetails.error) {
+                results.push({
+                    serverName,
+                    ip,
+                    backupPath,
+                    error: logDetails.error,
+                    logDetails: null
+                });
+                continue;
+            }
 
               if (logDetails && logDetails.backupIncomplete) {
                 results.push({
