@@ -204,9 +204,9 @@ app.whenReady().then(() => {
         // Mostrar los subdirectorios en la consola
         console.log("Subdirectorios encontrados:", directories.map(dir => dir.filename));
 
+        const isBackupComplete = directories.length >= 7; // Considerado completo si hay 7 o más carpetas
         if (targetOS === "solaris") {
           // Solo para Solaris, verificar el backup incompleto
-          const isBackupComplete = directories.length >= 7; // Considerado completo si hay 7 o más carpetas
 
           if (!isBackupComplete) {
             // Solo activar si hay menos de 7 carpetas
@@ -334,11 +334,15 @@ app.whenReady().then(() => {
                     await sendEmailAlert(ip, serverName, warningMessage);
                   }
                   logDetails = parseLogLine(logData);
-                  const dumpFiles = subDirFiles.filter((file) =>
-                    [".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(
-                      path.extname(file.filename).toUpperCase()
-                    )
-                  );
+                  const dumpFiles = subDirFiles.filter((file) => {
+                    const ext = path.extname(file.filename).toUpperCase();
+                    if (![".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(ext)) {
+                      console.warn(`Archivo no válido encontrado: ${file.filename}`);
+                      return false; // Excluye archivos que no son .dmp
+                    }
+                    return true; // Incluye archivos válidos
+                  });
+
                   for (let i = 0; i < dumpFiles.length; i += 10) {
                     await Promise.all(
                       dumpFiles.slice(i, i + 10).map(async (dumpFile) => {
@@ -500,41 +504,38 @@ app.whenReady().then(() => {
               }
               const logDetails = parseLogLine(logData);
               let dumpFileInfo = [];
-              const dumpFiles = subDirFiles.filter((file) =>
-                [".DMP", ".dmp"].includes(
-                  path.extname(file.filename).toUpperCase()
-                )
-              );
+              const dumpFiles = subDirFiles.filter((file) => {
+                const ext = path.extname(file.filename).toUpperCase();
+                if (![".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(ext)) {
+                  console.warn(`Archivo no válido encontrado: ${file.filename}`);
+                  return false; // Excluye archivos que no son .dmp
+                }
+                return true; // Incluye archivos válidos
+              });
+
               let totalDmpSize = 0;
+              console.log("Archivos DMP encontrados:", dumpFiles); // Verificación de archivos DMP
+
               for (const dumpFile of dumpFiles) {
                 const dumpFilePath = joinPath(
                   subDirPath,
                   dumpFile.filename,
                   targetOS
                 );
-                const dumpStats = await new Promise((resolve, reject) => {
-                  sftp.stat(dumpFilePath, (err, stats) => {
-                    if (err) {
-                      console.error("Stat error:", err);
-                      sftp.end();
-                      conn.end();
-                      return reject(
-                        new Error(`Failed to stat dump file: ${err.message}`)
-                      );
-                    }
-                    resolve(stats);
+
+                try {
+                  const dumpStats = await sftp.stat(dumpFilePath);
+                  const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
+                  dumpFileInfo.push({
+                    filePath: dumpFilePath,
+                    fileSize: dumpFileSizeInMB > 0 ? parseFloat(dumpFileSizeInMB.toFixed(2)) : 0,
                   });
-                });
-                const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
-                totalDmpSize += dumpFileSizeInMB;
-                dumpFileInfo.push({
-                  filePath: dumpFilePath,
-                  fileSize:
-                    dumpFileSizeInMB > 0
-                      ? parseFloat(dumpFileSizeInMB.toFixed(2))
-                      : 0,
-                });
+                } catch (err) {
+                  console.error(`Error al obtener estadísticas del archivo: ${dumpFile.filename}`, err);
+                }
               }
+
+              console.log("Tamaño total de DMP acumulado:", totalDmpSize);
               allSubdirResults.push({
                 logDetails,
                 dumpFileInfo,
@@ -604,41 +605,38 @@ app.whenReady().then(() => {
             }
             const logDetails = parseLogLine(logData);
             let dumpFileInfo = [];
-            const dumpFiles = files.filter((file) =>
-              [".DMP", ".dmp"].includes(
-                path.extname(file.filename).toUpperCase()
-              )
-            );
+            const dumpFiles = subDirFiles.filter((file) => {
+              const ext = path.extname(file.filename).toUpperCase();
+              if (![".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(ext)) {
+                console.warn(`Archivo no válido encontrado: ${file.filename}`);
+                return false; // Excluye archivos que no son .dmp
+              }
+              return true; // Incluye archivos válidos
+            });
+
             let totalDmpSize = 0;
+            console.log("Archivos DMP encontrados:", dumpFiles); // Verificación de archivos DMP
+
             for (const dumpFile of dumpFiles) {
               const dumpFilePath = joinPath(
-                directoryPath,
+                subDirPath,
                 dumpFile.filename,
                 targetOS
               );
-              const dumpStats = await new Promise((resolve, reject) => {
-                sftp.stat(dumpFilePath, (err, stats) => {
-                  if (err) {
-                    console.error("Stat error:", err);
-                    sftp.end();
-                    conn.end();
-                    return reject(
-                      new Error(`Failed to stat dump file: ${err.message}`)
-                    );
-                  }
-                  resolve(stats);
+
+              try {
+                const dumpStats = await sftp.stat(dumpFilePath);
+                const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
+                dumpFileInfo.push({
+                  filePath: dumpFilePath,
+                  fileSize: dumpFileSizeInMB > 0 ? parseFloat(dumpFileSizeInMB.toFixed(2)) : 0,
                 });
-              });
-              const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
-              totalDmpSize += dumpFileSizeInMB;
-              dumpFileInfo.push({
-                filePath: dumpFilePath,
-                fileSize:
-                  dumpFileSizeInMB > 0
-                    ? parseFloat(dumpFileSizeInMB.toFixed(2))
-                    : 0,
-              });
+              } catch (err) {
+                console.error(`Error al obtener estadísticas del archivo: ${dumpFile.filename}`, err);
+              }
             }
+
+            console.log("Tamaño total de DMP acumulado:", totalDmpSize);
             return [
               {
                 logDetails,
@@ -1664,47 +1662,42 @@ async function saveLogToDatabase(
       : null;
     // Convertir el tamaño de archivo
     let totalDmpSize = 0;
+
+    // Función para verificar extensiones válidas
+    const validExtensions = [".dmp", ".dmp.gz", ".dmp.err"];
+    const isValidDmpFile = (filePath) =>
+      validExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
+
+    // Verifica si dumpFileInfo es un array y suma los tamaños
     if (Array.isArray(dumpFileInfo)) {
       dumpFileInfo.forEach((file) => {
-        totalDmpSize += parseFloat(file.fileSize) || 0;
-      });
-    }
-    const formattedFileSize = formatFileSize(totalDmpSize); // Convierte a MB o GB
-    // Verifica si dumpFileInfo es un array o un solo objeto y suma los tamaños
-    if (Array.isArray(dumpFileInfo)) {
-      dumpFileInfo.forEach((file) => {
-        if (
-          file &&
-          file.filePath &&
-          file.filePath.toLowerCase().endsWith(".dmp")
-        ) {
-          //console.log(`Found DMP file: ${file.filePath} with size ${file.fileSize}`);
+        if (file && file.fileSize) {
           const fileSize = parseFloat(file.fileSize);
           if (!isNaN(fileSize)) {
             totalDmpSize += fileSize;
+          } else {
+            console.warn(`Tamaño de archivo no válido para: ${file.filePath}`);
           }
+        } else {
+          console.warn(`Objeto no válido en dumpFileInfo:`, file);
         }
       });
     } else if (
       dumpFileInfo &&
       dumpFileInfo.filePath &&
-      dumpFileInfo.filePath.toLowerCase().endsWith(".dmp")
+      isValidDmpFile(dumpFileInfo.filePath)
     ) {
-      console.log(
-        `Found single DMP file: ${dumpFileInfo.filePath} with size ${dumpFileInfo.fileSize}`
-      );
+      console.log(`Found single DMP file: ${dumpFileInfo.filePath} with size ${dumpFileInfo.fileSize}`);
       const fileSize = parseFloat(dumpFileInfo.fileSize);
       if (!isNaN(fileSize)) {
-        totalDmpSize += fileSize;
+        totalDmpSize += fileSize; // Suma el tamaño si es un único archivo válido
       }
     } else {
-      console.warn(
-        "dumpFileInfo is not a valid object or array:",
-        dumpFileInfo
-      );
+      console.warn("dumpFileInfo is not a valid object or array:", dumpFileInfo);
     }
+
     // Convertimos totalDmpSize a un número con dos decimales si es mayor que 0
-    const totalDmpSizeFormatted = totalDmpSize > 0 ? totalDmpSize : null;
+    const formattedFileSize = formatFileSize(totalDmpSize); 
     //console.log("Valores a insertar:", {
     //horaINI: startTime,
     //horaFIN: endTime,

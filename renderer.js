@@ -833,6 +833,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function addLogEntry(logData) {
     if (logData.backupVoid) {
+      return;
+    }
+    
+    console.log("Datos del log:", logData); // Para verificar el contenido de logData
+    console.log("Contenido de dumpFileInfo:", logData.dumpFileInfo); // Verifica qué archivos se están pasando
+    if (logData.backupVoid) {
       // Si la carpeta está vacía, no hacer nada y simplemente regresar
       return;
     }
