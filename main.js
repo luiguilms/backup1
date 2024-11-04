@@ -334,11 +334,14 @@ app.whenReady().then(() => {
                     await sendEmailAlert(ip, serverName, warningMessage);
                   }
                   logDetails = parseLogLine(logData);
+                  const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
                   const dumpFiles = subDirFiles.filter((file) => {
-                    const ext = path.extname(file.filename).toUpperCase();
-                    if (![".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(ext)) {
+                    const filename = file.filename.toLowerCase();
+                    // Verificar si el nombre del archivo termina con alguna de las extensiones válidas
+                    const isValidFile = validExtensions.some(ext => filename.endsWith(ext));
+                    if (!isValidFile) {
                       console.warn(`Archivo no válido encontrado: ${file.filename}`);
-                      return false; // Excluye archivos que no son .dmp
+                      return false; // Excluye archivos que no son válidos
                     }
                     return true; // Incluye archivos válidos
                   });
@@ -503,12 +506,15 @@ app.whenReady().then(() => {
                 await sendEmailAlert(ip, serverName, warningMessage);
               }
               const logDetails = parseLogLine(logData);
+              const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
               let dumpFileInfo = [];
               const dumpFiles = subDirFiles.filter((file) => {
-                const ext = path.extname(file.filename).toUpperCase();
-                if (![".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(ext)) {
+                const filename = file.filename.toLowerCase();
+                // Verificar si el nombre del archivo termina con alguna de las extensiones válidas
+                const isValidFile = validExtensions.some(ext => filename.endsWith(ext));
+                if (!isValidFile) {
                   console.warn(`Archivo no válido encontrado: ${file.filename}`);
-                  return false; // Excluye archivos que no son .dmp
+                  return false; // Excluye archivos que no son válidos
                 }
                 return true; // Incluye archivos válidos
               });
@@ -604,12 +610,15 @@ app.whenReady().then(() => {
               await sendEmailAlert(ip, serverName, warningMessage);
             }
             const logDetails = parseLogLine(logData);
+            const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
             let dumpFileInfo = [];
             const dumpFiles = subDirFiles.filter((file) => {
-              const ext = path.extname(file.filename).toUpperCase();
-              if (![".DMP", ".dmp", ".dmp.gz", ".dmp.err"].includes(ext)) {
+              const filename = file.filename.toLowerCase();
+              // Verificar si el nombre del archivo termina con alguna de las extensiones válidas
+              const isValidFile = validExtensions.some(ext => filename.endsWith(ext));
+              if (!isValidFile) {
                 console.warn(`Archivo no válido encontrado: ${file.filename}`);
-                return false; // Excluye archivos que no son .dmp
+                return false; // Excluye archivos que no son válidos
               }
               return true; // Incluye archivos válidos
             });
@@ -1664,7 +1673,7 @@ async function saveLogToDatabase(
     let totalDmpSize = 0;
 
     // Función para verificar extensiones válidas
-    const validExtensions = [".dmp", ".dmp.gz", ".dmp.err"];
+    const validExtensions = [".dmp", ".gz", ".err"];
     const isValidDmpFile = (filePath) =>
       validExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
 

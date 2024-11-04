@@ -917,27 +917,3 @@ Detalles del log guardados en la base de datos: { lastRowid: 'AAASWvAANAAAAEWAAF
 Detalles del log guardados en la base de datos: { lastRowid: 'AAASWvAANAAAAEWAAG', rowsAffected: 1 }
 Detalles del log guardados en la base de datos: { lastRowid: 'AAASWvAANAAAAEWAAH', rowsAffected: 1 }
 Detalles del log guardados en la base de datos: { lastRowid: 'AAASWvAANAAAAEWAAI', rowsAffected: 1 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
