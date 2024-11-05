@@ -109,8 +109,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       backupRouteSelect.innerHTML = "<option>Error al cargar rutas</option>";
       backupRouteSelect.disabled = true;
     }
-    ipSelect.addEventListener("change", updateBackupRoutes);
   }
+  ipSelect.addEventListener("change", updateBackupRoutes);
   // Asegúrate de que esta función se llame cada vez que se cambia la IP seleccionada
 
   // *** Función para cargar servidores ***
@@ -1725,25 +1725,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           currentOS = os; // Actualizamos el sistema operativo actual
         }
 
-        // Obtener las rutas de backup desde la base de datos usando la IP seleccionada
-        const backupRoutes = await window.electron.getBackupRoutesByIP(ip);
-        let directoryPath = "";
-        // Si se encuentran rutas, buscar la correcta según el sistema operativo
-        if (backupRoutes.length > 0) {
-          const matchingRoute = backupRoutes.find((route) => route.os === os);
-          if (matchingRoute) {
-            directoryPath = matchingRoute.backupPath; // Asignamos la ruta correcta
-            //console.log(`Ruta de backup encontrada: ${directoryPath}`);
-          } else {
-            showAuthErrorModal(
-              `No se encontraron rutas para el sistema operativo ${os}`
-            );
-            return;
-          }
-        } else {
-          showAuthErrorModal("No se encontraron rutas de backup para esta IP.");
-          return;
-        }
+        let directoryPath = backupRouteSelect.value; // Usa la ruta actual seleccionada en backupRouteSelect
+      
+        console.log("Ruta de backup seleccionada:", directoryPath);
 
         // Obtener los detalles del log
         console.log("Fetching log details...");
@@ -1772,11 +1756,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Procesar los detalles del log
         if (Array.isArray(logDetailsArray)) {
           for (const logData of logDetailsArray) {
+            const serverName = logData.serverName;
             //console.log("Adding log entry:", logData);
-            if (
-              logData.backupIncomplete &&
-              !hasShownBackupIncompleteError
-            ) {
+            if (serverName === "Bantotal" && logData.backupIncomplete && !hasShownBackupIncompleteError){
               console.log("Mostrando modal de error por backup incompleto");
               showErrorModal(
                 `Backup Incompleto: Se esperaban 7 carpetas pero se encontraron ${logData.foundFolders}`,
@@ -1808,10 +1790,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
           }
         } else if (logDetailsArray && typeof logDetailsArray === "object") {
-          if (
-            logDetailsArray.backupIncomplete === true &&
-            !hasShownBackupIncompleteError
-          ) {
+          const serverName = logDetailsArray.serverName;
+          if (serverName === "Bantotal" && logDetailsArray.backupIncomplete && !hasShownBackupIncompleteError) {
             console.log("Mostrando modal de error por backup incompleto");
             showErrorModal(
               `Backup Incompleto: Se esperaban 7 carpetas pero se encontraron ${logDetailsArray.foundFolders}`,
