@@ -1451,10 +1451,35 @@ function createSSHClient(ip, port, username, password) {
         username: username,
         password: password,
         algorithms: {
-          kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
-          cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
-          hmac: ["hmac-sha1", "hmac-sha2-256", "hmac-sha2-512"],
+          kex: [
+            "curve25519-sha256",
+            "diffie-hellman-group-exchange-sha256",
+            "diffie-hellman-group16-sha512",
+            "diffie-hellman-group18-sha512"
+          ],
+          serverHostKey: [
+            "ssh-ed25519",
+            "rsa-sha2-512",
+            "rsa-sha2-256"
+          ],
+          cipher: [
+            "aes128-ctr",
+            "aes192-ctr",
+            "aes256-ctr",
+          ],
+          hmac: [
+            "hmac-sha2-256-etm@openssh.com",
+            "hmac-sha2-512-etm@openssh.com"
+          ],
+          compress: [
+            "none",
+            "zlib@openssh.com"
+          ]
         },
+        // Agregar opciones de compatibilidad
+        compress: false,
+        keepaliveInterval: 0,
+        keepaliveCountMax: 3,
       });
   });
 }
@@ -1509,10 +1534,35 @@ function checkConnection(ip, port, username, password) {
         readyTimeout: 5000,    // Timeout de conexión de 3 segundos
         timeout: 5000,         // Timeout general de 3 segundos
         algorithms: {
-          kex: ["diffie-hellman-group14-sha1", "diffie-hellman-group14-sha256"],
-          cipher: ["aes128-ctr", "aes192-ctr", "aes256-ctr"],
-          hmac: ["hmac-sha1", "hmac-sha2-256", "hmac-sha2-512"],
+          kex: [
+            "curve25519-sha256",
+            "diffie-hellman-group-exchange-sha256",
+            "diffie-hellman-group16-sha512",
+            "diffie-hellman-group18-sha512"
+          ],
+          serverHostKey: [
+            "ssh-ed25519",
+            "rsa-sha2-512",
+            "rsa-sha2-256"
+          ],
+          cipher: [
+            "aes128-ctr",
+            "aes192-ctr",
+            "aes256-ctr",
+          ],
+          hmac: [
+            "hmac-sha2-256-etm@openssh.com",
+            "hmac-sha2-512-etm@openssh.com"
+          ],
+          compress: [
+            "none",
+            "zlib@openssh.com"
+          ]
         },
+        // Agregar opciones de compatibilidad
+        compress: false,
+        keepaliveInterval: 0,
+        keepaliveCountMax: 3
       });
   });
 }
