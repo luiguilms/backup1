@@ -219,8 +219,13 @@ app.whenReady().then(() => {
         const isBackupVoid = directories.length === 0;
         if (isBackupVoid) {
           // Agregamos una propiedad para indicar backup incompleto
-          allLogDetails.backupVoid = true;
-          allLogDetails.backupPath = directoryPath;
+          conn.end();
+            return {
+                backupVoid: true,
+                backupPath: directoryPath,
+                ip,
+                serverName
+            };
         }
         for (const file of files) {
           if (file.attrs.isDirectory()) {
@@ -1162,6 +1167,7 @@ app.whenReady().then(() => {
         const port = row[4];
         const encryptedUserLob = row[5];
         const encryptedPasswordLob = row[6];
+        let connectionSuccess = false;
 
         try {
           console.log(`Procesando servidor: ${serverName} (${ip})`);
@@ -1186,6 +1192,7 @@ app.whenReady().then(() => {
             });
             continue; // Continuar con el siguiente servidor
           }
+          connectionSuccess = true; 
 
           // Obtener rutas de backup
           const backupRoutes = await getBackupRoutesByIPInternal(
@@ -1227,13 +1234,35 @@ app.whenReady().then(() => {
                 });
                 continue;
               }
+              const requiredSubfolders = [
+                "ESQ_USRREPBI",
+                "BK_ANTES2",
+                "APP_ESQUEMAS",
+                "BK_MD_ANTES",
+                "BK_JAQL546_FPAE71",
+                "BK_ANTES",
+                "RENIEC"
+              ];
 
-              if (serverName === "Bantotal"  && logDetails && logDetails.backupIncomplete) {
+              if (serverName === "Bantotal" && logDetails && logDetails.backupIncomplete) {
+                // Encuentra las subcarpetas existentes en `directories`
+                const existingSubfolders = directories.map(folder => folder.split('/').pop()); // Obtener solo el nombre de la carpeta
+
+                // Filtrar las subcarpetas requeridas que no están presentes
+                const missingSubfolders = requiredSubfolders.filter(required =>
+                  !existingSubfolders.includes(required) // Comparación exacta
+                );
+
+                // Mensaje para el modal
+                let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logDetails.foundFolders}.`;
+                if (missingSubfolders.length > 0) {
+                  warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
+                }
                 results.push({
                   serverName,
                   ip,
                   backupPath,
-                  warning: `${ip} Backup incompleto en el servidor ${serverName}. Se esperaban 7 carpetas, pero se encontraron ${logDetails.foundFolders}.`,
+                  warning: warningMessage,
                   logDetails: logDetails, // Mantenemos los detalles de las carpetas existentes
                 });
               } else if (
@@ -1255,7 +1284,7 @@ app.whenReady().then(() => {
                   serverName,
                   ip,
                   backupPath,
-                  warning: `${ip} Una o más carpetas en el servidor ${serverName} están vacías.`,
+                  warning: `${ip} La carpeta principal ${backupPath} está vacía en el servidor ${serverName}.`,
                   logDetails: logDetails,
                 });
                 continue;
@@ -1312,15 +1341,17 @@ app.whenReady().then(() => {
             }
           }
         } catch (serverError) {
-          console.error(
-            `Error procesando el servidor ${serverName}:`,
-            serverError
-          );
+          // Si hubo conexión exitosa, este error no es de conexión
+          const errorType = connectionSuccess 
+              ? `Error específico al procesar logs en ${serverName}`
+              : `Error al conectar con el servidor ${serverName}`;
+
+          console.error(`${errorType}:`, serverError);
           results.push({
-            serverName,
-            ip,
-            error: serverError.message,
-            logDetails: null, // Asegúrate de incluir esto
+              serverName,
+              ip,
+              error: `${errorType}: ${serverError.message}`,
+              logDetails: null,
           });
         }
       }

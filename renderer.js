@@ -1679,7 +1679,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       alert("Por favor, selecciona una ruta de backup para eliminar.");
     }
   });
-
+// Definir las subcarpetas requeridas para Bantotal
+const requiredSubfolders = [
+  "ESQ_USRREPBI",
+  "BK_ANTES2",
+  "APP_ESQUEMAS",
+  "BK_MD_ANTES",
+  "BK_JAQL546_FPAE71",
+  "BK_ANTES",
+  "RENIEC"
+];
   const form = document.getElementById("server-form");
   if (form) {
     form.addEventListener("submit", async (event) => {
@@ -1759,10 +1768,23 @@ document.addEventListener("DOMContentLoaded", async () => {
             const serverName = logData.serverName;
             //console.log("Adding log entry:", logData);
             if (serverName === "Bantotal" && logData.backupIncomplete && !hasShownBackupIncompleteError){
+              // Encuentra las subcarpetas existentes en `directories`
+            const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta, puedes adaptarlo a cómo se obtienen tus subcarpetas.
+
+            // Filtrar las subcarpetas requeridas que no están presentes
+            const missingSubfolders = requiredSubfolders.filter(required =>
+              !existingSubfolders.includes(required) // Comparación exacta
+            );
+
+            // Mensaje para el modal
+            let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logData.foundFolders}.`;
+            if (missingSubfolders.length > 0) {
+              warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
+            }
               console.log("Mostrando modal de error por backup incompleto");
               showErrorModal(
-                `Backup Incompleto: Se esperaban 7 carpetas pero se encontraron ${logData.foundFolders}`,
-                ip
+                warningMessage,
+              ip
               );
               hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
             }
@@ -1792,10 +1814,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else if (logDetailsArray && typeof logDetailsArray === "object") {
           const serverName = logDetailsArray.serverName;
           if (serverName === "Bantotal" && logDetailsArray.backupIncomplete && !hasShownBackupIncompleteError) {
+            const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta
+
+          const missingSubfolders = requiredSubfolders.filter(required =>
+            !existingSubfolders.includes(required) // Comparación exacta
+          );
+
+          let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logDetailsArray.foundFolders}.`;
+          if (missingSubfolders.length > 0) {
+            warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
+          }
             console.log("Mostrando modal de error por backup incompleto");
             showErrorModal(
-              `Backup Incompleto: Se esperaban 7 carpetas pero se encontraron ${logDetailsArray.foundFolders}`,
-              ip
+              warningMessage,
+            ip
             );
             hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
           }
