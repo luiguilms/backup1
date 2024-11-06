@@ -1455,12 +1455,17 @@ function createSSHClient(ip, port, username, password) {
             "curve25519-sha256",
             "diffie-hellman-group-exchange-sha256",
             "diffie-hellman-group16-sha512",
-            "diffie-hellman-group18-sha512"
+            "diffie-hellman-group18-sha512",
+            "diffie-hellman-group-exchange-sha1",
+            "diffie-hellman-group14-sha1",
+            "diffie-hellman-group1-sha1"
           ],
           serverHostKey: [
             "ssh-ed25519",
             "rsa-sha2-512",
-            "rsa-sha2-256"
+            "rsa-sha2-256",
+            "ssh-rsa",
+            "ssh-dss"
           ],
           cipher: [
             "aes128-ctr",
@@ -1469,7 +1474,12 @@ function createSSHClient(ip, port, username, password) {
           ],
           hmac: [
             "hmac-sha2-256-etm@openssh.com",
-            "hmac-sha2-512-etm@openssh.com"
+            "hmac-sha2-512-etm@openssh.com",
+            "hmac-md5",
+            "hmac-sha1",
+            "hmac-ripemd160",
+            "hmac-sha1-96",
+            "hmac-md5-96"
           ],
           compress: [
             "none",
@@ -1538,12 +1548,17 @@ function checkConnection(ip, port, username, password) {
             "curve25519-sha256",
             "diffie-hellman-group-exchange-sha256",
             "diffie-hellman-group16-sha512",
-            "diffie-hellman-group18-sha512"
+            "diffie-hellman-group18-sha512",
+            "diffie-hellman-group-exchange-sha1",
+            "diffie-hellman-group14-sha1",
+            "diffie-hellman-group1-sha1"
           ],
           serverHostKey: [
             "ssh-ed25519",
             "rsa-sha2-512",
-            "rsa-sha2-256"
+            "rsa-sha2-256",
+            "ssh-rsa",
+            "ssh-dss"
           ],
           cipher: [
             "aes128-ctr",
@@ -1552,7 +1567,12 @@ function checkConnection(ip, port, username, password) {
           ],
           hmac: [
             "hmac-sha2-256-etm@openssh.com",
-            "hmac-sha2-512-etm@openssh.com"
+            "hmac-sha2-512-etm@openssh.com",
+            "hmac-md5",
+            "hmac-sha1",
+            "hmac-ripemd160",
+            "hmac-sha1-96",
+            "hmac-md5-96"
           ],
           compress: [
             "none",

@@ -650,7 +650,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (logDetail.backupVoid) {
             showErrorModal(
               "Carpeta Vacía Detectada",
-              `${serverResult.ip} La carpeta en la ruta ${logDetail.backupPath} está vacía.`,
+              `${serverResult.ip} La carpeta en la ruta ${logDetail.backupPath} está vacía. \n Servidor: ${serverResult.serverName}`,
               serverResult.serverName,
               serverResult.ip
             );
@@ -1792,7 +1792,8 @@ const requiredSubfolders = [
             if (logData.backupVoid === true) {
               console.log("Mostrando modal de advertencia por carpeta vacía");
               showErrorModal(
-                `Advertencia: Se detectó una carpeta vacía en la ruta ${logData.backupPath}`,
+                `Advertencia: Se detectó una carpeta vacía en la ruta ${logData.backupPath}, 
+                 En el servidor :${serverName}`,
                 ip
               );
             }
@@ -1835,7 +1836,8 @@ const requiredSubfolders = [
           if (logDetailsArray.backupVoid === true) {
             console.log("Mostrando modal de advertencia por carpeta vacía");
             showErrorModal(
-              `Advertencia: Se detectó una carpeta vacía en la ruta ${logDetailsArray.backupPath}`,
+              `Advertencia: Se detectó una carpeta vacía en la ruta ${logDetailsArray.backupPath}, 
+               En el servidor:${serverName}`,
               ip
             );
           }
