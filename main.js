@@ -2184,10 +2184,30 @@ ipcMain.handle("get-verification-history", async (event, date) => {
     connection = await oracledb.getConnection(dbConfig);
 
     const result = await connection.execute(`
-      SELECT id, executionDate, horaINI, horaFIN, duration, success, dumpFileSize, serverName, logFileName, ip, backupPath, totalFolderSize, backupStatus, TO_CHAR(groupControlInfo) AS groupControlInfo
-      FROM LogBackup
-      WHERE TRUNC(executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
-      ORDER BY executionDate DESC
+      SELECT 
+                lb.id, 
+                lb.executionDate, 
+                lb.horaINI, 
+                lb.horaFIN, 
+                lb.duration, 
+                lb.success, 
+                lb.dumpFileSize, 
+                si.ServerName, -- Obtén el nombre del servidor
+                lb.serverName AS osType, -- Obtén el SO desde LogBackup
+                lb.logFileName, 
+                lb.ip, 
+                lb.backupPath, 
+                lb.totalFolderSize, 
+                lb.backupStatus, 
+                TO_CHAR(lb.groupControlInfo) AS groupControlInfo
+            FROM 
+                LogBackup lb
+            JOIN 
+                ServerInfo si ON lb.ip = si.IP -- Aquí haces el JOIN
+            WHERE 
+                TRUNC(lb.executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
+            ORDER BY 
+                lb.executionDate DESC
     `, { selectedDate: date });
 
     return result.rows.map((row) => ({
@@ -2198,13 +2218,14 @@ ipcMain.handle("get-verification-history", async (event, date) => {
       duration: row[4],
       success: row[5],
       dumpFileSize: row[6],
-      serverName: row[7],
-      logFileName: row[8],
-      ip: row[9],
-      backupPath: row[10],
-      totalFolderSize: row[11],
-      backupStatus: row[12],
-      groupControlInfo:row[13]
+      serverName: row[7], // ServerName de ServerInfo
+      osType: row[8], // SO desde LogBackup
+      logFileName: row[9],
+      ip: row[10],
+      backupPath: row[11],
+      totalFolderSize: row[12],
+      backupStatus: row[13],
+      groupControlInfo:row[14]
     }));
   } catch (error) {
     console.error("Error al obtener el historial de verificaciones:", error);

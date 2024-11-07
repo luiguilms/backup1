@@ -177,7 +177,16 @@ async function loadHistoryData(date, container) {
               });
           }
       },
-          { headerName: "Servidor", field: "serverName", sortable: true, filter: true, minWidth: 120 },
+      {
+        headerName: "Servidor",
+        field: "osType", // Usa el nombre de la columna del SO
+        sortable: true,
+        filter: true,
+        minWidth: 180,
+        cellRenderer: (params) => {
+            return `${params.data.osType} - ${params.data.serverName}`; // Combina SO y ServerName
+        }
+    },
           { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120 },
           { headerName: "Estado", field: "success", sortable: true, filter: true, minWidth: 80, 
             cellRenderer: (params) => {
@@ -187,24 +196,70 @@ async function loadHistoryData(date, container) {
           }
           },
           { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 150 },
-          { headerName: "Hora de Inicio", field: "horaINI", sortable: true, filter: true, minWidth: 150 },
-          { headerName: "Hora de Fin", field: "horaFIN", sortable: true, filter: true, minWidth: 150 },
+          { 
+            headerName: "Hora de Inicio", 
+            field: "horaINI", 
+            sortable: true, 
+            filter: true, 
+            minWidth: 180,
+            valueFormatter: (params) => {
+                const date = new Date(params.value);
+                return date.toLocaleString("es-ES", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit"
+                });
+            }
+        },
+        { 
+            headerName: "Hora de Fin", 
+            field: "horaFIN", 
+            sortable: true, 
+            filter: true, 
+            minWidth: 180,
+            valueFormatter: (params) => {
+                const date = new Date(params.value);
+                return date.toLocaleString("es-ES", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit"
+                });
+            }
+        },
           { headerName: "Duración", field: "duration", sortable: true, filter: true, minWidth: 100 },
           { headerName: "Tamaño Total DMP", field: "dumpFileSize", sortable: true, filter: true, minWidth: 150 },
           { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true, minWidth: 150 },
           { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true, minWidth: 100 },
           { headerName: "Ruta de Backup", field: "backupPath", sortable: true, filter: true, minWidth: 170 },
           {
-              headerName: "Grupo de control", field: "last10Lines", minWidth: 120,
-              cellRenderer: (params) => {
-                  const button = document.createElement("button");
-                  button.innerHTML = params.data.groupControlInfo;
-                  button.addEventListener("click", () => {
-                      showLast10LinesModal(params.data.last10Lines, params.data.hasWarning);
-                  });
-                  return button;
-              }
-          }
+            headerName: "Grupo de control",
+            field: "last10Lines",
+            minWidth: 200,
+            cellRenderer: (params) => {
+                const button = document.createElement("button");
+                
+                // Cambia el título del botón según el contenido de groupControlInfo
+                if (params.data.groupControlInfo && params.data.groupControlInfo.includes("Job")) {
+                    button.innerHTML = "Ver última línea del log"; // Título si hay detalles de trabajo
+                } else {
+                    button.innerHTML = "Ver detalles de advertencias"; // Título si no hay detalles de trabajo
+                }
+        
+                button.addEventListener("click", () => {
+                    // Muestra el contenido de groupControlInfo al hacer clic
+                    const contentToShow = params.data.groupControlInfo; // Mantiene el contenido original
+                    showLast10LinesModal(contentToShow); // Asegúrate de que este modal maneje el contenido
+                });
+        
+                return button;
+            }
+        }
       ];
 
       const gridOptions = {
@@ -1223,6 +1278,7 @@ async function loadHistoryData(date, container) {
   function showLast10LinesModal(lines, hasWarning) {
     const modal = document.createElement("div");
     modal.className = "modal";
+    modal.style.zIndex = "2000";
     modal.innerHTML = `
       <div class="modal-content">
         <span class="close">&times;</span>
