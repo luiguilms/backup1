@@ -772,11 +772,11 @@ app.whenReady().then(() => {
     "save-log-to-database",
     async (
       event,
-      { logDetails, dumpFileInfo, targetOS, logFileName, ip, backupPath, totalFolderSize, backupStatus, groupControlInfo, lastLine  }
+      { logDetails, dumpFileInfo, targetOS, logFileName, ip, backupPath, totalFolderSize, backupStatus, groupControlInfo, lastLine }
     ) => { // Añadimos los nuevos campos aquí
       console.log('Objeto completo recibido:', { logDetails, lastLine }); // Debug adicional
       // Extraer lastLine del objeto principal si existe
-    const lastLineToUse = lastLine || logDetails.lastLine;
+      const lastLineToUse = lastLine || logDetails.lastLine;
       try {
         await saveLogToDatabase(
           logDetails,
@@ -1250,6 +1250,17 @@ app.whenReady().then(() => {
                 decryptedPassword,
                 osType
               );
+              // Verificar si logDetails está vacío o contiene un error
+              if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
+                results.push({
+                  serverName,
+                  ip,
+                  backupPath,
+                  error: `Archivo log no válido o incompatible para la carpeta: ${backupPath}, en el servidor: ${serverName}, IP: ${ip}`,
+                  logDetails: null, // Asegúrate de incluir esto
+                });
+                continue; // Continuar con el siguiente backup
+              }
 
               if (logDetails.error) {
                 results.push({
@@ -1807,7 +1818,7 @@ async function saveLogToDatabase(
   totalFolderSize, // Nuevo campo
   backupStatus, // Nuevo campo
   groupControlInfo, // Nuevo campo
-  lastLine 
+  lastLine
 ) {
   if (logDetails?.backupVoid) {
     console.log(`Skipping save for empty backup path: ${backupPath}`);
@@ -1815,23 +1826,23 @@ async function saveLogToDatabase(
   }
   console.log("Contenido de logDetails:", logDetails);
   console.log("last10Lines:", logDetails.last10Lines);
-let finalGroupControlInfo;
-// Revisamos el objeto completo para debugging
+  let finalGroupControlInfo;
+  // Revisamos el objeto completo para debugging
 
-if (logDetails.hasWarning && Array.isArray(logDetails.last10Lines) && logDetails.last10Lines.length > 0) {
-  finalGroupControlInfo = logDetails.last10Lines.join('\n');
-} else if (Array.isArray(lastLine) && lastLine.length > 0) {
-  finalGroupControlInfo = lastLine[0];
-} else if (typeof lastLine === 'string' && lastLine.trim()) {
-  finalGroupControlInfo = lastLine.trim();
-} else if (typeof logDetails.lastLine === 'string' && logDetails.lastLine.trim()) {
-  // Intentar obtener lastLine desde logDetails si existe
-  finalGroupControlInfo = logDetails.lastLine.trim();
-} else {
-  finalGroupControlInfo = "No hay información disponible";
-}
+  if (logDetails.hasWarning && Array.isArray(logDetails.last10Lines) && logDetails.last10Lines.length > 0) {
+    finalGroupControlInfo = logDetails.last10Lines.join('\n');
+  } else if (Array.isArray(lastLine) && lastLine.length > 0) {
+    finalGroupControlInfo = lastLine[0];
+  } else if (typeof lastLine === 'string' && lastLine.trim()) {
+    finalGroupControlInfo = lastLine.trim();
+  } else if (typeof logDetails.lastLine === 'string' && logDetails.lastLine.trim()) {
+    // Intentar obtener lastLine desde logDetails si existe
+    finalGroupControlInfo = logDetails.lastLine.trim();
+  } else {
+    finalGroupControlInfo = "No hay información disponible";
+  }
 
-console.log("finalGroupControlInfo:", finalGroupControlInfo);
+  console.log("finalGroupControlInfo:", finalGroupControlInfo);
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
@@ -2225,7 +2236,7 @@ ipcMain.handle("get-verification-history", async (event, date) => {
       backupPath: row[11],
       totalFolderSize: row[12],
       backupStatus: row[13],
-      groupControlInfo:row[14]
+      groupControlInfo: row[14]
     }));
   } catch (error) {
     console.error("Error al obtener el historial de verificaciones:", error);

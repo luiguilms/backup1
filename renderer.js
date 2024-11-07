@@ -86,12 +86,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     modal.style.zIndex = "1001";
 
     const content = document.createElement("div");
-    content.style.position = "relative";  
+    content.style.position = "relative";
     content.style.backgroundColor = "#fff";
     content.style.padding = "20px";
     content.style.borderRadius = "8px";
     content.style.width = "90%";
-    content.style.height = "90%"; 
+    content.style.height = "90%";
     content.style.overflowY = "hidden"; // Deshabilita el scroll aquí para que lo maneje el grid
 
     const title = document.createElement("h2");
@@ -140,16 +140,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.body.appendChild(modal);
 
     await loadHistoryData(dateInput.value, resultsContainer);
-}
+  }
 
-async function loadHistoryData(date, container) {
-  try {
+  async function loadHistoryData(date, container) {
+    try {
       const historyData = await window.electron.getVerificationHistory(date);
       container.innerHTML = "";
 
       if (!historyData.length) {
-          container.innerHTML = "<p>No hay verificaciones para esta fecha.</p>";
-          return;
+        container.innerHTML = "<p>No hay verificaciones para esta fecha.</p>";
+        return;
       }
 
       const gridDiv = document.createElement("div");
@@ -159,126 +159,127 @@ async function loadHistoryData(date, container) {
       container.appendChild(gridDiv);
 
       const columnDefs = [
-        { 
-          headerName: "Fecha de Ejecución", 
-          field: "executionDate", 
-          sortable: true, 
-          filter: true, 
+        {
+          headerName: "Fecha de Ejecución",
+          field: "executionDate",
+          sortable: true,
+          filter: true,
           minWidth: 180,
           valueFormatter: (params) => {
-              const date = new Date(params.value);
-              return date.toLocaleString("es-ES", {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit"
-              });
+            const date = new Date(params.value);
+            return date.toLocaleString("es-ES", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit"
+            });
           }
-      },
-      {
-        headerName: "Servidor",
-        field: "osType", // Usa el nombre de la columna del SO
-        sortable: true,
-        filter: true,
-        minWidth: 180,
-        cellRenderer: (params) => {
+        },
+        {
+          headerName: "Servidor",
+          field: "osType", // Usa el nombre de la columna del SO
+          sortable: true,
+          filter: true,
+          minWidth: 180,
+          cellRenderer: (params) => {
             return `${params.data.osType} - ${params.data.serverName}`; // Combina SO y ServerName
-        }
-    },
-          { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120 },
-          { headerName: "Estado", field: "success", sortable: true, filter: true, minWidth: 80, 
-            cellRenderer: (params) => {
-              const statusText = params.value === 1 ? "Éxito" : "Fallo";
-              const statusClass = params.value === 1 ? "status-success" : "status-failure";
-              return `<div class="${statusClass}">${statusText}</div>`;
           }
-          },
-          { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 150 },
-          { 
-            headerName: "Hora de Inicio", 
-            field: "horaINI", 
-            sortable: true, 
-            filter: true, 
-            minWidth: 180,
-            valueFormatter: (params) => {
-                const date = new Date(params.value);
-                return date.toLocaleString("es-ES", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit"
-                });
-            }
         },
-        { 
-            headerName: "Hora de Fin", 
-            field: "horaFIN", 
-            sortable: true, 
-            filter: true, 
-            minWidth: 180,
-            valueFormatter: (params) => {
-                const date = new Date(params.value);
-                return date.toLocaleString("es-ES", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit"
-                });
-            }
+        { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120 },
+        {
+          headerName: "Estado", field: "success", sortable: true, filter: true, minWidth: 80,
+          cellRenderer: (params) => {
+            const statusText = params.value === 1 ? "Éxito" : "Fallo";
+            const statusClass = params.value === 1 ? "status-success" : "status-failure";
+            return `<div class="${statusClass}">${statusText}</div>`;
+          }
         },
-          { headerName: "Duración", field: "duration", sortable: true, filter: true, minWidth: 100 },
-          { headerName: "Tamaño Total DMP", field: "dumpFileSize", sortable: true, filter: true, minWidth: 150 },
-          { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true, minWidth: 150 },
-          { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true, minWidth: 100 },
-          { headerName: "Ruta de Backup", field: "backupPath", sortable: true, filter: true, minWidth: 170 },
-          {
-            headerName: "Grupo de control",
-            field: "last10Lines",
-            minWidth: 200,
-            cellRenderer: (params) => {
-                const button = document.createElement("button");
-                
-                // Cambia el título del botón según el contenido de groupControlInfo
-                if (params.data.groupControlInfo && params.data.groupControlInfo.includes("Job")) {
-                    button.innerHTML = "Ver última línea del log"; // Título si hay detalles de trabajo
-                } else {
-                    button.innerHTML = "Ver detalles de advertencias"; // Título si no hay detalles de trabajo
-                }
-        
-                button.addEventListener("click", () => {
-                    // Muestra el contenido de groupControlInfo al hacer clic
-                    const contentToShow = params.data.groupControlInfo; // Mantiene el contenido original
-                    showLast10LinesModal(contentToShow); // Asegúrate de que este modal maneje el contenido
-                });
-        
-                return button;
+        { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 150 },
+        {
+          headerName: "Hora de Inicio",
+          field: "horaINI",
+          sortable: true,
+          filter: true,
+          minWidth: 180,
+          valueFormatter: (params) => {
+            const date = new Date(params.value);
+            return date.toLocaleString("es-ES", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit"
+            });
+          }
+        },
+        {
+          headerName: "Hora de Fin",
+          field: "horaFIN",
+          sortable: true,
+          filter: true,
+          minWidth: 180,
+          valueFormatter: (params) => {
+            const date = new Date(params.value);
+            return date.toLocaleString("es-ES", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit"
+            });
+          }
+        },
+        { headerName: "Duración", field: "duration", sortable: true, filter: true, minWidth: 100 },
+        { headerName: "Tamaño Total DMP", field: "dumpFileSize", sortable: true, filter: true, minWidth: 150 },
+        { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true, minWidth: 150 },
+        { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true, minWidth: 100 },
+        { headerName: "Ruta de Backup", field: "backupPath", sortable: true, filter: true, minWidth: 170 },
+        {
+          headerName: "Grupo de control",
+          field: "last10Lines",
+          minWidth: 200,
+          cellRenderer: (params) => {
+            const button = document.createElement("button");
+
+            // Cambia el título del botón según el contenido de groupControlInfo
+            if (params.data.groupControlInfo && params.data.groupControlInfo.includes("Job")) {
+              button.innerHTML = "Ver última línea del log"; // Título si hay detalles de trabajo
+            } else {
+              button.innerHTML = "Ver detalles de advertencias"; // Título si no hay detalles de trabajo
             }
+
+            button.addEventListener("click", () => {
+              // Muestra el contenido de groupControlInfo al hacer clic
+              const contentToShow = params.data.groupControlInfo; // Mantiene el contenido original
+              showLast10LinesModal(contentToShow); // Asegúrate de que este modal maneje el contenido
+            });
+
+            return button;
+          }
         }
       ];
 
       const gridOptions = {
-          columnDefs,
-          rowData: historyData,
-          pagination: true,
-          paginationPageSize: 10,
-          domLayout: "autoHeight",
-          defaultColDef: {
-              resizable: true,
-              sortable: true,
-              filter: true,
-          },
-          onGridReady: (params) => {
-              params.api.sizeColumnsToFit();
-          },
-          onFirstDataRendered: (params) => {
-              params.api.sizeColumnsToFit(); // Ajusta las columnas al tamaño del contenedor al renderizar los datos
-          }
+        columnDefs,
+        rowData: historyData,
+        pagination: true,
+        paginationPageSize: 10,
+        domLayout: "autoHeight",
+        defaultColDef: {
+          resizable: true,
+          sortable: true,
+          filter: true,
+        },
+        onGridReady: (params) => {
+          params.api.sizeColumnsToFit();
+        },
+        onFirstDataRendered: (params) => {
+          params.api.sizeColumnsToFit(); // Ajusta las columnas al tamaño del contenedor al renderizar los datos
+        }
       };
 
       // Inicializar el grid con las opciones configuradas
@@ -286,16 +287,16 @@ async function loadHistoryData(date, container) {
 
       // Ajustar el tamaño de las columnas automáticamente al redimensionar la ventana
       window.addEventListener("resize", () => {
-          gridOptions.api.sizeColumnsToFit();
+        gridOptions.api.sizeColumnsToFit();
       });
 
-  } catch (error) {
+    } catch (error) {
       console.error("Error al cargar el historial de verificaciones:", error);
       container.innerHTML = "<p>Error al cargar el historial.</p>";
+    }
   }
-}
 
-  
+
   //const tooltipError = document.createElement("div");
   const processAllServersBtn = document.getElementById(
     "process-all-servers-btn"
@@ -339,8 +340,9 @@ async function loadHistoryData(date, container) {
       backupRouteSelect.innerHTML = "<option>Error al cargar rutas</option>";
       backupRouteSelect.disabled = true;
     }
+    ipSelect.addEventListener("change", updateBackupRoutes);
   }
-  ipSelect.addEventListener("change", updateBackupRoutes);
+  
   // Asegúrate de que esta función se llame cada vez que se cambia la IP seleccionada
 
   // *** Función para cargar servidores ***
@@ -853,19 +855,25 @@ async function loadHistoryData(date, container) {
       const rowData = results.flatMap((serverResult) => {
         if (serverResult.error) {
           if (serverResult.error.includes("no existe")) {
-            // Mostrar modal específico para la ruta inexistente
-            showErrorpathModal(
-              "Ruta de Backup No Existente",
-              `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
-            );
+              // Mostrar modal específico para la ruta inexistente
+              showErrorpathModal(
+                  "Ruta de Backup No Existente",
+                  `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
+              );
+          } else if (serverResult.error.includes("Archivo log no válido o incompatible") ) {
+              showErrorModal(
+                  serverResult.error,
+                  serverResult.ip,
+                  serverResult.serverName // Asegúrate de que este valor esté disponible
+              );
           } else {
-            showErrorModal(
-              `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
-              serverResult.ip || "IP desconocida"
-            );
+              showErrorModal(
+                  `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
+                  serverResult.ip || "IP desconocida"
+              );
           }
           return []; // No añadir nada al grid
-        }
+      }
         if (serverResult.warning) {
           showErrorModal(
             "Backup Incompleto",
@@ -1914,22 +1922,22 @@ async function loadHistoryData(date, container) {
     // Extrae el número de "totalFolderSize"
     const sizePattern = /(\d+(?:\.\d+)?)\s*(MB|GB)?/i;
     const match = totalFolderSize.match(sizePattern);
-  
+
     if (!match) return totalFolderSize; // Si el formato es incorrecto, regresamos el valor sin cambios
-  
+
     let sizeInMB = parseFloat(match[1]);
     const unit = match[2] ? match[2].toUpperCase() : "MB"; // Asume "MB" si no hay unidad
-  
+
     // Solo convierte si la unidad es "MB" y el valor es mayor o igual a 1000
     if (unit === "MB" && sizeInMB >= 1000) {
       const sizeInGB = (sizeInMB / 1000).toFixed(2);
       return `${sizeInGB} GB`;
     }
-  
+
     // Devuelve el tamaño en MB o GB sin cambios si es menor a 1000 MB o ya está en GB
     return `${sizeInMB.toFixed(2)} ${unit}`;
   }
-  
+
   // Definir las subcarpetas requeridas para Bantotal
   const requiredSubfolders = [
     "ESQ_USRREPBI",
@@ -1988,6 +1996,16 @@ async function loadHistoryData(date, container) {
         let directoryPath = backupRouteSelect.value; // Usa la ruta actual seleccionada en backupRouteSelect
 
         console.log("Ruta de backup seleccionada:", directoryPath);
+        const servers = await window.electron.getServers(); // Asegúrate de que esta llamada sea correcta
+        console.log("Servers:", servers); // Para ver qué estás obteniendo
+
+        if (!Array.isArray(servers)) {
+          console.error("Los servidores no se obtuvieron como un array:", servers);
+          return; // O maneja el error de otra manera
+        }
+
+        const server = servers.find((s) => s.ip === ip);
+        const serverName = server ? server.name : "N/A";
 
         // Obtener los detalles del log
         console.log("Fetching log details...");
@@ -2005,10 +2023,16 @@ async function loadHistoryData(date, container) {
           showErrorModal(
             logDetailsArray.error,
             logDetailsArray.ip,
-            logDetailsArray.serverName,
+            serverName,
             logDetailsArray.backupPath
           );
           return;
+        }
+        // Verificar si logDetailsArray está vacío y mostrar un modal si es necesario
+        if (!logDetailsArray || (Array.isArray(logDetailsArray) && logDetailsArray.length === 0)) {
+          const warningMessage = `Archivo log no válido o incompatible para la ruta: ${directoryPath}, en el servidor: ${serverName}`;
+          showErrorModal(warningMessage, ip);
+          return; // Salimos si no hay datos válidos
         }
         // Verifica si hay elementos en logDetailsArray
         // Antes del bucle que procesa los detalles del log
