@@ -73,7 +73,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.body.style.marginTop = "50px"; // Ajusta este valor según sea necesario
   }
   async function showHistory() {
-    // Crear modal
     const modal = document.createElement("div");
     modal.style.position = "fixed";
     modal.style.top = "0";
@@ -85,22 +84,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     modal.style.justifyContent = "center";
     modal.style.alignItems = "center";
     modal.style.zIndex = "1001";
-  
+
     const content = document.createElement("div");
-    content.style.position = "relative";  // Necesario para posicionar la "X"
+    content.style.position = "relative";  
     content.style.backgroundColor = "#fff";
     content.style.padding = "20px";
     content.style.borderRadius = "8px";
-    content.style.maxWidth = "80%";
-    content.style.maxHeight = "80%";
-    content.style.overflowY = "auto";
-  
-    // Título
+    content.style.width = "90%";
+    content.style.height = "90%"; 
+    content.style.overflowY = "hidden"; // Deshabilita el scroll aquí para que lo maneje el grid
+
     const title = document.createElement("h2");
     title.textContent = "Historial de Verificaciones";
     content.appendChild(title);
-  
-    // Agregar botón de cerrar (X) en la esquina superior derecha
+
     const closeXButton = document.createElement("button");
     closeXButton.textContent = "✕";
     closeXButton.style.position = "absolute";
@@ -112,103 +109,137 @@ document.addEventListener("DOMContentLoaded", async () => {
     closeXButton.style.cursor = "pointer";
     closeXButton.onclick = () => document.body.removeChild(modal);
     content.appendChild(closeXButton);
-  
-    // Campo de selección de fecha
+
     const dateInput = document.createElement("input");
     dateInput.type = "date";
-    dateInput.value = new Date().toISOString().split("T")[0]; // Fecha actual por defecto
+    dateInput.value = new Date().toISOString().split("T")[0];
     dateInput.style.marginBottom = "10px";
     content.appendChild(dateInput);
-  
-    // Botón para aplicar el filtro de fecha
+
     const filterButton = document.createElement("button");
     filterButton.textContent = "Filtrar por Fecha";
     filterButton.onclick = async () => {
       const selectedDate = dateInput.value;
-      await loadHistoryData(selectedDate); // Cargar el historial para la fecha seleccionada
+      await loadHistoryData(selectedDate, resultsContainer);
     };
     content.appendChild(filterButton);
-  
-    // Contenedor de la tabla de resultados
+
     const resultsContainer = document.createElement("div");
     resultsContainer.style.marginTop = "20px";
+    resultsContainer.style.width = "100%";
+    resultsContainer.style.height = "75vh"; // Aumenta la altura para ocupar el espacio del modal
+    resultsContainer.style.overflowY = "auto"; // Habilita el scroll solo en el contenedor de resultados
     content.appendChild(resultsContainer);
-  
-    // Botón de cerrar (abajo)
+
     const closeButton = document.createElement("button");
     closeButton.textContent = "Cerrar";
     closeButton.onclick = () => document.body.removeChild(modal);
     content.appendChild(closeButton);
-  
+
     modal.appendChild(content);
     document.body.appendChild(modal);
-  
-    // Cargar historial por defecto para la fecha actual
+
     await loadHistoryData(dateInput.value, resultsContainer);
-  }
-  
-  // Función para cargar los datos del historial según la fecha seleccionada
-  async function loadHistoryData(date, container) {
-    try {
+}
+
+async function loadHistoryData(date, container) {
+  try {
       const historyData = await window.electron.getVerificationHistory(date);
-  
-      // Limpiar el contenedor antes de agregar nuevo grid
       container.innerHTML = "";
-  
+
       if (!historyData.length) {
-        container.innerHTML = "<p>No hay verificaciones disponibles para esta fecha.</p>";
-        return;
+          container.innerHTML = "<p>No hay verificaciones para esta fecha.</p>";
+          return;
       }
-  
-      // Crear el contenedor del grid
+
       const gridDiv = document.createElement("div");
+      gridDiv.classList.add("ag-theme-alpine"); // Aplica el tema Balham
       gridDiv.style.width = "100%";
-      gridDiv.style.height = "400px"; // Ajustar según sea necesario
+      gridDiv.style.height = "100%";
       container.appendChild(gridDiv);
-  
-      // Configuración del grid, reutilizando columnas y opciones del grid principal
+
       const columnDefs = [
-        { headerName: "Servidor", field: "serverName", sortable: true, filter: true },
-        { headerName: "IP", field: "ip", sortable: true, filter: true },
-        { headerName: "Estado", field: "status", sortable: true, filter: true, 
-          cellRenderer: (params) => `<div class="${params.data.statusClass}">${params.value}</div>` },
-        { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true },
-        { headerName: "Hora de Inicio", field: "startTime", sortable: true, filter: true },
-        { headerName: "Hora de Fin", field: "endTime", sortable: true, filter: true },
-        { headerName: "Duración", field: "duration", sortable: true, filter: true },
-        { headerName: "Tamaño Total DMP", field: "totalDmpSize", sortable: true, filter: true },
-        { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true },
-        { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true },
-        { headerName: "Ruta de Backup", field: "backupPath", sortable: true, filter: true },
-        {
-          headerName: "Grupo de control", field: "last10Lines", 
-          cellRenderer: (params) => {
-            const button = document.createElement("button");
-            button.innerHTML = params.data.groupControlInfo;
-            button.addEventListener("click", () => {
-              showLast10LinesModal(params.data.last10Lines, params.data.hasWarning);
-            });
-            return button;
+        { 
+          headerName: "Fecha de Ejecución", 
+          field: "executionDate", 
+          sortable: true, 
+          filter: true, 
+          minWidth: 180,
+          valueFormatter: (params) => {
+              const date = new Date(params.value);
+              return date.toLocaleString("es-ES", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit"
+              });
           }
-        }
+      },
+          { headerName: "Servidor", field: "serverName", sortable: true, filter: true, minWidth: 120 },
+          { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120 },
+          { headerName: "Estado", field: "success", sortable: true, filter: true, minWidth: 80, 
+            cellRenderer: (params) => {
+              const statusText = params.value === 1 ? "Éxito" : "Fallo";
+              const statusClass = params.value === 1 ? "status-success" : "status-failure";
+              return `<div class="${statusClass}">${statusText}</div>`;
+          }
+          },
+          { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 150 },
+          { headerName: "Hora de Inicio", field: "horaINI", sortable: true, filter: true, minWidth: 150 },
+          { headerName: "Hora de Fin", field: "horaFIN", sortable: true, filter: true, minWidth: 150 },
+          { headerName: "Duración", field: "duration", sortable: true, filter: true, minWidth: 100 },
+          { headerName: "Tamaño Total DMP", field: "dumpFileSize", sortable: true, filter: true, minWidth: 150 },
+          { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true, minWidth: 150 },
+          { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true, minWidth: 100 },
+          { headerName: "Ruta de Backup", field: "backupPath", sortable: true, filter: true, minWidth: 170 },
+          {
+              headerName: "Grupo de control", field: "last10Lines", minWidth: 120,
+              cellRenderer: (params) => {
+                  const button = document.createElement("button");
+                  button.innerHTML = params.data.groupControlInfo;
+                  button.addEventListener("click", () => {
+                      showLast10LinesModal(params.data.last10Lines, params.data.hasWarning);
+                  });
+                  return button;
+              }
+          }
       ];
-  
+
       const gridOptions = {
-        columnDefs,
-        rowData: historyData,
-        pagination: true,
-        paginationPageSize: 10,
-        domLayout: "autoHeight",
+          columnDefs,
+          rowData: historyData,
+          pagination: true,
+          paginationPageSize: 10,
+          domLayout: "autoHeight",
+          defaultColDef: {
+              resizable: true,
+              sortable: true,
+              filter: true,
+          },
+          onGridReady: (params) => {
+              params.api.sizeColumnsToFit();
+          },
+          onFirstDataRendered: (params) => {
+              params.api.sizeColumnsToFit(); // Ajusta las columnas al tamaño del contenedor al renderizar los datos
+          }
       };
-  
-      // Inicializar AG-Grid en el div creado
+
+      // Inicializar el grid con las opciones configuradas
       new agGrid.Grid(gridDiv, gridOptions);
-  
-    } catch (error) {
+
+      // Ajustar el tamaño de las columnas automáticamente al redimensionar la ventana
+      window.addEventListener("resize", () => {
+          gridOptions.api.sizeColumnsToFit();
+      });
+
+  } catch (error) {
       console.error("Error al cargar el historial de verificaciones:", error);
       container.innerHTML = "<p>Error al cargar el historial.</p>";
-    }
   }
+}
+
   
   //const tooltipError = document.createElement("div");
   const processAllServersBtn = document.getElementById(

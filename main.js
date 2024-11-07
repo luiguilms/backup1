@@ -1752,7 +1752,7 @@ function formatFileSize(sizeInMB) {
     let sizeInGB = (sizeInMB / 1000).toFixed(2);
     return `${sizeInGB} GB`;
   } else {
-    return `${sizeInMB} MB`;
+    return `${sizeInMB.toFixed(2)} MB`;
   }
 }
 async function getBackupStatistics() {
@@ -1911,7 +1911,7 @@ console.log("finalGroupControlInfo:", finalGroupControlInfo);
         horaFIN: endTime,
         duration: logDetails.duration,
         success: logDetails.success ? 1 : 0,
-        fileSize: formattedFileSize, // Guardar el valor con la unidad (MB o GB)
+        fileSize: formatFileSize(totalDmpSize), // Guardar el valor con la unidad (MB o GB)
         serverName: targetOS,
         logFileName: logFileName,
         ip: ip,
@@ -2184,7 +2184,7 @@ ipcMain.handle("get-verification-history", async (event, date) => {
     connection = await oracledb.getConnection(dbConfig);
 
     const result = await connection.execute(`
-      SELECT id, executionDate, horaINI, horaFIN, duration, success, dumpFileSize, serverName, logFileName, ip, backupPath
+      SELECT id, executionDate, horaINI, horaFIN, duration, success, dumpFileSize, serverName, logFileName, ip, backupPath, totalFolderSize, backupStatus, TO_CHAR(groupControlInfo) AS groupControlInfo
       FROM LogBackup
       WHERE TRUNC(executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
       ORDER BY executionDate DESC
@@ -2202,6 +2202,9 @@ ipcMain.handle("get-verification-history", async (event, date) => {
       logFileName: row[8],
       ip: row[9],
       backupPath: row[10],
+      totalFolderSize: row[11],
+      backupStatus: row[12],
+      groupControlInfo:row[13]
     }));
   } catch (error) {
     console.error("Error al obtener el historial de verificaciones:", error);
