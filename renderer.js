@@ -13,30 +13,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   const deleteServerBtn = document.getElementById("delete-server-btn");
   const backupRouteSelect = document.getElementById("backup-routes");
   const exportExcelButton = document.getElementById("exportExcel");
-  
-  
+
+
   if (currentPage.includes("index.html")) {
-  document.getElementById("verify-connection-btn").addEventListener("click", async () => {
-    // Obtén los valores del formulario
-    const ip = document.getElementById("ip").value;
-    const port = document.getElementById("port").value || 22; // Usa 22 como puerto por defecto
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
+    document.getElementById("verify-connection-btn").addEventListener("click", async () => {
+      // Obtén los valores del formulario
+      const ip = document.getElementById("ip").value;
+      const port = document.getElementById("port").value || 22; // Usa 22 como puerto por defecto
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
 
-    try {
-      // Llama a la función de conexión en el backend usando ipcRenderer
-      const result = await window.electron.connectToServer(ip, port, username, password);
+      try {
+        // Llama a la función de conexión en el backend usando ipcRenderer
+        const result = await window.electron.connectToServer(ip, port, username, password);
 
-      if (result.success) {
-        alert("Conexión existosa al servidor");
-      } else {
-        alert(`Error en la conexión: ${result.message}`);
+        if (result.success) {
+          alert("Conexión existosa al servidor");
+        } else {
+          alert(`Error en la conexión: ${result.message}`);
+        }
+      } catch (error) {
+        console.error("Error al intentar conectar:", error);
+        alert("Ocurrió un error inesperado al intentar conectar.");
       }
-    } catch (error) {
-      console.error("Error al intentar conectar:", error);
-      alert("Ocurrió un error inesperado al intentar conectar.");
-    }
-  });
+    });
   }
   if (exportExcelButton) {
     exportExcelButton.addEventListener("click", () => handleExport("excel"));
@@ -62,10 +62,154 @@ document.addEventListener("DOMContentLoaded", async () => {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     z-index: 1000;
   `;
+    // Botón de Historial
+    const historyButton = document.createElement("button");
+    historyButton.textContent = "Historial de Verificaciones";
+    historyButton.id = "showHistoryButton";
+    historyButton.onclick = showHistory;
     topBar.appendChild(statsButton);
+    topBar.appendChild(historyButton);
     document.body.insertBefore(topBar, document.body.firstChild);
     document.body.style.marginTop = "50px"; // Ajusta este valor según sea necesario
   }
+  async function showHistory() {
+    // Crear modal
+    const modal = document.createElement("div");
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100%";
+    modal.style.height = "100%";
+    modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+    modal.style.display = "flex";
+    modal.style.justifyContent = "center";
+    modal.style.alignItems = "center";
+    modal.style.zIndex = "1001";
+  
+    const content = document.createElement("div");
+    content.style.position = "relative";  // Necesario para posicionar la "X"
+    content.style.backgroundColor = "#fff";
+    content.style.padding = "20px";
+    content.style.borderRadius = "8px";
+    content.style.maxWidth = "80%";
+    content.style.maxHeight = "80%";
+    content.style.overflowY = "auto";
+  
+    // Título
+    const title = document.createElement("h2");
+    title.textContent = "Historial de Verificaciones";
+    content.appendChild(title);
+  
+    // Agregar botón de cerrar (X) en la esquina superior derecha
+    const closeXButton = document.createElement("button");
+    closeXButton.textContent = "✕";
+    closeXButton.style.position = "absolute";
+    closeXButton.style.top = "10px";
+    closeXButton.style.right = "10px";
+    closeXButton.style.background = "black";
+    closeXButton.style.border = "none";
+    closeXButton.style.fontSize = "20px";
+    closeXButton.style.cursor = "pointer";
+    closeXButton.onclick = () => document.body.removeChild(modal);
+    content.appendChild(closeXButton);
+  
+    // Campo de selección de fecha
+    const dateInput = document.createElement("input");
+    dateInput.type = "date";
+    dateInput.value = new Date().toISOString().split("T")[0]; // Fecha actual por defecto
+    dateInput.style.marginBottom = "10px";
+    content.appendChild(dateInput);
+  
+    // Botón para aplicar el filtro de fecha
+    const filterButton = document.createElement("button");
+    filterButton.textContent = "Filtrar por Fecha";
+    filterButton.onclick = async () => {
+      const selectedDate = dateInput.value;
+      await loadHistoryData(selectedDate); // Cargar el historial para la fecha seleccionada
+    };
+    content.appendChild(filterButton);
+  
+    // Contenedor de la tabla de resultados
+    const resultsContainer = document.createElement("div");
+    resultsContainer.style.marginTop = "20px";
+    content.appendChild(resultsContainer);
+  
+    // Botón de cerrar (abajo)
+    const closeButton = document.createElement("button");
+    closeButton.textContent = "Cerrar";
+    closeButton.onclick = () => document.body.removeChild(modal);
+    content.appendChild(closeButton);
+  
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+  
+    // Cargar historial por defecto para la fecha actual
+    await loadHistoryData(dateInput.value, resultsContainer);
+  }
+  
+  // Función para cargar los datos del historial según la fecha seleccionada
+  async function loadHistoryData(date, container) {
+    try {
+      const historyData = await window.electron.getVerificationHistory(date);
+  
+      // Limpiar el contenedor antes de agregar nuevo grid
+      container.innerHTML = "";
+  
+      if (!historyData.length) {
+        container.innerHTML = "<p>No hay verificaciones disponibles para esta fecha.</p>";
+        return;
+      }
+  
+      // Crear el contenedor del grid
+      const gridDiv = document.createElement("div");
+      gridDiv.style.width = "100%";
+      gridDiv.style.height = "400px"; // Ajustar según sea necesario
+      container.appendChild(gridDiv);
+  
+      // Configuración del grid, reutilizando columnas y opciones del grid principal
+      const columnDefs = [
+        { headerName: "Servidor", field: "serverName", sortable: true, filter: true },
+        { headerName: "IP", field: "ip", sortable: true, filter: true },
+        { headerName: "Estado", field: "status", sortable: true, filter: true, 
+          cellRenderer: (params) => `<div class="${params.data.statusClass}">${params.value}</div>` },
+        { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true },
+        { headerName: "Hora de Inicio", field: "startTime", sortable: true, filter: true },
+        { headerName: "Hora de Fin", field: "endTime", sortable: true, filter: true },
+        { headerName: "Duración", field: "duration", sortable: true, filter: true },
+        { headerName: "Tamaño Total DMP", field: "totalDmpSize", sortable: true, filter: true },
+        { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true },
+        { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true },
+        { headerName: "Ruta de Backup", field: "backupPath", sortable: true, filter: true },
+        {
+          headerName: "Grupo de control", field: "last10Lines", 
+          cellRenderer: (params) => {
+            const button = document.createElement("button");
+            button.innerHTML = params.data.groupControlInfo;
+            button.addEventListener("click", () => {
+              showLast10LinesModal(params.data.last10Lines, params.data.hasWarning);
+            });
+            return button;
+          }
+        }
+      ];
+  
+      const gridOptions = {
+        columnDefs,
+        rowData: historyData,
+        pagination: true,
+        paginationPageSize: 10,
+        domLayout: "autoHeight",
+      };
+  
+      // Inicializar AG-Grid en el div creado
+      new agGrid.Grid(gridDiv, gridOptions);
+  
+    } catch (error) {
+      console.error("Error al cargar el historial de verificaciones:", error);
+      container.innerHTML = "<p>Error al cargar el historial.</p>";
+    }
+  }
+  
   //const tooltipError = document.createElement("div");
   const processAllServersBtn = document.getElementById(
     "process-all-servers-btn"
@@ -835,7 +979,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (logData.backupVoid) {
       return;
     }
-    
+
     console.log("Datos del log:", logData); // Para verificar el contenido de logData
     console.log("Contenido de dumpFileInfo:", logData.dumpFileInfo); // Verifica qué archivos se están pasando
     if (logData.backupVoid) {
@@ -1679,16 +1823,36 @@ document.addEventListener("DOMContentLoaded", async () => {
       alert("Por favor, selecciona una ruta de backup para eliminar.");
     }
   });
-// Definir las subcarpetas requeridas para Bantotal
-const requiredSubfolders = [
-  "ESQ_USRREPBI",
-  "BK_ANTES2",
-  "APP_ESQUEMAS",
-  "BK_MD_ANTES",
-  "BK_JAQL546_FPAE71",
-  "BK_ANTES",
-  "RENIEC"
-];
+  function convertToGB(totalFolderSize) {
+    // Extrae el número de "totalFolderSize"
+    const sizePattern = /(\d+(?:\.\d+)?)\s*(MB|GB)?/i;
+    const match = totalFolderSize.match(sizePattern);
+  
+    if (!match) return totalFolderSize; // Si el formato es incorrecto, regresamos el valor sin cambios
+  
+    let sizeInMB = parseFloat(match[1]);
+    const unit = match[2] ? match[2].toUpperCase() : "MB"; // Asume "MB" si no hay unidad
+  
+    // Solo convierte si la unidad es "MB" y el valor es mayor o igual a 1000
+    if (unit === "MB" && sizeInMB >= 1000) {
+      const sizeInGB = (sizeInMB / 1000).toFixed(2);
+      return `${sizeInGB} GB`;
+    }
+  
+    // Devuelve el tamaño en MB o GB sin cambios si es menor a 1000 MB o ya está en GB
+    return `${sizeInMB.toFixed(2)} ${unit}`;
+  }
+  
+  // Definir las subcarpetas requeridas para Bantotal
+  const requiredSubfolders = [
+    "ESQ_USRREPBI",
+    "BK_ANTES2",
+    "APP_ESQUEMAS",
+    "BK_MD_ANTES",
+    "BK_JAQL546_FPAE71",
+    "BK_ANTES",
+    "RENIEC"
+  ];
   const form = document.getElementById("server-form");
   if (form) {
     form.addEventListener("submit", async (event) => {
@@ -1735,7 +1899,7 @@ const requiredSubfolders = [
         }
 
         let directoryPath = backupRouteSelect.value; // Usa la ruta actual seleccionada en backupRouteSelect
-      
+
         console.log("Ruta de backup seleccionada:", directoryPath);
 
         // Obtener los detalles del log
@@ -1767,24 +1931,24 @@ const requiredSubfolders = [
           for (const logData of logDetailsArray) {
             const serverName = logData.serverName;
             //console.log("Adding log entry:", logData);
-            if (serverName === "Bantotal" && logData.backupIncomplete && !hasShownBackupIncompleteError){
+            if (serverName === "Bantotal" && logData.backupIncomplete && !hasShownBackupIncompleteError) {
               // Encuentra las subcarpetas existentes en `directories`
-            const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta, puedes adaptarlo a cómo se obtienen tus subcarpetas.
+              const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta, puedes adaptarlo a cómo se obtienen tus subcarpetas.
 
-            // Filtrar las subcarpetas requeridas que no están presentes
-            const missingSubfolders = requiredSubfolders.filter(required =>
-              !existingSubfolders.includes(required) // Comparación exacta
-            );
+              // Filtrar las subcarpetas requeridas que no están presentes
+              const missingSubfolders = requiredSubfolders.filter(required =>
+                !existingSubfolders.includes(required) // Comparación exacta
+              );
 
-            // Mensaje para el modal
-            let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logData.foundFolders}.`;
-            if (missingSubfolders.length > 0) {
-              warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
-            }
+              // Mensaje para el modal
+              let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logData.foundFolders}.`;
+              if (missingSubfolders.length > 0) {
+                warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
+              }
               console.log("Mostrando modal de error por backup incompleto");
               showErrorModal(
                 warningMessage,
-              ip
+                ip
               );
               hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
             }
@@ -1798,6 +1962,7 @@ const requiredSubfolders = [
               );
             }
             addLogEntry({ ...logData, ip });
+            const formattedTotalFolderSize = convertToGB(logData.totalFolderSize);
             if (
               logData.logDetails &&
               Object.keys(logData.logDetails).length > 0
@@ -1808,7 +1973,8 @@ const requiredSubfolders = [
                 os,
                 logData.logFileName,
                 logData.ip,
-                logData.backupPath
+                logData.backupPath,
+                formattedTotalFolderSize
               );
             }
           }
@@ -1817,18 +1983,18 @@ const requiredSubfolders = [
           if (serverName === "Bantotal" && logDetailsArray.backupIncomplete && !hasShownBackupIncompleteError) {
             const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta
 
-          const missingSubfolders = requiredSubfolders.filter(required =>
-            !existingSubfolders.includes(required) // Comparación exacta
-          );
+            const missingSubfolders = requiredSubfolders.filter(required =>
+              !existingSubfolders.includes(required) // Comparación exacta
+            );
 
-          let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logDetailsArray.foundFolders}.`;
-          if (missingSubfolders.length > 0) {
-            warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
-          }
+            let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logDetailsArray.foundFolders}.`;
+            if (missingSubfolders.length > 0) {
+              warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
+            }
             console.log("Mostrando modal de error por backup incompleto");
             showErrorModal(
               warningMessage,
-            ip
+              ip
             );
             hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
           }
@@ -1854,7 +2020,8 @@ const requiredSubfolders = [
               os,
               logData.logFileName,
               logData.ip,
-              logData.backupPath
+              logData.backupPath,
+              formattedTotalFolderSize
             );
           }
         } else {

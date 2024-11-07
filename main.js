@@ -220,12 +220,12 @@ app.whenReady().then(() => {
         if (isBackupVoid) {
           // Agregamos una propiedad para indicar backup incompleto
           conn.end();
-            return {
-                backupVoid: true,
-                backupPath: directoryPath,
-                ip,
-                serverName
-            };
+          return {
+            backupVoid: true,
+            backupPath: directoryPath,
+            ip,
+            serverName
+          };
         }
         for (const file of files) {
           if (file.attrs.isDirectory()) {
@@ -414,7 +414,7 @@ app.whenReady().then(() => {
                       backupIncomplete: targetOS === "solaris" && !isBackupComplete, // Solo para Solaris
                       expectedFolders: targetOS === "solaris" ? 7 : null, // Solo para Solaris
                       foundFolders: targetOS === "solaris" ? directories.length : null, // Solo para Solaris
-                      backupVoid: false
+                      backupVoid: false,
                     });
                   })
                 );
@@ -426,6 +426,7 @@ app.whenReady().then(() => {
           }
         }
         console.log("Detalles completos de log (incluyendo vacíos):", allLogDetails);
+        console.log("lastLine en getLogDetailsLogic antes de retornar:", allLogDetails.map(detail => detail.lastLine));
         return allLogDetails;
       } else {
         if (typeof folderSizes !== "number") {
@@ -771,8 +772,11 @@ app.whenReady().then(() => {
     "save-log-to-database",
     async (
       event,
-      { logDetails, dumpFileInfo, targetOS, logFileName, ip, backupPath }
-    ) => {
+      { logDetails, dumpFileInfo, targetOS, logFileName, ip, backupPath, totalFolderSize, backupStatus, groupControlInfo, lastLine  }
+    ) => { // Añadimos los nuevos campos aquí
+      console.log('Objeto completo recibido:', { logDetails, lastLine }); // Debug adicional
+      // Extraer lastLine del objeto principal si existe
+    const lastLineToUse = lastLine || logDetails.lastLine;
       try {
         await saveLogToDatabase(
           logDetails,
@@ -780,7 +784,11 @@ app.whenReady().then(() => {
           targetOS,
           logFileName,
           ip,
-          backupPath
+          backupPath,
+          totalFolderSize, // Pasamos totalFolderSize
+          backupStatus,    // Pasamos backupStatus
+          groupControlInfo, // Pasamos groupControlInfo
+          lastLineToUse
         );
         return { success: true };
       } catch (error) {
@@ -1151,6 +1159,25 @@ app.whenReady().then(() => {
       return [];
     }
   }
+  function formatFileSizeProcess(sizeWithUnit) {
+    // Extrae el número y la unidad del string
+    const sizePattern = /(\d+(?:\.\d+)?)\s*(MB|GB)?/i;
+    const match = sizeWithUnit.match(sizePattern);
+
+    if (!match) return sizeWithUnit; // Si el formato es incorrecto, regresa el valor tal cual
+
+    let size = parseFloat(match[1]);
+    const unit = match[2] ? match[2].toUpperCase() : "MB"; // Default a "MB" si no tiene unidad
+
+    // Convertir a GB si está en MB y mayor o igual a 1000
+    if (unit === "MB" && size >= 1000) {
+      size = (size / 1000).toFixed(2);
+      return `${size} GB`;
+    }
+
+    // Mantener el tamaño original con su unidad
+    return `${size.toFixed(2)} ${unit}`;
+  }
   async function processAllServers() {
     let connection;
     let results = [];
@@ -1192,7 +1219,7 @@ app.whenReady().then(() => {
             });
             continue; // Continuar con el siguiente servidor
           }
-          connectionSuccess = true; 
+          connectionSuccess = true;
 
           // Obtener rutas de backup
           const backupRoutes = await getBackupRoutesByIPInternal(
@@ -1289,6 +1316,13 @@ app.whenReady().then(() => {
                 });
                 continue;
               }
+              // Calcular o asignar valores para los nuevos campos
+              const backupStatus = logDetails.backupStatus || 'Unknown';
+              const groupControlInfo = {
+                hasWarning: logDetails.hasWarning || false,
+                last10Lines: logDetails.last10Lines || [],
+                lastLine: logDetails.lastLine || ''
+              };
 
               // **Guardado en la base de datos** (solo si el log está completo y tiene datos)
               if (Array.isArray(logDetails)) {
@@ -1301,7 +1335,10 @@ app.whenReady().then(() => {
                       osType,
                       detail.logFileName,
                       ip,
-                      fullBackupPath
+                      fullBackupPath,
+                      formatFileSizeProcess(detail.totalFolderSize),     // Añadir totalFolderSize
+                      backupStatus,        // Añadir backupStatus
+                      groupControlInfo     // Añadir groupControlInfo
                     );
                   }
                 }
@@ -1313,7 +1350,10 @@ app.whenReady().then(() => {
                   osType,
                   logDetails.logFileName,
                   ip,
-                  fullBackupPath
+                  fullBackupPath,
+                  formatFileSizeProcess(logDetails.totalFolderSize),     // Añadir totalFolderSize
+                  backupStatus,        // Añadir backupStatus
+                  groupControlInfo     // Añadir groupControlInfo
                 );
               }
 
@@ -1342,16 +1382,16 @@ app.whenReady().then(() => {
           }
         } catch (serverError) {
           // Si hubo conexión exitosa, este error no es de conexión
-          const errorType = connectionSuccess 
-              ? `Error específico al procesar logs en ${serverName}`
-              : `Error al conectar con el servidor ${serverName}`;
+          const errorType = connectionSuccess
+            ? `Error específico al procesar logs en ${serverName}`
+            : `Error al conectar con el servidor ${serverName}`;
 
           console.error(`${errorType}:`, serverError);
           results.push({
-              serverName,
-              ip,
-              error: `${errorType}: ${serverError.message}`,
-              logDetails: null,
+            serverName,
+            ip,
+            error: `${errorType}: ${serverError.message}`,
+            logDetails: null,
           });
         }
       }
@@ -1704,6 +1744,7 @@ function parseLogLine(logContent) {
     last10Lines: logInfo.relevantLines, // Añadimos las últimas 11 líneas
     hasWarning: logInfo.hasWarning,
     warningNumber: logInfo.warningNumber,
+    lastLine: lastLine  // Añade esta línea
   };
 }
 function formatFileSize(sizeInMB) {
@@ -1755,18 +1796,42 @@ ipcMain.handle("get-backup-statistics", async (event) => {
     throw error;
   }
 });
+
 async function saveLogToDatabase(
   logDetails,
   dumpFileInfo,
   targetOS,
   logFileName,
   ip,
-  backupPath
+  backupPath,
+  totalFolderSize, // Nuevo campo
+  backupStatus, // Nuevo campo
+  groupControlInfo, // Nuevo campo
+  lastLine 
 ) {
   if (logDetails?.backupVoid) {
     console.log(`Skipping save for empty backup path: ${backupPath}`);
     return;
   }
+  console.log("Contenido de logDetails:", logDetails);
+  console.log("last10Lines:", logDetails.last10Lines);
+let finalGroupControlInfo;
+// Revisamos el objeto completo para debugging
+
+if (logDetails.hasWarning && Array.isArray(logDetails.last10Lines) && logDetails.last10Lines.length > 0) {
+  finalGroupControlInfo = logDetails.last10Lines.join('\n');
+} else if (Array.isArray(lastLine) && lastLine.length > 0) {
+  finalGroupControlInfo = lastLine[0];
+} else if (typeof lastLine === 'string' && lastLine.trim()) {
+  finalGroupControlInfo = lastLine.trim();
+} else if (typeof logDetails.lastLine === 'string' && logDetails.lastLine.trim()) {
+  // Intentar obtener lastLine desde logDetails si existe
+  finalGroupControlInfo = logDetails.lastLine.trim();
+} else {
+  finalGroupControlInfo = "No hay información disponible";
+}
+
+console.log("finalGroupControlInfo:", finalGroupControlInfo);
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
@@ -1826,7 +1891,7 @@ async function saveLogToDatabase(
     //backupPath: backupPath,
     //});
     const result = await connection.execute(
-      `INSERT INTO LogBackup (horaINI, duration, success, dumpFileSize, serverName, logFileName, horaFIN, ip, backupPath) 
+      `INSERT INTO LogBackup (horaINI, duration, success, dumpFileSize, serverName, logFileName, horaFIN, ip, backupPath,totalFolderSize,backupStatus,groupControlInfo) 
         VALUES (
           TO_DATE(:horaINI, 'YYYY-MM-DD HH24:MI:SS'),
           :duration,
@@ -1836,7 +1901,10 @@ async function saveLogToDatabase(
           :logFileName,
           TO_DATE(:horaFIN, 'YYYY-MM-DD HH24:MI:SS'),
           :ip,
-          :backupPath
+          :backupPath,
+          :totalFolderSize,
+          :backupStatus,
+          :groupControlInfo
         )`,
       {
         horaINI: startTime,
@@ -1848,6 +1916,9 @@ async function saveLogToDatabase(
         logFileName: logFileName,
         ip: ip,
         backupPath: backupPath,
+        totalFolderSize: totalFolderSize, // Nuevo campo
+        backupStatus: logDetails.backupStatus, // Nuevo campo
+        groupControlInfo: finalGroupControlInfo // Nuevo campo
       },
       { autoCommit: true }
     );
@@ -2107,3 +2178,42 @@ ipcMain.handle("get-dmp-size-data", async (event, days) => {
     throw error;
   }
 });
+ipcMain.handle("get-verification-history", async (event, date) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    const result = await connection.execute(`
+      SELECT id, executionDate, horaINI, horaFIN, duration, success, dumpFileSize, serverName, logFileName, ip, backupPath
+      FROM LogBackup
+      WHERE TRUNC(executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
+      ORDER BY executionDate DESC
+    `, { selectedDate: date });
+
+    return result.rows.map((row) => ({
+      id: row[0],
+      executionDate: row[1],
+      horaINI: row[2],
+      horaFIN: row[3],
+      duration: row[4],
+      success: row[5],
+      dumpFileSize: row[6],
+      serverName: row[7],
+      logFileName: row[8],
+      ip: row[9],
+      backupPath: row[10],
+    }));
+  } catch (error) {
+    console.error("Error al obtener el historial de verificaciones:", error);
+    throw error;
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (error) {
+        console.error("Error al cerrar la conexión a la base de datos:", error);
+      }
+    }
+  }
+});
+

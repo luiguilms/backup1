@@ -18,7 +18,11 @@ contextBridge.exposeInMainWorld("electron", {
     targetOS,
     logFileName,
     ip,
-    backupPath
+    backupPath,
+    totalFolderSize,    // Nuevo campo
+    backupStatus,       // Nuevo campo
+    groupControlInfo,    // Nuevo campo
+    lastLine
   ) =>
     ipcRenderer.invoke("save-log-to-database", {
       logDetails,
@@ -27,6 +31,10 @@ contextBridge.exposeInMainWorld("electron", {
       logFileName,
       ip,
       backupPath,
+      totalFolderSize,    // Pasamos el valor de totalFolderSize
+      backupStatus,       // Pasamos el valor de backupStatus
+      groupControlInfo,    // Pasamos el valor de groupControlInfo
+      lastLine
     }),
   verifyCredentials: (ip, username, password) =>
     ipcRenderer.invoke("verify-credentials", { ip, username, password }),
@@ -39,11 +47,12 @@ contextBridge.exposeInMainWorld("electron", {
   processAllServers: () => ipcRenderer.invoke("process-all-servers"),
   getBackupStatistics: () => ipcRenderer.invoke("get-backup-statistics"),
   exportToExcel: (data) => ipcRenderer.invoke("export-to-excel", data),
-  getDmpSizeData: (days) => ipcRenderer.invoke('get-dmp-size-data',days),
+  getDmpSizeData: (days) => ipcRenderer.invoke('get-dmp-size-data', days),
   addBackupRoute: (ip, backupPath) =>
     ipcRenderer.invoke("addBackupRoute", ip, backupPath),
   updateBackupRoute: (ip, oldPath, newPath) =>
     ipcRenderer.invoke("updateBackupRoute", ip, oldPath, newPath),
   deleteBackupRoute: (ip, backupPath) =>
     ipcRenderer.invoke("deleteBackupRoute", ip, backupPath),
+  getVerificationHistory: (date) => ipcRenderer.invoke("get-verification-history", date),
 });
