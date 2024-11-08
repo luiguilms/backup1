@@ -1327,6 +1327,8 @@ app.whenReady().then(() => {
                 });
                 continue;
               }
+              // Extraer mensaje de error ORA si existe
+
               // Calcular o asignar valores para los nuevos campos
               const backupStatus = logDetails.backupStatus || 'Unknown';
               const groupControlInfo = {
@@ -1349,7 +1351,7 @@ app.whenReady().then(() => {
                       fullBackupPath,
                       formatFileSizeProcess(detail.totalFolderSize),     // Añadir totalFolderSize
                       backupStatus,        // Añadir backupStatus
-                      groupControlInfo     // Añadir groupControlInfo
+                      groupControlInfo,
                     );
                   }
                 }
@@ -1364,7 +1366,7 @@ app.whenReady().then(() => {
                   fullBackupPath,
                   formatFileSizeProcess(logDetails.totalFolderSize),     // Añadir totalFolderSize
                   backupStatus,        // Añadir backupStatus
-                  groupControlInfo     // Añadir groupControlInfo
+                  groupControlInfo,
                 );
               }
 
@@ -1816,14 +1818,20 @@ async function saveLogToDatabase(
   ip,
   backupPath,
   totalFolderSize, // Nuevo campo
-  backupStatus, // Nuevo campo
-  groupControlInfo, // Nuevo campo
   lastLine
 ) {
   if (logDetails?.backupVoid) {
     console.log(`Skipping save for empty backup path: ${backupPath}`);
     return;
   }
+
+  // Extraer oraErrorMessage directamente de logDetails
+  const oraErrorMessage = logDetails.oraError
+    ? (typeof logDetails.oraError === 'object'
+      ? JSON.stringify(logDetails.oraError)
+      : String(logDetails.oraError))
+    : null;
+
   console.log("Contenido de logDetails:", logDetails);
   console.log("last10Lines:", logDetails.last10Lines);
   let finalGroupControlInfo;
@@ -1902,7 +1910,7 @@ async function saveLogToDatabase(
     //backupPath: backupPath,
     //});
     const result = await connection.execute(
-      `INSERT INTO LogBackup (horaINI, duration, success, dumpFileSize, serverName, logFileName, horaFIN, ip, backupPath,totalFolderSize,backupStatus,groupControlInfo) 
+      `INSERT INTO LogBackup (horaINI, duration, success, dumpFileSize, serverName, logFileName, horaFIN, ip, backupPath,totalFolderSize,backupStatus,groupControlInfo,oraErrorMessage) 
         VALUES (
           TO_DATE(:horaINI, 'YYYY-MM-DD HH24:MI:SS'),
           :duration,
@@ -1915,7 +1923,8 @@ async function saveLogToDatabase(
           :backupPath,
           :totalFolderSize,
           :backupStatus,
-          :groupControlInfo
+          :groupControlInfo,
+          :oraErrorMessage
         )`,
       {
         horaINI: startTime,
@@ -1929,7 +1938,8 @@ async function saveLogToDatabase(
         backupPath: backupPath,
         totalFolderSize: totalFolderSize, // Nuevo campo
         backupStatus: logDetails.backupStatus, // Nuevo campo
-        groupControlInfo: finalGroupControlInfo // Nuevo campo
+        groupControlInfo: finalGroupControlInfo, // Nuevo campo
+        oraErrorMessage
       },
       { autoCommit: true }
     );
