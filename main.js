@@ -1329,19 +1329,22 @@ app.whenReady().then(() => {
               }
               // Extraer mensaje de error ORA si existe
 
-              // Calcular o asignar valores para los nuevos campos
-              const backupStatus = logDetails.backupStatus || 'Unknown';
-              const groupControlInfo = {
-                hasWarning: logDetails.hasWarning || false,
-                last10Lines: logDetails.last10Lines || [],
-                lastLine: logDetails.lastLine || ''
-              };
 
               // **Guardado en la base de datos** (solo si el log está completo y tiene datos)
               if (Array.isArray(logDetails)) {
                 for (const detail of logDetails) {
                   if (detail.logDetails && detail.logDetails.startTime) {
                     const fullBackupPath = detail.backupPath;
+                    // Extraer lastLine para el array
+                    const lastLineToUse = detail.lastLine || "No hay información disponible";
+
+                    // Construir groupControlInfo para el array
+                    const groupControlInfo = {
+                      hasWarning: detail.hasWarning || false,
+                      last10Lines: detail.last10Lines || [],
+                      lastLine: lastLineToUse
+                    };
+                    const groupControlInfoString = JSON.stringify(groupControlInfo);
                     await saveLogToDatabase(
                       detail.logDetails,
                       detail.dumpFileInfo,
@@ -1350,13 +1353,24 @@ app.whenReady().then(() => {
                       ip,
                       fullBackupPath,
                       formatFileSizeProcess(detail.totalFolderSize),     // Añadir totalFolderSize
-                      backupStatus,        // Añadir backupStatus
-                      groupControlInfo,
+                      lastLineToUse,
+                      groupControlInfoString,
+                      
                     );
                   }
                 }
               } else if (logDetails && logDetails.logDetails && logDetails.logDetails.startTime) {
                 const fullBackupPath = logDetails.backupPath;
+                // Extraer lastLine para el objeto simple
+                const lastLineToUse = logDetails.lastLine || "No hay información disponible";
+
+                // Construir groupControlInfo para el objeto simple
+                const groupControlInfo = {
+                  hasWarning: logDetails.hasWarning || false,
+                  last10Lines: logDetails.last10Lines || [],
+                  lastLine: lastLineToUse
+                };
+                const groupControlInfoString = JSON.stringify(groupControlInfo);
                 await saveLogToDatabase(
                   logDetails.logDetails,
                   logDetails.dumpFileInfo,
@@ -1365,8 +1379,8 @@ app.whenReady().then(() => {
                   ip,
                   fullBackupPath,
                   formatFileSizeProcess(logDetails.totalFolderSize),     // Añadir totalFolderSize
-                  backupStatus,        // Añadir backupStatus
-                  groupControlInfo,
+                  lastLineToUse,
+                  groupControlInfoString,       
                 );
               }
 
@@ -1851,6 +1865,9 @@ async function saveLogToDatabase(
   }
 
   console.log("finalGroupControlInfo:", finalGroupControlInfo);
+  const finalGroupControlInfoString = String(finalGroupControlInfo || "No hay información disponible");
+
+  console.log("Valor de finalGroupControlInfo antes del INSERT:", finalGroupControlInfoString);
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
@@ -1909,6 +1926,7 @@ async function saveLogToDatabase(
     //ip: ip,
     //backupPath: backupPath,
     //});
+
     const result = await connection.execute(
       `INSERT INTO LogBackup (horaINI, duration, success, dumpFileSize, serverName, logFileName, horaFIN, ip, backupPath,totalFolderSize,backupStatus,groupControlInfo,oraErrorMessage) 
         VALUES (
@@ -1938,8 +1956,8 @@ async function saveLogToDatabase(
         backupPath: backupPath,
         totalFolderSize: totalFolderSize, // Nuevo campo
         backupStatus: logDetails.backupStatus, // Nuevo campo
-        groupControlInfo: finalGroupControlInfo, // Nuevo campo
-        oraErrorMessage
+        groupControlInfo: finalGroupControlInfoString, // Nuevo campo
+        oraErrorMessage: oraErrorMessage
       },
       { autoCommit: true }
     );
@@ -2220,7 +2238,8 @@ ipcMain.handle("get-verification-history", async (event, date) => {
                 lb.backupPath, 
                 lb.totalFolderSize, 
                 lb.backupStatus, 
-                TO_CHAR(lb.groupControlInfo) AS groupControlInfo
+                TO_CHAR(lb.groupControlInfo) AS groupControlInfo,
+                TO_CHAR(lb.oraErrorMessage) AS oraErrorMessage
             FROM 
                 LogBackup lb
             JOIN 
@@ -2246,7 +2265,8 @@ ipcMain.handle("get-verification-history", async (event, date) => {
       backupPath: row[11],
       totalFolderSize: row[12],
       backupStatus: row[13],
-      groupControlInfo: row[14]
+      groupControlInfo: row[14],
+      oraErrorMessage: String(row[15] || "") // Convertir a string
     }));
   } catch (error) {
     console.error("Error al obtener el historial de verificaciones:", error);

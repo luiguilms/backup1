@@ -189,11 +189,82 @@ document.addEventListener("DOMContentLoaded", async () => {
         },
         { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120 },
         {
-          headerName: "Estado", field: "success", sortable: true, filter: true, minWidth: 80,
+          headerName: "Estado",
+          field: "success",
+          sortable: true,
+          filter: true,
+          minWidth: 120,
           cellRenderer: (params) => {
             const statusText = params.value === 1 ? "Éxito" : "Fallo";
             const statusClass = params.value === 1 ? "status-success" : "status-failure";
-            return `<div class="${statusClass}">${statusText}</div>`;
+            const oraErrorMessage = params.data.oraErrorMessage;
+
+            // Crear el elemento para el estado
+            const statusDiv = document.createElement("div");
+            statusDiv.classList.add(statusClass);
+            statusDiv.textContent = statusText;
+            statusDiv.style.cursor = "pointer"; // Indicar que es clicable
+
+            console.log("Renderizando celda de Estado:", {
+              statusText,
+              oraErrorMessage,
+              params
+            });
+
+            if (params.value === 0 && oraErrorMessage) {
+              statusDiv.classList.add("error-box");
+
+              // Registrar el evento de clic
+              statusDiv.addEventListener("click", (event) => {
+                console.log("Click detectado en estado 'Fallo'");
+                console.log("Contenido de oraErrorMessage:", oraErrorMessage);
+
+                // Crear el tooltip
+                const tooltipError = document.createElement("div");
+                tooltipError.classList.add("tooltip-error");
+
+                // Mostrar el contenido completo de oraErrorMessage
+                tooltipError.textContent = oraErrorMessage;
+
+                // Añadir el tooltip al documento
+                document.body.appendChild(tooltipError);
+                console.log("Tooltip creado y añadido al DOM");
+
+                // Aplicar estilos al tooltip
+                tooltipError.style.position = "fixed";
+                tooltipError.style.top = `${event.clientY + 10}px`;
+                tooltipError.style.left = `${event.clientX + 10}px`;
+                tooltipError.style.backgroundColor = "#f8d7da";
+                tooltipError.style.color = "#721c24";
+                tooltipError.style.padding = "10px";
+                tooltipError.style.border = "1px solid #f5c6cb";
+                tooltipError.style.borderRadius = "5px";
+                tooltipError.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
+                tooltipError.style.zIndex = "10000";
+                tooltipError.style.display = "block";
+                tooltipError.style.opacity = "1";
+                tooltipError.style.maxWidth = "300px";
+                tooltipError.style.wordWrap = "break-word";
+
+                console.log("Estilos aplicados al tooltip:", tooltipError.style);
+
+                // Cerrar el tooltip al hacer clic fuera
+                const closeTooltip = (e) => {
+                  if (!tooltipError.contains(e.target)) {
+                    console.log("Cerrando tooltip");
+                    tooltipError.remove();
+                    document.removeEventListener("click", closeTooltip);
+                  }
+                };
+
+                // Escuchar clics fuera del tooltip para cerrarlo
+                setTimeout(() => {
+                  document.addEventListener("click", closeTooltip);
+                }, 100);
+              });
+            }
+
+            return statusDiv;
           }
         },
         { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 150 },
@@ -233,15 +304,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
           }
         },
-        { headerName: "Duración", field: "duration", sortable: true, filter: true, minWidth: 100 },
-        { headerName: "Tamaño Total DMP", field: "dumpFileSize", sortable: true, filter: true, minWidth: 150 },
-        { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true, minWidth: 150 },
-        { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true, minWidth: 100 },
+        { headerName: "Duración", field: "duration", sortable: true, filter: true, minWidth: 150 },
+        { headerName: "Tamaño Total DMP", field: "dumpFileSize", sortable: true, filter: true, minWidth: 200 },
+        { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true, minWidth: 200 },
+        { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true, minWidth: 200 },
         { headerName: "Ruta de Backup", field: "backupPath", sortable: true, filter: true, minWidth: 170 },
         {
           headerName: "Grupo de control",
           field: "last10Lines",
-          minWidth: 200,
+          minWidth: 250,
           cellRenderer: (params) => {
             const button = document.createElement("button");
 
@@ -249,7 +320,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (params.data.groupControlInfo && params.data.groupControlInfo.includes("Job")) {
               button.innerHTML = "Ver última línea del log"; // Título si hay detalles de trabajo
             } else {
-              button.innerHTML = "Ver detalles de advertencias"; // Título si no hay detalles de trabajo
+              button.innerHTML = "Ver advertencias"; // Título si no hay detalles de trabajo
             }
 
             button.addEventListener("click", () => {
@@ -342,7 +413,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     ipSelect.addEventListener("change", updateBackupRoutes);
   }
-  
+
   // Asegúrate de que esta función se llame cada vez que se cambia la IP seleccionada
 
   // *** Función para cargar servidores ***
@@ -855,25 +926,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       const rowData = results.flatMap((serverResult) => {
         if (serverResult.error) {
           if (serverResult.error.includes("no existe")) {
-              // Mostrar modal específico para la ruta inexistente
-              showErrorpathModal(
-                  "Ruta de Backup No Existente",
-                  `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
-              );
-          } else if (serverResult.error.includes("Archivo log no válido o incompatible") ) {
-              showErrorModal(
-                  serverResult.error,
-                  serverResult.ip,
-                  serverResult.serverName // Asegúrate de que este valor esté disponible
-              );
+            // Mostrar modal específico para la ruta inexistente
+            showErrorpathModal(
+              "Ruta de Backup No Existente",
+              `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
+            );
+          } else if (serverResult.error.includes("Archivo log no válido o incompatible")) {
+            showErrorModal(
+              serverResult.error,
+              serverResult.ip,
+              serverResult.serverName // Asegúrate de que este valor esté disponible
+            );
           } else {
-              showErrorModal(
-                  `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
-                  serverResult.ip || "IP desconocida"
-              );
+            showErrorModal(
+              `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
+              serverResult.ip || "IP desconocida"
+            );
           }
           return []; // No añadir nada al grid
-      }
+        }
         if (serverResult.warning) {
           showErrorModal(
             "Backup Incompleto",
