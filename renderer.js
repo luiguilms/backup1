@@ -28,13 +28,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const result = await window.electron.connectToServer(ip, port, username, password);
 
         if (result.success) {
-          alert("Conexión existosa al servidor");
+          showCustomAlert("Conexión existosa al servidor");
         } else {
-          alert(`Error en la conexión: ${result.message}`);
+          showCustomAlert(`Error en la conexión: ${result.message}`);
         }
       } catch (error) {
         console.error("Error al intentar conectar:", error);
-        alert("Ocurrió un error inesperado al intentar conectar.");
+        showCustomAlert("Ocurrió un error inesperado al intentar conectar.");
       }
     });
   }
@@ -45,6 +45,191 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (currentPath.endsWith("index.html") || currentPath === "/") {
     createStatsButton();
   }
+// Función para mostrar un modal no bloqueante
+function showCustomAlert(message) {
+  const modal = document.createElement("div");
+  modal.className = "custom-alert"; // Agregar la clase al modal
+  modal.innerHTML = `
+    <div class="custom-alert-content">
+      <span class="close-btn">&times;</span>
+      <p>${message}</p>
+      <button id="close-modal-btn">Cerrar</button>
+    </div>
+  `;
+
+  // Estilos para el modal
+  const styles = `
+    .custom-alert {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #b8f6fc; /* Color de fondo */
+      color: #721c24; /* Color del texto */
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      width: 80%;
+      max-width: 400px; /* Limitar tamaño máximo */
+      text-align: center;
+    }
+
+    .custom-alert-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .custom-alert button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .custom-alert button:hover {
+      background-color: #0056b3;
+    }
+
+    .custom-alert .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 24px;
+      cursor: pointer;
+      color: #721c24;
+    }
+
+    .custom-alert .close-btn:hover {
+      color: #000;
+    }
+  `;
+
+  // Añadir los estilos al documento
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = styles;
+  document.head.appendChild(styleSheet);
+
+  // Mostrar el modal
+  document.body.appendChild(modal);
+
+  // Añadir evento para cerrar el modal
+  const closeModalBtn = modal.querySelector("#close-modal-btn");
+  const closeBtn = modal.querySelector(".close-btn");
+
+  closeModalBtn.addEventListener("click", () => {
+    modal.remove();
+  });
+
+  closeBtn.addEventListener("click", () => {
+    modal.remove();
+  });
+}
+
+// Función para mostrar el modal de confirmación de eliminación
+function showConfirmDeleteModal(message) {
+  return new Promise((resolve) => {
+    const modal = document.createElement("div");
+    modal.className = "custom-alert";
+    modal.innerHTML = `
+      <div class="custom-alert-content">
+        <span class="close-btn">&times;</span>
+        <p>${message}</p>
+        <button id="confirm-btn">Sí, eliminar</button>
+        <button id="cancel-btn">Cancelar</button>
+      </div>
+    `;
+
+    // Estilos para el modal
+    const styles = `
+      .custom-alert {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: #b8f6fc;
+        color: #333;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1001;
+        width: 80%;
+        max-width: 400px;
+        text-align: center;
+      }
+
+      .custom-alert .custom-alert-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .custom-alert .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 24px;
+        cursor: pointer;
+        color: #721c24;
+      }
+
+      .custom-alert .close-btn:hover {
+        color: #000;
+      }
+
+      .custom-alert button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 10px;
+      }
+
+      .custom-alert button:hover {
+        background-color: #0056b3;
+      }
+    `;
+
+    // Añadir los estilos al documento
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = styles;
+    document.head.appendChild(styleSheet);
+
+    // Mostrar el modal
+    document.body.appendChild(modal);
+
+    // Función para cerrar el modal
+    const closeModal = () => {
+      modal.remove();
+    };
+
+    // Añadir evento para cerrar el modal
+    const closeBtn = modal.querySelector(".close-btn");
+    closeBtn.addEventListener("click", closeModal);
+
+    // Evento para el botón de confirmar
+    const confirmBtn = modal.querySelector("#confirm-btn");
+    confirmBtn.addEventListener("click", () => {
+      resolve(true); // Responde con 'true' si confirma
+      closeModal();
+    });
+
+    // Evento para el botón de cancelar
+    const cancelBtn = modal.querySelector("#cancel-btn");
+    cancelBtn.addEventListener("click", () => {
+      resolve(false); // Responde con 'false' si cancela
+      closeModal();
+    });
+  });
+}
   function createStatsButton() {
     const statsButton = document.createElement("button");
     statsButton.textContent = "Mostrar Estadísticas";
@@ -627,7 +812,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (deleteServerBtn) {
         deleteServerBtn.addEventListener("click", async () => {
           if (selectedServer) {
-            const confirmDelete = confirm(
+            const confirmDelete = await showConfirmDeleteModal(
               `¿Estás seguro de que deseas eliminar el servidor ${selectedServer.name}?`
             );
             if (confirmDelete) {
@@ -635,10 +820,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 selectedServer.id
               );
               if (result.success) {
-                alert("Servidor eliminado correctamente.");
+                showCustomAlert("Servidor eliminado correctamente.");
                 window.location.reload(); // Recargar la página para reflejar los cambios
               } else {
-                alert("Error al eliminar el servidor: " + result.error);
+                showCustomAlert("Error al eliminar el servidor: " + result.error);
               }
             }
           }
@@ -719,15 +904,15 @@ document.addEventListener("DOMContentLoaded", async () => {
           const result = await window.electron.updateServer(serverData);
 
           if (result.success) {
-            alert("Servidor actualizado correctamente.");
+            showCustomAlert("Servidor actualizado correctamente.");
             window.localStorage.removeItem("selectedServer");
             window.location.href = "select-server.html";
           } else {
-            alert("Error al actualizar el servidor.");
+            showCustomAlert("Error al actualizar el servidor.");
           }
         } catch (error) {
           console.error("Error al actualizar el servidor:", error);
-          alert("Hubo un error al actualizar el servidor.");
+          showCustomAlert("Hubo un error al actualizar el servidor.");
         }
       });
     }
@@ -757,15 +942,15 @@ document.addEventListener("DOMContentLoaded", async () => {
           }
 
           if (result.success) {
-            alert("Servidor guardado correctamente.");
+            showCustomAlert("Servidor guardado correctamente.");
             window.localStorage.removeItem("selectedServer"); // Eliminar el servidor seleccionado del localStorage
             window.location.href = "index.html"; // Redirigir a la página principal
           } else {
-            alert("Error al guardar el servidor.");
+            showCustomAlert("Error al guardar el servidor.");
           }
         } catch (error) {
           console.error("Error al guardar el servidor:", error);
-          alert("Hubo un error al guardar el servidor.");
+          showCustomAlert("Hubo un error al guardar el servidor.");
         }
       });
     }
@@ -1442,7 +1627,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function showErrorMessage(message) {
     console.error("Error:", message);
-    alert(message);
+    showCustomAlert(message);
   }
   function addLogEntry(logData) {
     if (logData.backupVoid) {
@@ -1809,7 +1994,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       if (!statisticsModal) {
         console.error("No se pudo crear el modal de estadísticas");
-        alert(
+        showCustomAlert(
           "Error al mostrar las estadísticas. Por favor, intenta de nuevo."
         );
         return;
@@ -2119,7 +2304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       };
     } catch (error) {
       console.error("Error al obtener o mostrar estadísticas:", error);
-      alert(
+      showCustomAlert(
         "Error al obtener o mostrar estadísticas. Por favor, revisa la consola para más detalles."
       );
     }
@@ -2188,17 +2373,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         option.value = newBackupPath;
         option.textContent = newBackupPath;
         backupRoutesSelect.appendChild(option);
-        alert("Ruta agregada correctamente");
+        showCustomAlert("Ruta agregada correctamente");
 
         // Cerrar el modal y reiniciar el formulario
         addRouteModal.style.display = "none";
         addRouteForm.reset();
       } else {
-        alert("Error al agregar la ruta. Por favor, intenta de nuevo.");
+        showCustomAlert("Error al agregar la ruta. Por favor, intenta de nuevo.");
       }
     } catch (error) {
       console.error("Error al agregar la ruta:", error);
-      alert("Error al agregar la ruta.");
+      showCustomAlert("Error al agregar la ruta.");
     }
   });
 
@@ -2232,7 +2417,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       editBackupPathInput.value = selectedOption.value; // Cargar el valor actual en el input
       editRouteModal.style.display = "block";
     } else {
-      alert("Por favor, selecciona una ruta de backup para editar.");
+      showCustomAlert("Por favor, selecciona una ruta de backup para editar.");
     }
   });
 
@@ -2267,17 +2452,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Actualizar el valor de la ruta en el select
         selectedOption.value = newBackupPath;
         selectedOption.textContent = newBackupPath;
-        alert("Ruta actualizada correctamente");
+        showCustomAlert("Ruta actualizada correctamente");
 
         // Cerrar el modal y reiniciar el formulario
         editRouteModal.style.display = "none";
         editRouteForm.reset();
       } else {
-        alert("Error al actualizar la ruta. Por favor, intenta de nuevo.");
+        showCustomAlert("Error al actualizar la ruta. Por favor, intenta de nuevo.");
       }
     } catch (error) {
       console.error("Error al actualizar la ruta:", error);
-      alert("Error al actualizar la ruta.");
+      showCustomAlert("Error al actualizar la ruta.");
     }
   });
 
@@ -2290,7 +2475,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (selectedOption) {
       // Mostrar alerta de confirmación
-      const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar la ruta "${selectedOption.value}"?`);
+      const confirmDelete = await showConfirmDeleteModal(`¿Estás seguro de que deseas eliminar la ruta "${selectedOption.value}"?`);
       if (confirmDelete) {
         try {
           // Llamada al backend para eliminar la ruta
@@ -2298,17 +2483,23 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (response.success) {
             // Eliminar la opción de la lista si la eliminación fue exitosa
             selectedOption.remove();
-            alert("Ruta eliminada correctamente");
+            showCustomAlert("Ruta eliminada correctamente");
           } else {
-            alert("Error al eliminar la ruta. Por favor, intenta de nuevo.");
+            showCustomAlert("Error al eliminar la ruta. Por favor, intenta de nuevo.");
           }
         } catch (error) {
           console.error("Error al eliminar la ruta:", error);
-          alert("Error al eliminar la ruta.");
+          showCustomAlert("Error al eliminar la ruta.");
         }
       }
     } else {
-      alert("Por favor, selecciona una ruta de backup para eliminar.");
+      showCustomAlert("Por favor, selecciona una ruta de backup para eliminar.");
+      setTimeout(() => {
+        const firstInput = document.querySelector('input'); // Selecciona el primer campo input
+        if (firstInput) {
+          firstInput.focus(); // Mueve el foco al primer campo input
+        }
+      }, 0);
     }
   });
   function convertToGB(totalFolderSize) {
