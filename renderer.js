@@ -146,7 +146,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const historyData = await window.electron.getVerificationHistory(date);
       container.innerHTML = "";
-
       if (!historyData.length) {
         container.innerHTML = "<p>No hay verificaciones para esta fecha.</p>";
         return;
@@ -179,12 +178,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         },
         {
           headerName: "Servidor",
-          field: "osType", // Usa el nombre de la columna del SO
+          field: "serverName", // Coloca el nombre del servidor aquí
           sortable: true,
           filter: true,
           minWidth: 180,
           cellRenderer: (params) => {
-            return `${params.data.osType} - ${params.data.serverName}`; // Combina SO y ServerName
+            const serverDiv = document.createElement("div");
+            serverDiv.classList.add("server-cell");
+            serverDiv.textContent = `${params.data.serverName} - ${params.data.osType}`; // Muestra el nombre del servidor y SO
+            serverDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
+  
+            // Agregar evento de clic para mostrar el modal con los detalles
+            serverDiv.addEventListener("click", () => {
+              console.log("Clic en Servidor:", params.data.serverName);
+              showServerDetailsModal(params.data); // Llamar a la función para mostrar el modal con los datos del servidor
+            });
+  
+            return serverDiv;
           }
         },
         { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120 },
@@ -204,12 +214,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             statusDiv.classList.add(statusClass);
             statusDiv.textContent = statusText;
             statusDiv.style.cursor = "pointer"; // Indicar que es clicable
-
-            console.log("Renderizando celda de Estado:", {
-              statusText,
-              oraErrorMessage,
-              params
-            });
 
             if (params.value === 0 && oraErrorMessage) {
               statusDiv.classList.add("error-box");
@@ -366,7 +370,153 @@ document.addEventListener("DOMContentLoaded", async () => {
       container.innerHTML = "<p>Error al cargar el historial.</p>";
     }
   }
+  // Función para crear el modal con los detalles del servidor
+function showServerDetailsModal(serverData) {
+  console.log("Mostrando detalles del servidor:", serverData);
+  // Función para formatear la fecha en el formato yyyy/mm/dd hh:mm:ss
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+  };
 
+  // Formatear las fechas horaINI y horaFIN
+  const formattedHoraINI = formatDate(serverData.horaINI);
+  const formattedHoraFIN = formatDate(serverData.horaFIN);
+
+  // Determinar el estado "Exitoso?"
+  const successStatus = serverData.success === 1 ? "Éxito" : "Fallo";
+  const statusClass = serverData.success === 1 ? "status-success" : "status-failure";
+
+  // Verificar si el log contiene "Job"
+  const containsJob = (serverData.groupControlInfo || '').includes("Job");
+
+  // Determinar el título para las últimas 10 líneas
+  const last10LinesTitle = containsJob ? "Ver última línea del log" : "Advertencia:";
+
+  // Crear contenido del modal
+  const modalContent = `
+    <h2 style="text-align: center; font-size: 20px;">Detalles del Servidor ${serverData.serverName}</h2>
+    <p><strong>IP:</strong> ${serverData.ip}</p>
+    <p><strong>Archivo Log:</strong> ${serverData.logFileName}</p>
+    <p><strong>Hora de Inicio:</strong> ${formattedHoraINI}</p>
+    <p><strong>Hora de Fin:</strong> ${formattedHoraFIN}</p>
+    <p><strong>Duración:</strong> ${serverData.duration}</p>
+    <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"}</p>
+    <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize}</p>
+    <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize}</p>
+    <p><strong>Exitoso?:</strong> 
+      <span id="success-status" class="${statusClass}" style="cursor: pointer;">
+        ${successStatus}
+      </span>
+    </p>
+    <p><strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}</p>
+    <h3 style="margin-top: 20px;">${last10LinesTitle}</h3>
+    <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
+      ${(serverData.groupControlInfo) || 'No disponible'}
+    </pre>
+  `;
+
+  // Crear el contenedor del modal
+  const modal = document.createElement("div");
+  modal.style.position = "fixed";
+  modal.style.top = "0";
+  modal.style.left = "0";
+  modal.style.width = "100%";
+  modal.style.height = "100%";
+  modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+  modal.style.display = "flex";
+  modal.style.justifyContent = "center";
+  modal.style.alignItems = "center";
+  modal.style.zIndex = "9000";
+
+  // Crear el contenido del modal
+  const modalBox = document.createElement("div");
+  modalBox.style.backgroundColor = "#fff";
+  modalBox.style.padding = "20px";
+  modalBox.style.borderRadius = "8px";
+  modalBox.style.maxWidth = "600px";
+  modalBox.style.width = "90%";
+  modalBox.style.boxShadow = "0 5px 15px rgba(0, 0, 0, 0.3)";
+  modalBox.innerHTML = modalContent;
+
+  // Botón para cerrar el modal
+  const closeButton = document.createElement("span");
+  closeButton.textContent = "×";
+  closeButton.style.position = "absolute";
+  closeButton.style.top = "10px";
+  closeButton.style.right = "15px";
+  closeButton.style.fontSize = "24px";
+  closeButton.style.cursor = "pointer";
+  closeButton.addEventListener("click", () => {
+    modal.remove();
+  });
+
+  // Añadir el botón de cerrar al modal
+  modalBox.appendChild(closeButton);
+
+  // Añadir el contenedor al modal
+  modal.appendChild(modalBox);
+
+  // Añadir el modal al documento
+  document.body.appendChild(modal);
+
+  // Cerrar el modal al hacer clic fuera del contenido
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      modal.remove();
+    }
+  });
+  // Mostrar el tooltip cuando el estado es "Fallo"
+  const successStatusElement = modalBox.querySelector("#success-status");
+  if (serverData.success === 0 && serverData.oraErrorMessage) {
+    successStatusElement.addEventListener("click", (event) => {
+      // Crear el tooltip
+      const tooltipError = document.createElement("div");
+      tooltipError.classList.add("tooltip-error");
+
+      // Mostrar el contenido completo de oraErrorMessage
+      tooltipError.textContent = serverData.oraErrorMessage;
+
+      // Añadir el tooltip al documento
+      document.body.appendChild(tooltipError);
+
+      // Aplicar estilos al tooltip
+      tooltipError.style.position = "fixed";
+      tooltipError.style.top = `${event.clientY + 10}px`;
+      tooltipError.style.left = `${event.clientX + 10}px`;
+      tooltipError.style.backgroundColor = "#f8d7da";
+      tooltipError.style.color = "#721c24";
+      tooltipError.style.padding = "10px";
+      tooltipError.style.border = "1px solid #f5c6cb";
+      tooltipError.style.borderRadius = "5px";
+      tooltipError.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
+      tooltipError.style.zIndex = "10000";
+      tooltipError.style.display = "block";
+      tooltipError.style.opacity = "1";
+      tooltipError.style.maxWidth = "300px";
+      tooltipError.style.wordWrap = "break-word";
+
+      // Cerrar el tooltip al hacer clic fuera
+      const closeTooltip = (e) => {
+        if (!tooltipError.contains(e.target)) {
+          tooltipError.remove();
+          document.removeEventListener("click", closeTooltip);
+        }
+      };
+
+      // Escuchar clics fuera del tooltip para cerrarlo
+      setTimeout(() => {
+        document.addEventListener("click", closeTooltip);
+      }, 100);
+    });
+  }
+}
 
   //const tooltipError = document.createElement("div");
   const processAllServersBtn = document.getElementById(
@@ -730,6 +880,124 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else {
     console.error("Botón process-all-servers-btn no encontrado");
   }
+  function showLogDetailsModal(logData) {
+    console.log("Entrando en showLogDetailsModal con datos:", logData);
+    const successStatus = logData.status ? "Éxitoso" : "Fallo";
+    const statusClass = logData.status ? "status-success" : "status-failure";
+    const statusStyle = logData.status ? "" : "color: red; cursor: pointer;";
+    // Verificar si 'Job' está presente en las últimas 10 líneas del log
+    const logIncludesJob = (logData.last10Lines || []).some(line => line.includes("Job"));
+
+    // Determinar el título dinámico para las últimas 10 líneas
+    const last10LinesTitle = logIncludesJob ? "Ver última línea del log" : "Advertencia:";
+
+    // Crear contenido del modal
+    const modalContent = `
+      <h2 style="text-align: center; font-size: 20px;">Detalles del Log para ${logData.serverName}</h2>
+      <p><strong>IP:</strong> ${logData.ip}
+      <p><strong>Archivo de Log:</strong> ${logData.logFileName || 'No disponible'}</p>
+      <p><strong>Hora de Inicio:</strong> ${logData.startTime || 'No disponible'}</p>
+      <p><strong>Hora de Fin:</strong> ${logData.endTime || 'No disponible'}</p>
+      <p><strong>Duración:</strong> ${logData.duration || 'No disponible'}</p>
+      <p><strong>Estado de Backup:</strong> ${logData.backupStatus || 'No disponible'}</p>
+      <p><strong>Peso total de archivo .dmp:</strong> ${logData.totalDmpSize || 'No disponible'}</p>
+      <p><strong>Tamaño Total Carpeta:</strong> ${logData.totalFolderSize || 'No disponible'}</p>
+      <p><strong>Exitoso:</strong> 
+      <span id="success-status" class="${statusClass}" style="${statusStyle}">
+        ${successStatus}
+      </span>
+    </p>
+      <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}
+      <h3 style="margin-top: 20px;">${last10LinesTitle}</h3>
+    <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
+      ${(logData.last10Lines || []).join('\n') || 'No disponible'}
+    </pre>
+    `;
+
+    // Crear el contenedor del modal
+    const modal = document.createElement("div");
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100%";
+    modal.style.height = "100%";
+    modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+    modal.style.display = "flex";
+    modal.style.justifyContent = "center";
+    modal.style.alignItems = "center";
+    modal.style.zIndex = "1000";
+
+    // Crear el contenido del modal
+    const modalBox = document.createElement("div");
+    modalBox.style.backgroundColor = "#fff";
+    modalBox.style.padding = "20px";
+    modalBox.style.borderRadius = "8px";
+    modalBox.style.maxWidth = "600px";
+    modalBox.style.width = "90%";
+    modalBox.style.boxShadow = "0 5px 15px rgba(0, 0, 0, 0.3)";
+    modalBox.innerHTML = modalContent;
+
+    // Botón para cerrar el modal
+    const closeButton = document.createElement("span");
+    closeButton.textContent = "×";
+    closeButton.style.position = "absolute";
+    closeButton.style.top = "10px";
+    closeButton.style.right = "15px";
+    closeButton.style.fontSize = "24px";
+    closeButton.style.cursor = "pointer";
+    closeButton.addEventListener("click", () => {
+      modal.remove();
+    });
+
+    // Añadir el botón de cerrar al modal
+    modalBox.appendChild(closeButton);
+
+    // Añadir el contenedor al modal
+    modal.appendChild(modalBox);
+
+    // Añadir el modal al documento
+    document.body.appendChild(modal);
+
+    // Cerrar el modal al hacer clic fuera del contenido
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        modal.remove();
+      }
+    });
+    // Añadir el tooltip para errores de ORA en caso de fallo
+    if (logData.status === "Fallo" && logData.oraError) {
+      const successStatusElement = modalBox.querySelector("#success-status");
+
+      successStatusElement.addEventListener("click", (event) => {
+        // Crear el tooltip
+        const tooltip = document.createElement("div");
+        tooltip.textContent = logData.oraError;  // Aquí se pasa el contenido de oraError al tooltip
+        tooltip.style.position = "fixed";
+        tooltip.style.top = `${event.clientY + 10}px`;
+        tooltip.style.left = `${event.clientX + 10}px`;
+        tooltip.style.backgroundColor = "#f8d7da";
+        tooltip.style.color = "#721c24";
+        tooltip.style.padding = "10px";
+        tooltip.style.border = "1px solid #f5c6cb";
+        tooltip.style.borderRadius = "5px";
+        tooltip.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
+        tooltip.style.zIndex = "9000";
+        tooltip.style.maxWidth = "300px";
+        tooltip.style.wordWrap = "break-word";
+
+        document.body.appendChild(tooltip);
+
+        // Cerrar el tooltip al hacer clic fuera
+        const closeTooltip = (e) => {
+          if (!tooltip.contains(e.target)) {
+            tooltip.remove();
+            document.removeEventListener("click", closeTooltip);
+          }
+        };
+        setTimeout(() => document.addEventListener("click", closeTooltip), 100);
+      });
+    }
+  }
   function initGrid(gridDiv) {
     const gridOptions = {
       columnDefs: [
@@ -739,6 +1007,20 @@ document.addEventListener("DOMContentLoaded", async () => {
           sortable: true,
           filter: true,
           minWidth: 120,
+          cellRenderer: (params) => {
+            const serverDiv = document.createElement("div");
+            serverDiv.classList.add("server-cell");
+            serverDiv.textContent = params.data.serverName;
+            serverDiv.style.cursor = "pointer";
+
+            // Agregar evento de clic para mostrar el modal
+            serverDiv.addEventListener("click", () => {
+              console.log("Clic en Servidor:", params.data.serverName);
+              showLogDetailsModal(params.data); // Llamar a la función para mostrar el modal
+            });
+
+            return serverDiv;
+          },
         },
         {
           headerName: "IP",
