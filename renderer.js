@@ -187,13 +187,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             serverDiv.classList.add("server-cell");
             serverDiv.textContent = `${params.data.serverName} - ${params.data.osType}`; // Muestra el nombre del servidor y SO
             serverDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
-  
+
             // Agregar evento de clic para mostrar el modal con los detalles
             serverDiv.addEventListener("click", () => {
               console.log("Clic en Servidor:", params.data.serverName);
               showServerDetailsModal(params.data); // Llamar a la función para mostrar el modal con los datos del servidor
             });
-  
+
             return serverDiv;
           }
         },
@@ -371,152 +371,163 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
   // Función para crear el modal con los detalles del servidor
-function showServerDetailsModal(serverData) {
-  console.log("Mostrando detalles del servidor:", serverData);
-  // Función para formatear la fecha en el formato yyyy/mm/dd hh:mm:ss
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-  };
+  function showServerDetailsModal(serverData) {
+    console.log("Mostrando detalles del servidor:", serverData);
+    // Función para formatear la fecha en el formato yyyy/mm/dd hh:mm:ss
+    const formatDate = (dateString) => {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const seconds = date.getSeconds().toString().padStart(2, '0');
+      return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    };
 
-  // Formatear las fechas horaINI y horaFIN
-  const formattedHoraINI = formatDate(serverData.horaINI);
-  const formattedHoraFIN = formatDate(serverData.horaFIN);
+    // Formatear las fechas horaINI y horaFIN
+    const formattedHoraINI = formatDate(serverData.horaINI);
+    const formattedHoraFIN = formatDate(serverData.horaFIN);
 
-  // Determinar el estado "Exitoso?"
-  const successStatus = serverData.success === 1 ? "Éxito" : "Fallo";
-  const statusClass = serverData.success === 1 ? "status-success" : "status-failure";
+    // Determinar el estado "Exitoso?"
+    const successStatus = serverData.success === 1 ? "Éxito" : "Fallo";
+    const statusClass = serverData.success === 1 ? "status-success" : "status-failure";
 
-  // Verificar si el log contiene "Job"
-  const containsJob = (serverData.groupControlInfo || '').includes("Job");
+    // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas especificadas
+    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
+    const isBantotal = serverData.serverName.includes("Bantotal"); // Verificar si es el servidor Bantotal
+    let subcarpeta = '';
 
-  // Determinar el título para las últimas 10 líneas
-  const last10LinesTitle = containsJob ? "Ver última línea del log" : "Advertencia:";
+    if (isBantotal) {
+      subcarpeta = subcarpetas.find(sub => serverData.backupPath.includes(sub)) || ''; // Buscar si alguna subcarpeta está en la ruta de backup
+    }
 
-  // Crear contenido del modal
-  const modalContent = `
+
+    // Verificar si el log contiene "Job"
+    const containsJob = (serverData.groupControlInfo || '').includes("Job");
+
+    // Determinar el título para las últimas 10 líneas
+    const last10LinesTitle = containsJob ? "Ver última línea del log" : "Advertencia:";
+
+    // Crear contenido del modal
+    const modalContent = `
     <h2 style="text-align: center; font-size: 20px;">Detalles del Servidor ${serverData.serverName}</h2>
+    ${subcarpeta ? `<h3 style="text-align: center; font-size: 18px; color: #555;">Subcarpeta: ${subcarpeta}</h3>` : ''}
     <p><strong>IP:</strong> ${serverData.ip}</p>
-    <p><strong>Archivo Log:</strong> ${serverData.logFileName}</p>
-    <p><strong>Hora de Inicio:</strong> ${formattedHoraINI}</p>
-    <p><strong>Hora de Fin:</strong> ${formattedHoraFIN}</p>
-    <p><strong>Duración:</strong> ${serverData.duration}</p>
+    <p><strong>Archivo Log:</strong> ${serverData.logFileName || 'No disponible'}</p>
+    <p><strong>Hora de Inicio:</strong> ${formattedHoraINI || 'No disponible'}</p>
+    <p><strong>Hora de Fin:</strong> ${formattedHoraFIN || 'No disponible'}</p>
+    <p><strong>Duración:</strong> ${serverData.duration || 'No disponible'}</p>
     <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"}</p>
-    <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize}</p>
-    <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize}</p>
+    <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || 'No disponible'}</p>
+    <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || 'No disponible'}</p>
     <p><strong>Exitoso?:</strong> 
       <span id="success-status" class="${statusClass}" style="cursor: pointer;">
-        ${successStatus}
+        ${successStatus || 'No disponible'}
       </span>
     </p>
     <p><strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}</p>
-    <h3 style="margin-top: 20px;">${last10LinesTitle}</h3>
+    <h3 style="margin-top: 20px;">${last10LinesTitle || 'No disponible'}</h3>
     <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
       ${(serverData.groupControlInfo) || 'No disponible'}
     </pre>
   `;
 
-  // Crear el contenedor del modal
-  const modal = document.createElement("div");
-  modal.style.position = "fixed";
-  modal.style.top = "0";
-  modal.style.left = "0";
-  modal.style.width = "100%";
-  modal.style.height = "100%";
-  modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-  modal.style.display = "flex";
-  modal.style.justifyContent = "center";
-  modal.style.alignItems = "center";
-  modal.style.zIndex = "9000";
+    // Crear el contenedor del modal
+    const modal = document.createElement("div");
+    modal.style.position = "fixed";
+    modal.style.top = "0";
+    modal.style.left = "0";
+    modal.style.width = "100%";
+    modal.style.height = "100%";
+    modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+    modal.style.display = "flex";
+    modal.style.justifyContent = "center";
+    modal.style.alignItems = "center";
+    modal.style.zIndex = "9000";
 
-  // Crear el contenido del modal
-  const modalBox = document.createElement("div");
-  modalBox.style.backgroundColor = "#fff";
-  modalBox.style.padding = "20px";
-  modalBox.style.borderRadius = "8px";
-  modalBox.style.maxWidth = "600px";
-  modalBox.style.width = "90%";
-  modalBox.style.boxShadow = "0 5px 15px rgba(0, 0, 0, 0.3)";
-  modalBox.innerHTML = modalContent;
+    // Crear el contenido del modal
+    const modalBox = document.createElement("div");
+    modalBox.style.backgroundColor = "#fff";
+    modalBox.style.padding = "20px";
+    modalBox.style.borderRadius = "8px";
+    modalBox.style.maxWidth = "600px";
+    modalBox.style.width = "90%";
+    modalBox.style.boxShadow = "0 5px 15px rgba(0, 0, 0, 0.3)";
+    modalBox.innerHTML = modalContent;
 
-  // Botón para cerrar el modal
-  const closeButton = document.createElement("span");
-  closeButton.textContent = "×";
-  closeButton.style.position = "absolute";
-  closeButton.style.top = "10px";
-  closeButton.style.right = "15px";
-  closeButton.style.fontSize = "24px";
-  closeButton.style.cursor = "pointer";
-  closeButton.addEventListener("click", () => {
-    modal.remove();
-  });
-
-  // Añadir el botón de cerrar al modal
-  modalBox.appendChild(closeButton);
-
-  // Añadir el contenedor al modal
-  modal.appendChild(modalBox);
-
-  // Añadir el modal al documento
-  document.body.appendChild(modal);
-
-  // Cerrar el modal al hacer clic fuera del contenido
-  modal.addEventListener("click", (event) => {
-    if (event.target === modal) {
+    // Botón para cerrar el modal
+    const closeButton = document.createElement("span");
+    closeButton.textContent = "×";
+    closeButton.style.position = "absolute";
+    closeButton.style.top = "10px";
+    closeButton.style.right = "15px";
+    closeButton.style.fontSize = "24px";
+    closeButton.style.cursor = "pointer";
+    closeButton.addEventListener("click", () => {
       modal.remove();
-    }
-  });
-  // Mostrar el tooltip cuando el estado es "Fallo"
-  const successStatusElement = modalBox.querySelector("#success-status");
-  if (serverData.success === 0 && serverData.oraErrorMessage) {
-    successStatusElement.addEventListener("click", (event) => {
-      // Crear el tooltip
-      const tooltipError = document.createElement("div");
-      tooltipError.classList.add("tooltip-error");
-
-      // Mostrar el contenido completo de oraErrorMessage
-      tooltipError.textContent = serverData.oraErrorMessage;
-
-      // Añadir el tooltip al documento
-      document.body.appendChild(tooltipError);
-
-      // Aplicar estilos al tooltip
-      tooltipError.style.position = "fixed";
-      tooltipError.style.top = `${event.clientY + 10}px`;
-      tooltipError.style.left = `${event.clientX + 10}px`;
-      tooltipError.style.backgroundColor = "#f8d7da";
-      tooltipError.style.color = "#721c24";
-      tooltipError.style.padding = "10px";
-      tooltipError.style.border = "1px solid #f5c6cb";
-      tooltipError.style.borderRadius = "5px";
-      tooltipError.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
-      tooltipError.style.zIndex = "10000";
-      tooltipError.style.display = "block";
-      tooltipError.style.opacity = "1";
-      tooltipError.style.maxWidth = "300px";
-      tooltipError.style.wordWrap = "break-word";
-
-      // Cerrar el tooltip al hacer clic fuera
-      const closeTooltip = (e) => {
-        if (!tooltipError.contains(e.target)) {
-          tooltipError.remove();
-          document.removeEventListener("click", closeTooltip);
-        }
-      };
-
-      // Escuchar clics fuera del tooltip para cerrarlo
-      setTimeout(() => {
-        document.addEventListener("click", closeTooltip);
-      }, 100);
     });
+
+    // Añadir el botón de cerrar al modal
+    modalBox.appendChild(closeButton);
+
+    // Añadir el contenedor al modal
+    modal.appendChild(modalBox);
+
+    // Añadir el modal al documento
+    document.body.appendChild(modal);
+
+    // Cerrar el modal al hacer clic fuera del contenido
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        modal.remove();
+      }
+    });
+    // Mostrar el tooltip cuando el estado es "Fallo"
+    const successStatusElement = modalBox.querySelector("#success-status");
+    if (serverData.success === 0 && serverData.oraErrorMessage) {
+      successStatusElement.addEventListener("click", (event) => {
+        // Crear el tooltip
+        const tooltipError = document.createElement("div");
+        tooltipError.classList.add("tooltip-error");
+
+        // Mostrar el contenido completo de oraErrorMessage
+        tooltipError.textContent = serverData.oraErrorMessage;
+
+        // Añadir el tooltip al documento
+        document.body.appendChild(tooltipError);
+
+        // Aplicar estilos al tooltip
+        tooltipError.style.position = "fixed";
+        tooltipError.style.top = `${event.clientY + 10}px`;
+        tooltipError.style.left = `${event.clientX + 10}px`;
+        tooltipError.style.backgroundColor = "#f8d7da";
+        tooltipError.style.color = "#721c24";
+        tooltipError.style.padding = "10px";
+        tooltipError.style.border = "1px solid #f5c6cb";
+        tooltipError.style.borderRadius = "5px";
+        tooltipError.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
+        tooltipError.style.zIndex = "10000";
+        tooltipError.style.display = "block";
+        tooltipError.style.opacity = "1";
+        tooltipError.style.maxWidth = "300px";
+        tooltipError.style.wordWrap = "break-word";
+
+        // Cerrar el tooltip al hacer clic fuera
+        const closeTooltip = (e) => {
+          if (!tooltipError.contains(e.target)) {
+            tooltipError.remove();
+            document.removeEventListener("click", closeTooltip);
+          }
+        };
+
+        // Escuchar clics fuera del tooltip para cerrarlo
+        setTimeout(() => {
+          document.addEventListener("click", closeTooltip);
+        }, 100);
+      });
+    }
   }
-}
 
   //const tooltipError = document.createElement("div");
   const processAllServersBtn = document.getElementById(
@@ -891,9 +902,20 @@ function showServerDetailsModal(serverData) {
     // Determinar el título dinámico para las últimas 10 líneas
     const last10LinesTitle = logIncludesJob ? "Ver última línea del log" : "Advertencia:";
 
+    // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
+    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
+    const isBantotal = logData.serverName === "Bantotal"; // Asegurarse que el servidor sea "Bantotal"
+    let subcarpeta = '';
+
+    if (isBantotal) {
+      // Buscar si alguna subcarpeta está en la ruta de backup
+      subcarpeta = subcarpetas.find(sub => logData.backupPath.includes(sub)) || '';
+    }
+
     // Crear contenido del modal
     const modalContent = `
       <h2 style="text-align: center; font-size: 20px;">Detalles del Log para ${logData.serverName}</h2>
+      ${subcarpeta ? `<h3 style="text-align: center; font-size: 18px; color: #555;">Subcarpeta: ${subcarpeta}</h3>` : ''}
       <p><strong>IP:</strong> ${logData.ip}
       <p><strong>Archivo de Log:</strong> ${logData.logFileName || 'No disponible'}</p>
       <p><strong>Hora de Inicio:</strong> ${logData.startTime || 'No disponible'}</p>
@@ -1446,6 +1468,23 @@ function showServerDetailsModal(serverData) {
       //console.log("Datos del log:", logData); // Para depuración
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
       const successClass = logData.logDetails?.success ? "" : "error-box";
+
+      // Subcarpetas que queremos verificar en la ruta de backup
+      const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
+      let subcarpeta = '';
+
+      // Verificar si el servidor es Bantotal y si la ruta de backup contiene alguna subcarpeta de las definidas
+      if (logData.serverName === "Bantotal" && logData.backupPath) {
+        // Verificar si alguna subcarpeta está en la ruta de backup
+        subcarpeta = subcarpetas.find(sub => logData.backupPath.includes(sub)) || '';
+      }
+
+      // Si se encuentra una subcarpeta, la mostramos debajo del título
+      let subcarpetaContent = '';
+      if (subcarpeta) {
+        subcarpetaContent = `<h3 style="font-size: 16px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`;
+      }
+
       const totalDmpSize = logData.dumpFileInfo.reduce(
         (sum, file) => sum + file.fileSize,
         0
@@ -1464,6 +1503,7 @@ function showServerDetailsModal(serverData) {
       entryDiv.innerHTML = `
             <p><strong>IP:</strong> ${logData.ip
         }<strong> Nombre del servidor:</strong> ${serverName}</p>
+        ${subcarpetaContent}
             <p><strong>Tiempo de inicio:</strong> ${logData.logDetails.startTime || "N/A"
         }</p>
             <p><strong>Tiempo de fin:</strong> ${logData.logDetails.endTime || "N/A"
