@@ -154,6 +154,59 @@ app.whenReady().then(() => {
           backupPath: directoryPath
         };
       }
+      // Si es `WebContent`, aplicar lógica específica de RMAN
+    if (serverName === 'WebContent') {
+      // Obtiene archivos de log en el directorio para WebContent
+      const files = await new Promise((resolve, reject) => {
+        sftp.readdir(directoryPath, (err, files) => {
+          if (err) {
+            console.error("Readdir error:", err);
+            sftp.end();
+            conn.end();
+            return reject(new Error(`Failed to read directory: ${err.message}`));
+          }
+          resolve(files);
+        });
+      });
+
+      // Filtra los archivos de log para obtener solo el archivo de RMAN
+      const rmanLogFiles = files.filter(file => file.filename.includes("bk_rman_full") && file.filename.endsWith(".log"));
+
+      // Procesar cada archivo de log de RMAN
+      for (const logFile of rmanLogFiles) {
+        const logFilePath = joinPath(directoryPath, logFile.filename, targetOS);
+        const logData = await new Promise((resolve, reject) => {
+          sftp.readFile(logFilePath, "utf8", (err, data) => {
+            if (err) {
+              console.error("ReadFile error:", err);
+              sftp.end();
+              conn.end();
+              return reject(new Error(`Failed to read log file: ${err.message}`));
+            }
+            resolve(data);
+          });
+        });
+
+        // Extrae los detalles específicos del log de RMAN
+        const rmanLogDetails = extractRmanLogDetails(logData);
+
+        // Guarda los detalles en la base de datos
+        await saveRmanLogToDatabase(rmanLogDetails, serverName, ip);
+
+        // Agrega los detalles a la lista de todos los logs
+        allLogDetails.push({
+          logDetails: rmanLogDetails,
+          logFileName: logFile.filename,
+          backupPath: directoryPath,
+          ip,
+          os: targetOS,
+          serverName: serverName,
+        });
+      }
+      sftp.end();
+      conn.end();
+      return allLogDetails; // Retorna los detalles específicos de RMAN para `WebContent`
+    }
       // Llamada a getFolderSize para Solaris, Linux, y Windows
       let folderSizes = await getFolderSize(
         conn,
@@ -2281,4 +2334,133 @@ ipcMain.handle("get-verification-history", async (event, date) => {
     }
   }
 });
+function formatOracleDate(date) {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
 
+  // Aquí estamos asegurándonos de que la fecha sea compatible con Oracle
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+function extractRmanLogDetails(logContent) {
+  const logDetails = {
+    fechaInicio: null,
+    fechaFin: null,
+    duracion: "00:00:00",
+    estadoBackup: 'Éxito',  // Suponemos éxito hasta que se encuentre un error
+    rutaBackup: null,
+    errorMessage: null,
+  };
+
+  // Expresiones regulares para capturar la información específica del log
+  const startDateRegex = /Recovery Manager: Release.*on ([A-Za-z]{3} \w{3} \d{1,2} \d{2}:\d{2}:\d{2} \d{4})/;
+  const elapsedRegex = /elapsed time: ([\d:]+)/g;
+  const pathRegex = /piece handle=([\S]+)/;
+  const errorRegex = /(ORA-\d+|RMAN-\d+)/;
+
+  // Captura de la fecha de inicio
+  const startMatch = logContent.match(startDateRegex);
+  if (startMatch) {
+    const startDateString = startMatch[1];
+    // Convertimos la fecha a un formato adecuado para JavaScript
+    const startDate = new Date(startDateString.replace(/(\w{3}) (\w{3}) (\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})/, (match, p1, p2, p3, p4, p5, p6, p7) => {
+      const months = {
+        Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
+        Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
+      };
+      return `${p7}-${months[p2]}-${p3}T${p4}:${p5}:${p6}.000Z`; // YYYY-MM-DDTHH:mm:ss.000Z
+    }));
+    logDetails.fechaInicio = formatOracleDate(startDate);
+  }
+
+  // Calcular la duración total sumando todos los `elapsed time`
+  let totalDuration = [0, 0, 0];  // [horas, minutos, segundos]
+  let elapsedMatch;
+  while ((elapsedMatch = elapsedRegex.exec(logContent)) !== null) {
+    const [hours, minutes, seconds] = elapsedMatch[1].split(":").map(Number);
+    totalDuration[0] += hours;
+    totalDuration[1] += minutes;
+    totalDuration[2] += seconds;
+  }
+
+  // Normalizar el tiempo total en formato hh:mm:ss
+  totalDuration[1] += Math.floor(totalDuration[2] / 60);
+  totalDuration[2] %= 60;
+  totalDuration[0] += Math.floor(totalDuration[1] / 60);
+  totalDuration[1] %= 60;
+  logDetails.duracion = totalDuration.map(unit => String(unit).padStart(2, '0')).join(":");
+
+  // Captura de la ruta del backup
+  const pathMatch = logContent.match(pathRegex);
+  if (pathMatch) logDetails.rutaBackup = pathMatch[1];
+  // Calcular la fecha de fin sumando la duración al inicio
+  if (logDetails.fechaInicio && logDetails.duracion !== "00:00:00") {
+    const startDate = new Date(logDetails.fechaInicio);
+    const durationParts = logDetails.duracion.split(":").map(Number);
+     // Sumamos la duración a la fecha de inicio
+     startDate.setHours(startDate.getHours() + durationParts[0]);
+     startDate.setMinutes(startDate.getMinutes() + durationParts[1]);
+     startDate.setSeconds(startDate.getSeconds() + durationParts[2]);
+ 
+     // La fecha de fin es la fecha de inicio más la duración
+     logDetails.fechaFin = formatOracleDate(startDate);
+   }
+
+  // Verificar si existen errores en el log
+  const errorMatch = logContent.match(errorRegex);
+  if (errorMatch) {
+    logDetails.estadoBackup = 'Fallo';
+    logDetails.errorMessage = errorMatch[0];
+  }
+
+  return logDetails;
+}
+async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
+  const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage } = rmanLogDetails;
+
+  // Crear la conexión a la base de datos Oracle
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig); // Usa la configuración de la base de datos
+    // Verificar que las fechas estén en el formato correcto
+    const formattedFechaInicio = formatOracleDate(new Date(fechaInicio));
+    const formattedFechaFin = formatOracleDate(new Date(fechaFin));
+    // Imprimir las fechas para verificar cómo se reciben
+    console.log("Fecha de inicio:", formattedFechaInicio);
+    console.log("Fecha de fin:", formattedFechaFin);
+    // Ejecutar el INSERT en la base de datos
+    const result = await connection.execute(
+      `INSERT INTO rman_backup_logs 
+      (fecha_inicio, fecha_fin, duracion, estado_backup, ruta_backup, error_message, servidor, ip) 
+      VALUES (TO_DATE(:fechaInicio, 'YYYY-MM-DD HH24:MI:SS'), TO_DATE(:fechaFin, 'YYYY-MM-DD HH24:MI:SS'), :duracion, :estadoBackup, :rutaBackup, :errorMessage, :servidor, :ip)`,
+      {
+        fechaInicio: formattedFechaInicio,
+        fechaFin: formattedFechaFin,
+        duracion,
+        estadoBackup,
+        rutaBackup,
+        errorMessage,
+        servidor,
+        ip,
+      },
+      { autoCommit: true } // Asegúrate de que los cambios se guarden automáticamente
+    );
+
+    console.log("Detalles del log guardados en la base de datos:", result);
+
+  } catch (err) {
+    console.error("Error al guardar los detalles del log en la base de datos:", err);
+    throw err;  // Lanzar el error para manejarlo más arriba si es necesario
+  } finally {
+    if (connection) {
+      try {
+        await connection.close(); // Cerrar la conexión a la base de datos
+      } catch (err) {
+        console.error("Error al cerrar la conexión con la base de datos:", err);
+      }
+    }
+  }
+}

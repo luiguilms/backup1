@@ -45,11 +45,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (currentPath.endsWith("index.html") || currentPath === "/") {
     createStatsButton();
   }
-// Función para mostrar un modal no bloqueante
-function showCustomAlert(message) {
-  const modal = document.createElement("div");
-  modal.className = "custom-alert"; // Agregar la clase al modal
-  modal.innerHTML = `
+  // Función para mostrar un modal no bloqueante
+  function showCustomAlert(message) {
+    const modal = document.createElement("div");
+    modal.className = "custom-alert"; // Agregar la clase al modal
+    modal.innerHTML = `
     <div class="custom-alert-content">
       <span class="close-btn">&times;</span>
       <p>${message}</p>
@@ -57,8 +57,8 @@ function showCustomAlert(message) {
     </div>
   `;
 
-  // Estilos para el modal
-  const styles = `
+    // Estilos para el modal
+    const styles = `
     .custom-alert {
       position: fixed;
       top: 50%;
@@ -110,33 +110,33 @@ function showCustomAlert(message) {
     }
   `;
 
-  // Añadir los estilos al documento
-  const styleSheet = document.createElement("style");
-  styleSheet.innerText = styles;
-  document.head.appendChild(styleSheet);
+    // Añadir los estilos al documento
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = styles;
+    document.head.appendChild(styleSheet);
 
-  // Mostrar el modal
-  document.body.appendChild(modal);
+    // Mostrar el modal
+    document.body.appendChild(modal);
 
-  // Añadir evento para cerrar el modal
-  const closeModalBtn = modal.querySelector("#close-modal-btn");
-  const closeBtn = modal.querySelector(".close-btn");
+    // Añadir evento para cerrar el modal
+    const closeModalBtn = modal.querySelector("#close-modal-btn");
+    const closeBtn = modal.querySelector(".close-btn");
 
-  closeModalBtn.addEventListener("click", () => {
-    modal.remove();
-  });
+    closeModalBtn.addEventListener("click", () => {
+      modal.remove();
+    });
 
-  closeBtn.addEventListener("click", () => {
-    modal.remove();
-  });
-}
+    closeBtn.addEventListener("click", () => {
+      modal.remove();
+    });
+  }
 
-// Función para mostrar el modal de confirmación de eliminación
-function showConfirmDeleteModal(message) {
-  return new Promise((resolve) => {
-    const modal = document.createElement("div");
-    modal.className = "custom-alert";
-    modal.innerHTML = `
+  // Función para mostrar el modal de confirmación de eliminación
+  function showConfirmDeleteModal(message) {
+    return new Promise((resolve) => {
+      const modal = document.createElement("div");
+      modal.className = "custom-alert";
+      modal.innerHTML = `
       <div class="custom-alert-content">
         <span class="close-btn">&times;</span>
         <p>${message}</p>
@@ -145,8 +145,8 @@ function showConfirmDeleteModal(message) {
       </div>
     `;
 
-    // Estilos para el modal
-    const styles = `
+      // Estilos para el modal
+      const styles = `
       .custom-alert {
         position: fixed;
         top: 50%;
@@ -198,38 +198,38 @@ function showConfirmDeleteModal(message) {
       }
     `;
 
-    // Añadir los estilos al documento
-    const styleSheet = document.createElement("style");
-    styleSheet.innerText = styles;
-    document.head.appendChild(styleSheet);
+      // Añadir los estilos al documento
+      const styleSheet = document.createElement("style");
+      styleSheet.innerText = styles;
+      document.head.appendChild(styleSheet);
 
-    // Mostrar el modal
-    document.body.appendChild(modal);
+      // Mostrar el modal
+      document.body.appendChild(modal);
 
-    // Función para cerrar el modal
-    const closeModal = () => {
-      modal.remove();
-    };
+      // Función para cerrar el modal
+      const closeModal = () => {
+        modal.remove();
+      };
 
-    // Añadir evento para cerrar el modal
-    const closeBtn = modal.querySelector(".close-btn");
-    closeBtn.addEventListener("click", closeModal);
+      // Añadir evento para cerrar el modal
+      const closeBtn = modal.querySelector(".close-btn");
+      closeBtn.addEventListener("click", closeModal);
 
-    // Evento para el botón de confirmar
-    const confirmBtn = modal.querySelector("#confirm-btn");
-    confirmBtn.addEventListener("click", () => {
-      resolve(true); // Responde con 'true' si confirma
-      closeModal();
+      // Evento para el botón de confirmar
+      const confirmBtn = modal.querySelector("#confirm-btn");
+      confirmBtn.addEventListener("click", () => {
+        resolve(true); // Responde con 'true' si confirma
+        closeModal();
+      });
+
+      // Evento para el botón de cancelar
+      const cancelBtn = modal.querySelector("#cancel-btn");
+      cancelBtn.addEventListener("click", () => {
+        resolve(false); // Responde con 'false' si cancela
+        closeModal();
+      });
     });
-
-    // Evento para el botón de cancelar
-    const cancelBtn = modal.querySelector("#cancel-btn");
-    cancelBtn.addEventListener("click", () => {
-      resolve(false); // Responde con 'false' si cancela
-      closeModal();
-    });
-  });
-}
+  }
   function createStatsButton() {
     const statsButton = document.createElement("button");
     statsButton.textContent = "Mostrar Estadísticas";
@@ -1635,7 +1635,7 @@ function showConfirmDeleteModal(message) {
     }
 
     console.log("Datos del log:", logData); // Para verificar el contenido de logData
-    console.log("Contenido de dumpFileInfo:", logData.dumpFileInfo); // Verifica qué archivos se están pasando
+
     if (logData.backupVoid) {
       // Si la carpeta está vacía, no hacer nada y simplemente regresar
       return;
@@ -1652,70 +1652,78 @@ function showConfirmDeleteModal(message) {
       //);
       //console.log("Datos del log:", logData); // Para depuración
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
-      const successClass = logData.logDetails?.success ? "" : "error-box";
+      // Caso específico para WebContent
+      if (serverName === 'WebContent') {
+        const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage } = logData.logDetails;
 
-      // Subcarpetas que queremos verificar en la ruta de backup
-      const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
-      let subcarpeta = '';
+        entryDiv.innerHTML = `
+          <p><strong>IP:</strong> ${logData.ip}</p>
+          <p><strong>Servidor:</strong> ${serverName}</p>
+          <p><strong>Fecha de inicio:</strong> ${fechaInicio || "N/A"}</p>
+          <p><strong>Fecha de fin:</strong> ${fechaFin || "N/A"}</p>
+          <p><strong>Duración:</strong> ${duracion || "N/A"}</p>
+          <p><strong>Estado del backup:</strong> ${estadoBackup}</p>
+          <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}</p>
+          <p><strong>Mensaje de error:</strong> ${errorMessage || "Sin errores detectados"}</p>
+      `;
+      } else {
+        const successClass = logData.logDetails?.success ? "" : "error-box";
+        console.log("Contenido de dumpFileInfo:", logData.dumpFileInfo); // Verifica qué archivos se están pasando
+        // Subcarpetas que queremos verificar en la ruta de backup
+        const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
+        let subcarpeta = '';
 
-      // Verificar si el servidor es Bantotal y si la ruta de backup contiene alguna subcarpeta de las definidas
-      if (logData.serverName === "Bantotal" && logData.backupPath) {
-        // Verificar si alguna subcarpeta está en la ruta de backup
-        subcarpeta = subcarpetas.find(sub => logData.backupPath.includes(sub)) || '';
-      }
+        // Verificar si el servidor es Bantotal y si la ruta de backup contiene alguna subcarpeta de las definidas
+        if (logData.serverName === "Bantotal" && logData.backupPath) {
+          // Verificar si alguna subcarpeta está en la ruta de backup
+          subcarpeta = subcarpetas.find(sub => logData.backupPath.includes(sub)) || '';
+        }
 
-      // Si se encuentra una subcarpeta, la mostramos debajo del título
-      let subcarpetaContent = '';
-      if (subcarpeta) {
-        subcarpetaContent = `<h3 style="font-size: 16px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`;
-      }
+        // Si se encuentra una subcarpeta, la mostramos debajo del título
+        let subcarpetaContent = '';
+        if (subcarpeta) {
+          subcarpetaContent = `<h3 style="font-size: 16px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`;
+        }
 
-      const totalDmpSize = logData.dumpFileInfo.reduce(
-        (sum, file) => sum + file.fileSize,
-        0
-      );
-      const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
-      // Manejo de `totalFolderSize` para asegurar que sea un número válido
-      const folderSizeValue = Array.isArray(logData.totalFolderSize)
-        ? logData.totalFolderSize[0]?.sizeInMB || "N/A"
-        : logData.totalFolderSize;
+        const totalDmpSize = logData.dumpFileInfo.reduce(
+          (sum, file) => sum + file.fileSize,
+          0
+        );
+        const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
+        // Manejo de `totalFolderSize` para asegurar que sea un número válido
+        const folderSizeValue = Array.isArray(logData.totalFolderSize)
+          ? logData.totalFolderSize[0]?.sizeInMB || "N/A"
+          : logData.totalFolderSize;
 
-      const formattedFolderSize = !isNaN(parseFloat(folderSizeValue))
-        ? formatFileSize(parseFloat(folderSizeValue))
-        : "Tamaño no disponible";
-      // Añadir el estado del backup
-      const backupStatus = logData.logDetails.backupStatus || "N/A";
-      entryDiv.innerHTML = `
+        const formattedFolderSize = !isNaN(parseFloat(folderSizeValue))
+          ? formatFileSize(parseFloat(folderSizeValue))
+          : "Tamaño no disponible";
+        // Añadir el estado del backup
+        const backupStatus = logData.logDetails.backupStatus || "N/A";
+        entryDiv.innerHTML = `
             <p><strong>IP:</strong> ${logData.ip
-        }<strong> Nombre del servidor:</strong> ${serverName}</p>
+          }<strong> Nombre del servidor:</strong> ${serverName}</p>
         ${subcarpetaContent}
             <p><strong>Tiempo de inicio:</strong> ${logData.logDetails.startTime || "N/A"
-        }</p>
+          }</p>
             <p><strong>Tiempo de fin:</strong> ${logData.logDetails.endTime || "N/A"
-        }</p>
+          }</p>
             <p><strong>Estado del backup:</strong> ${backupStatus}</p>
             <p><strong>Duración:</strong> ${logData.logDetails.duration || "N/A"
-        }</p>
+          }</p>
             <!-- Aplica la clase 'error' al párrafo si success es No -->
             <p class="${successClass}"><strong>Exitoso?:</strong> ${logData.logDetails.success ? "Yes" : "No"
-        }</p>
+          }</p>
             <p><strong>Peso total de archivo .dmp:</strong> ${formattedDmpSize}</p> <!-- Aquí -->
             <p><strong>Nombre del archivo .log:</strong> ${logData.logFileName || "N/A"
-        }</p>
+          }</p>
             <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"
-        } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
+          } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
         `;
+      
       if (logData.logDetails.oraError) {
         entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
       }
-      document
-        .getElementById("close-result")
-        .addEventListener("click", function () {
-          const resultDiv = document.getElementById("result");
-          if (resultDiv) {
-            resultDiv.style.display = "none"; // Oculta el div por completo
-          }
-        });
       const showLogButton = document.createElement("button");
       showLogButton.textContent = logData.logDetails.hasWarning
         ? "Ver grupos de control (Advertencia)"
@@ -1727,6 +1735,16 @@ function showConfirmDeleteModal(message) {
         showLast10LinesModal(linesToShow, logData.logDetails.hasWarning);
       };
       entryDiv.appendChild(showLogButton);
+    }
+      document
+        .getElementById("close-result")
+        .addEventListener("click", function () {
+          const resultDiv = document.getElementById("result");
+          if (resultDiv) {
+            resultDiv.style.display = "none"; // Oculta el div por completo
+          }
+        });
+      
       // Añadir la línea divisoria después del botón
       const hr = document.createElement("hr");
       entryDiv.appendChild(hr);
@@ -1734,6 +1752,7 @@ function showConfirmDeleteModal(message) {
       if (resultDiv) resultDiv.style.display = "block";
     }
   }
+  
   let tooltipError = null;
   if (logEntriesContainer) {
     logEntriesContainer.addEventListener("click", function (event) {
@@ -2503,6 +2522,9 @@ function showConfirmDeleteModal(message) {
     }
   });
   function convertToGB(totalFolderSize) {
+    if (typeof totalFolderSize === "number") {
+      return `${(totalFolderSize / 1000).toFixed(2)} GB`; // Si el tamaño es un número, convertirlo a GB directamente
+    }
     // Extrae el número de "totalFolderSize"
     const sizePattern = /(\d+(?:\.\d+)?)\s*(MB|GB)?/i;
     const match = totalFolderSize.match(sizePattern);
@@ -2625,6 +2647,10 @@ function showConfirmDeleteModal(message) {
         if (Array.isArray(logDetailsArray)) {
           for (const logData of logDetailsArray) {
             const serverName = logData.serverName;
+            if (serverName === "WebContent") {
+              // Para WebContent, solo agregamos la entrada del log
+              addLogEntry({ ...logData, ip });
+            } else {
             //console.log("Adding log entry:", logData);
             if (serverName === "Bantotal" && logData.backupIncomplete && !hasShownBackupIncompleteError) {
               // Encuentra las subcarpetas existentes en `directories`
@@ -2669,12 +2695,17 @@ function showConfirmDeleteModal(message) {
                 logData.logFileName,
                 logData.ip,
                 logData.backupPath,
-                formattedTotalFolderSize
+                formattedTotalFolderSize || "0 MB"
               );
             }
           }
+        }
         } else if (logDetailsArray && typeof logDetailsArray === "object") {
           const serverName = logDetailsArray.serverName;
+          if (serverName === "WebContent") {
+            // Para WebContent, solo agregamos la entrada del log
+            addLogEntry({ ...logDetailsArray, ip });
+          } else {
           if (serverName === "Bantotal" && logDetailsArray.backupIncomplete && !hasShownBackupIncompleteError) {
             const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta
 
@@ -2719,6 +2750,7 @@ function showConfirmDeleteModal(message) {
               formattedTotalFolderSize
             );
           }
+        }
         } else {
           throw new Error("Formato de log inesperado.");
         }
