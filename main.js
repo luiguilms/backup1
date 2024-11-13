@@ -193,7 +193,8 @@ app.whenReady().then(() => {
           // Guarda los detalles en la base de datos
           await saveRmanLogToDatabase({
             ...rmanLogDetails,
-            rutaBackup: directoryPath  // Aquí pasamos directoryPath como rutaBackup
+            rutaBackup: directoryPath,
+            logFileName: logFile.filename  // Aquí pasamos directoryPath como rutaBackup
           }, serverName, ip);
 
           // Agrega los detalles a la lista de todos los logs
@@ -2292,30 +2293,55 @@ ipcMain.handle("get-verification-history", async (event, date) => {
 
     const result = await connection.execute(`
       SELECT 
-                lb.id, 
-                lb.executionDate, 
-                lb.horaINI, 
-                lb.horaFIN, 
-                lb.duration, 
-                lb.success, 
-                lb.dumpFileSize, 
-                si.ServerName, -- Obtén el nombre del servidor
-                lb.serverName AS osType, -- Obtén el SO desde LogBackup
-                lb.logFileName, 
-                lb.ip, 
-                lb.backupPath, 
-                lb.totalFolderSize, 
-                lb.backupStatus, 
-                TO_CHAR(lb.groupControlInfo) AS groupControlInfo,
-                TO_CHAR(lb.oraErrorMessage) AS oraErrorMessage
-            FROM 
-                LogBackup lb
-            JOIN 
-                ServerInfo si ON lb.ip = si.IP -- Aquí haces el JOIN
-            WHERE 
-                TRUNC(lb.executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
-            ORDER BY 
-                lb.executionDate DESC
+        lb.id, 
+        lb.executionDate, 
+        lb.horaINI, 
+        lb.horaFIN, 
+        lb.duration, 
+        lb.success, 
+        lb.dumpFileSize, 
+        si.ServerName, -- Nombre del servidor desde ServerInfo
+        lb.serverName AS osType, -- SO desde LogBackup
+        lb.logFileName, 
+        lb.ip, 
+        lb.backupPath, 
+        lb.totalFolderSize, 
+        lb.backupStatus, 
+        TO_CHAR(lb.groupControlInfo) AS groupControlInfo,
+        TO_CHAR(lb.oraErrorMessage) AS oraErrorMessage
+      FROM 
+        LogBackup lb
+      JOIN 
+        ServerInfo si ON lb.ip = si.IP
+      WHERE 
+        TRUNC(lb.executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
+      
+      UNION ALL
+      
+      SELECT 
+        rbl.rmanID AS id,
+        rbl.executionDate,
+        rbl.fecha_inicio AS horaINI,
+        rbl.fecha_fin AS horaFIN,
+        rbl.duracion AS duration,
+        CASE WHEN rbl.estado_backup = 'Éxito' THEN 1 ELSE 0 END AS success,
+        NULL AS dumpFileSize,
+        rbl.servidor AS ServerName,
+        NULL AS osType,
+        rbl.logFileName AS logFileName,
+        rbl.ip,
+        rbl.ruta_backup AS backupPath,
+        NULL AS totalFolderSize,
+        rbl.estado_backup AS backupStatus,
+        TO_CHAR(rbl.error_message) AS groupControlInfo,
+        TO_CHAR(rbl.error_message) AS oraErrorMessage
+      FROM 
+        rman_backup_logs rbl
+      WHERE 
+        TRUNC(rbl.executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
+      
+      ORDER BY 
+        executionDate DESC
     `, { selectedDate: date });
 
     return result.rows.map((row) => ({
@@ -2326,15 +2352,15 @@ ipcMain.handle("get-verification-history", async (event, date) => {
       duration: row[4],
       success: row[5],
       dumpFileSize: row[6],
-      serverName: row[7], // ServerName de ServerInfo
-      osType: row[8], // SO desde LogBackup
+      serverName: row[7],
+      osType: row[8],
       logFileName: row[9],
       ip: row[10],
       backupPath: row[11],
       totalFolderSize: row[12],
       backupStatus: row[13],
       groupControlInfo: row[14],
-      oraErrorMessage: String(row[15] || "") // Convertir a string
+      oraErrorMessage: String(row[15] || "Sin errores")
     }));
   } catch (error) {
     console.error("Error al obtener el historial de verificaciones:", error);
@@ -2434,7 +2460,7 @@ function extractRmanLogDetails(logContent) {
   return logDetails;
 }
 async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
-  const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage } = rmanLogDetails;
+  const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage, logFileName  } = rmanLogDetails;
 
   // Crear la conexión a la base de datos Oracle
   let connection;
@@ -2449,8 +2475,8 @@ async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
     // Ejecutar el INSERT en la base de datos
     const result = await connection.execute(
       `INSERT INTO rman_backup_logs 
-      (fecha_inicio, fecha_fin, duracion, estado_backup, ruta_backup, error_message, servidor, ip) 
-      VALUES (TO_DATE(:fechaInicio, 'YYYY-MM-DD HH24:MI:SS'), TO_DATE(:fechaFin, 'YYYY-MM-DD HH24:MI:SS'), :duracion, :estadoBackup, :rutaBackup, :errorMessage, :servidor, :ip)`,
+      (fecha_inicio, fecha_fin, duracion, estado_backup, ruta_backup, error_message, servidor, ip, logFileName) 
+      VALUES (TO_DATE(:fechaInicio, 'YYYY-MM-DD HH24:MI:SS'), TO_DATE(:fechaFin, 'YYYY-MM-DD HH24:MI:SS'), :duracion, :estadoBackup, :rutaBackup, :errorMessage, :servidor, :ip, :logFileName)`,
       {
         fechaInicio: formattedFechaInicio,
         fechaFin: formattedFechaFin,
@@ -2460,6 +2486,7 @@ async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
         errorMessage,
         servidor,
         ip,
+        logFileName,
       },
       { autoCommit: true } // Asegúrate de que los cambios se guarden automáticamente
     );

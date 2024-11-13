@@ -370,7 +370,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           cellRenderer: (params) => {
             const serverDiv = document.createElement("div");
             serverDiv.classList.add("server-cell");
-            serverDiv.textContent = `${params.data.serverName} - ${params.data.osType}`; // Muestra el nombre del servidor y SO
+            serverDiv.textContent = `${params.data.serverName}`; // Muestra el nombre del servidor 
             serverDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
 
             // Agregar evento de clic para mostrar el modal con los detalles
@@ -604,17 +604,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     <p><strong>Hora de Fin:</strong> ${formattedHoraFIN || 'No disponible'}</p>
     <p><strong>Duración:</strong> ${serverData.duration || 'No disponible'}</p>
     <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"}</p>
-    <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || 'No disponible'}</p>
-    <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || 'No disponible'}</p>
     <p><strong>Exitoso?:</strong> 
       <span id="success-status" class="${statusClass}" style="cursor: pointer;">
         ${successStatus || 'No disponible'}
       </span>
     </p>
     <p><strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}</p>
+    ${serverData.serverName === 'WebContent' || (serverData.serverName === 'Contratacion digital' && serverData.backupPath === '/disco3/BK_RMAN_CONTRADIGI') 
+      ? '' 
+      : `
+        <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || 'No disponible'}</p>
+        <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || 'No disponible'}</p>
+      `}
     <h3 style="margin-top: 20px;">${last10LinesTitle || 'No disponible'}</h3>
     <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
-      ${(serverData.groupControlInfo) || 'No disponible'}
+       ${(serverData.groupControlInfo || serverData.oraErrorMessage || "No disponible")}
     </pre>
   `;
 
@@ -1699,6 +1703,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           <p><strong>Duración:</strong> ${duracion || "N/A"}</p>
           <p><strong>Estado del backup:</strong> ${estadoBackup}</p>
           <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}</p>
+          <p><strong>Nombre del archivo .log:</strong> ${logData.logFileName || "N/A"}</p>
           <p><strong>Mensaje de error:</strong> ${errorMessage || "Sin errores detectados"}</p>
       `;
       } else {
