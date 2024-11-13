@@ -1097,8 +1097,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     </pre>`;
   } else {
     // Si es WebContent o Contratacion Digital, solo mostrar otros datos relevantes
-    last10LinesTitle = "No se requieren las últimas líneas de log";
-    last10LinesContent = `<p>No se requieren las últimas líneas de log para este servidor.</p>`;
+    last10LinesTitle = "Errores RMAN?";
+    last10LinesContent = logData.groupControlInfo;
   }
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
