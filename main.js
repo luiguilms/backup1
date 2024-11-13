@@ -155,7 +155,7 @@ app.whenReady().then(() => {
         };
       }
       // Si es `WebContent`, aplicar lógica específica de RMAN
-      if (serverName === 'WebContent') {
+      if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && directoryPath === '/disco3/BK_RMAN_CONTRADIGI')) {
         // Obtiene archivos de log en el directorio para WebContent
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
@@ -435,10 +435,10 @@ app.whenReady().then(() => {
                             }
                           );
                           // Agrega esta línea para imprimir el tamaño de cada archivo .dmp
-                          console.log(
-                            `Carpeta: ${subDirPath}, Tamaño del archivo ${dumpFile.filename
-                            }: ${(dumpStats.size / (1024 * 1024)).toFixed(2)} MB`
-                          );
+                          //console.log(
+                          //  `Carpeta: ${subDirPath}, Tamaño del archivo ${dumpFile.filename
+                         //   }: ${(dumpStats.size / (1024 * 1024)).toFixed(2)} MB`
+                         // );
 
                           const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
                           totalDmpSize += dumpFileSizeInMB;
@@ -1329,7 +1329,7 @@ app.whenReady().then(() => {
                 continue;
               }
               // Lógica específica para WebContent
-              if (serverName === "WebContent") {
+              if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && backupPath ==='/disco3/BK_RMAN_CONTRADIGI')) {
                 // Guardar detalles específicos de WebContent, por ejemplo:
                 results.push({
                   serverName,

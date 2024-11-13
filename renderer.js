@@ -1494,7 +1494,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? "Ver grupos de control (Advertencia)"
             : "Ver última línea del log";
             // Datos específicos para WebContent
-            if (serverResult.serverName === "WebContent") {
+            if (serverResult.serverName === 'WebContent' || (serverResult.serverName === 'Contratacion digital' && logDetail.backupPath.trim() === '/disco3/BK_RMAN_CONTRADIGI')) {
+              
+              console.log('Procesando servidor:', serverResult.serverName, 'con ruta:', logDetail.backupPath);
               return {
                   serverName: serverResult.serverName || "N/A",
                   ip: serverResult.ip || "N/A",
@@ -1672,7 +1674,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       //console.log("Datos del log:", logData); // Para depuración
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
       // Caso específico para WebContent
-      if (serverName === 'WebContent') {
+      if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && logData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')) {
         const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage } = logData.logDetails;
 
         entryDiv.innerHTML = `
@@ -2666,7 +2668,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (Array.isArray(logDetailsArray)) {
           for (const logData of logDetailsArray) {
             const serverName = logData.serverName;
-            if (serverName === "WebContent") {
+            if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && logData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')) {
               // Para WebContent, solo agregamos la entrada del log
               addLogEntry({ ...logData, ip });
             } else {
@@ -2721,7 +2723,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         } else if (logDetailsArray && typeof logDetailsArray === "object") {
           const serverName = logDetailsArray.serverName;
-          if (serverName === "WebContent") {
+          if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && logData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')) {
             // Para WebContent, solo agregamos la entrada del log
             addLogEntry({ ...logDetailsArray, ip });
           } else {
