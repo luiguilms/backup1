@@ -1081,11 +1081,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     const successStatus = logData.status ? "Éxitoso" : "Fallo";
     const statusClass = logData.status ? "status-success" : "status-failure";
     const statusStyle = logData.status ? "" : "color: red; cursor: pointer;";
-    // Verificar si 'Job' está presente en las últimas 10 líneas del log
-    const logIncludesJob = (logData.last10Lines || []).some(line => line.includes("Job"));
+    // Verificar si el servidor es WebContent o Contratacion Digital
+  const isSpecialServer = logData.serverName === "WebContent" || logData.serverName === "Contratacion digital" && logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI";
+  
+  // Determinar si se deben mostrar las últimas 10 líneas del log
+  let last10LinesContent = '';
+  let last10LinesTitle = '';
 
-    // Determinar el título dinámico para las últimas 10 líneas
-    const last10LinesTitle = logIncludesJob ? "Ver última línea del log" : "Advertencia:";
+  if (!isSpecialServer) {
+    // Solo pedir last10Lines si no es WebContent o Contratacion Digital
+    const logIncludesJob = (logData.last10Lines || []).some(line => line.includes("Job"));
+    last10LinesTitle = logIncludesJob ? "Ver última línea del log" : "Advertencia:";
+    last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
+      ${(logData.last10Lines || []).join('\n') || 'No disponible'}
+    </pre>`;
+  } else {
+    // Si es WebContent o Contratacion Digital, solo mostrar otros datos relevantes
+    last10LinesTitle = "No se requieren las últimas líneas de log";
+    last10LinesContent = `<p>No se requieren las últimas líneas de log para este servidor.</p>`;
+  }
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
     const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
@@ -1117,7 +1131,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}
       <h3 style="margin-top: 20px;">${last10LinesTitle}</h3>
     <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
-      ${(logData.last10Lines || []).join('\n') || 'No disponible'}
+      ${last10LinesContent}
     </pre>
     `;
 
@@ -1508,7 +1522,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                   totalDmpSize: "N/A", // No aplica para WebContent
                   totalFolderSize: "N/A", // No aplica para WebContent
                   backupStatus: logDetail.logDetails?.estadoBackup === "Éxito" ? "Completado" : "Fallo",
-                  backupPath: logDetail.logDetails?.rutaBackup || "N/A",
+                  backupPath: logDetail.backupPath || "N/A",
                   last10Lines: logDetail.logDetails?.errorMessage || "No hay errores",
                   groupControlInfo: logDetail.logDetails?.errorMessage ? "Ver error" : "Sin errores"
               };
