@@ -155,58 +155,61 @@ app.whenReady().then(() => {
         };
       }
       // Si es `WebContent`, aplicar lógica específica de RMAN
-    if (serverName === 'WebContent') {
-      // Obtiene archivos de log en el directorio para WebContent
-      const files = await new Promise((resolve, reject) => {
-        sftp.readdir(directoryPath, (err, files) => {
-          if (err) {
-            console.error("Readdir error:", err);
-            sftp.end();
-            conn.end();
-            return reject(new Error(`Failed to read directory: ${err.message}`));
-          }
-          resolve(files);
-        });
-      });
-
-      // Filtra los archivos de log para obtener solo el archivo de RMAN
-      const rmanLogFiles = files.filter(file => file.filename.includes("bk_rman_full") && file.filename.endsWith(".log"));
-
-      // Procesar cada archivo de log de RMAN
-      for (const logFile of rmanLogFiles) {
-        const logFilePath = joinPath(directoryPath, logFile.filename, targetOS);
-        const logData = await new Promise((resolve, reject) => {
-          sftp.readFile(logFilePath, "utf8", (err, data) => {
+      if (serverName === 'WebContent') {
+        // Obtiene archivos de log en el directorio para WebContent
+        const files = await new Promise((resolve, reject) => {
+          sftp.readdir(directoryPath, (err, files) => {
             if (err) {
-              console.error("ReadFile error:", err);
+              console.error("Readdir error:", err);
               sftp.end();
               conn.end();
-              return reject(new Error(`Failed to read log file: ${err.message}`));
+              return reject(new Error(`Failed to read directory: ${err.message}`));
             }
-            resolve(data);
+            resolve(files);
           });
         });
 
-        // Extrae los detalles específicos del log de RMAN
-        const rmanLogDetails = extractRmanLogDetails(logData);
+        // Filtra los archivos de log para obtener solo el archivo de RMAN
+        const rmanLogFiles = files.filter(file => file.filename.includes("bk_rman_full") && file.filename.endsWith(".log"));
 
-        // Guarda los detalles en la base de datos
-        await saveRmanLogToDatabase(rmanLogDetails, serverName, ip);
+        // Procesar cada archivo de log de RMAN
+        for (const logFile of rmanLogFiles) {
+          const logFilePath = joinPath(directoryPath, logFile.filename, targetOS);
+          const logData = await new Promise((resolve, reject) => {
+            sftp.readFile(logFilePath, "utf8", (err, data) => {
+              if (err) {
+                console.error("ReadFile error:", err);
+                sftp.end();
+                conn.end();
+                return reject(new Error(`Failed to read log file: ${err.message}`));
+              }
+              resolve(data);
+            });
+          });
 
-        // Agrega los detalles a la lista de todos los logs
-        allLogDetails.push({
-          logDetails: rmanLogDetails,
-          logFileName: logFile.filename,
-          backupPath: directoryPath,
-          ip,
-          os: targetOS,
-          serverName: serverName,
-        });
+          // Extrae los detalles específicos del log de RMAN
+          const rmanLogDetails = extractRmanLogDetails(logData);
+
+          // Guarda los detalles en la base de datos
+          await saveRmanLogToDatabase({
+            ...rmanLogDetails,
+            rutaBackup: directoryPath  // Aquí pasamos directoryPath como rutaBackup
+          }, serverName, ip);
+
+          // Agrega los detalles a la lista de todos los logs
+          allLogDetails.push({
+            logDetails: rmanLogDetails,
+            logFileName: logFile.filename,
+            backupPath: directoryPath,
+            ip,
+            os: targetOS,
+            serverName: serverName,
+          });
+        }
+        sftp.end();
+        conn.end();
+        return allLogDetails; // Retorna los detalles específicos de RMAN para `WebContent`
       }
-      sftp.end();
-      conn.end();
-      return allLogDetails; // Retorna los detalles específicos de RMAN para `WebContent`
-    }
       // Llamada a getFolderSize para Solaris, Linux, y Windows
       let folderSizes = await getFolderSize(
         conn,
@@ -1325,6 +1328,18 @@ app.whenReady().then(() => {
                 });
                 continue;
               }
+              // Lógica específica para WebContent
+              if (serverName === "WebContent") {
+                // Guardar detalles específicos de WebContent, por ejemplo:
+                results.push({
+                  serverName,
+                  ip,
+                  backupPath,
+                  logDetails: logDetails, // Incluye los detalles específicos aquí
+                  error: null,
+                });
+                continue; // Continuar sin procesar más detalles, ya que solo necesitas estos detalles específicos
+              }
               const requiredSubfolders = [
                 "ESQ_USRREPBI",
                 "BK_ANTES2",
@@ -1408,7 +1423,7 @@ app.whenReady().then(() => {
                       formatFileSizeProcess(detail.totalFolderSize),     // Añadir totalFolderSize
                       lastLineToUse,
                       groupControlInfoString,
-                      
+
                     );
                   }
                 }
@@ -1433,7 +1448,7 @@ app.whenReady().then(() => {
                   fullBackupPath,
                   formatFileSizeProcess(logDetails.totalFolderSize),     // Añadir totalFolderSize
                   lastLineToUse,
-                  groupControlInfoString,       
+                  groupControlInfoString,
                 );
               }
 
@@ -2342,7 +2357,7 @@ function formatOracleDate(date) {
   const minutes = date.getMinutes().toString().padStart(2, '0');
   const seconds = date.getSeconds().toString().padStart(2, '0');
 
-  // Aquí estamos asegurándonos de que la fecha sea compatible con Oracle
+  // Formato para Oracle en hora local
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 function extractRmanLogDetails(logContent) {
@@ -2371,7 +2386,7 @@ function extractRmanLogDetails(logContent) {
         Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
         Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
       };
-      return `${p7}-${months[p2]}-${p3}T${p4}:${p5}:${p6}.000Z`; // YYYY-MM-DDTHH:mm:ss.000Z
+      return `${p7}-${months[p2]}-${p3}T${p4}:${p5}:${p6}.000`; // Sin "Z" para no forzar UTC
     }));
     logDetails.fechaInicio = formatOracleDate(startDate);
   }
@@ -2400,14 +2415,14 @@ function extractRmanLogDetails(logContent) {
   if (logDetails.fechaInicio && logDetails.duracion !== "00:00:00") {
     const startDate = new Date(logDetails.fechaInicio);
     const durationParts = logDetails.duracion.split(":").map(Number);
-     // Sumamos la duración a la fecha de inicio
-     startDate.setHours(startDate.getHours() + durationParts[0]);
-     startDate.setMinutes(startDate.getMinutes() + durationParts[1]);
-     startDate.setSeconds(startDate.getSeconds() + durationParts[2]);
- 
-     // La fecha de fin es la fecha de inicio más la duración
-     logDetails.fechaFin = formatOracleDate(startDate);
-   }
+    // Sumamos la duración a la fecha de inicio
+    startDate.setHours(startDate.getHours() + durationParts[0]);
+    startDate.setMinutes(startDate.getMinutes() + durationParts[1]);
+    startDate.setSeconds(startDate.getSeconds() + durationParts[2]);
+
+    // La fecha de fin es la fecha de inicio más la duración
+    logDetails.fechaFin = formatOracleDate(startDate);
+  }
 
   // Verificar si existen errores en el log
   const errorMatch = logContent.match(errorRegex);

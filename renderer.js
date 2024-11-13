@@ -277,7 +277,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     content.style.borderRadius = "8px";
     content.style.width = "90%";
     content.style.height = "90%";
-    content.style.overflowY = "hidden"; // Deshabilita el scroll aquí para que lo maneje el grid
+    content.style.overflowY = "auto"; 
 
     const title = document.createElement("h2");
     title.textContent = "Historial de Verificaciones";
@@ -1413,6 +1413,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     //console.log("Mostrando resultados de servidores:", results);
     if (gridApi && typeof gridApi.setRowData === "function") {
       const rowData = results.flatMap((serverResult) => {
+        console.table(serverResult); // Si `results` es un array de objetos `serverResult`
         if (serverResult.error) {
           if (serverResult.error.includes("no existe")) {
             // Mostrar modal específico para la ruta inexistente
@@ -1492,26 +1493,44 @@ document.addEventListener("DOMContentLoaded", async () => {
           const groupControlInfo = logInfo.hasWarning
             ? "Ver grupos de control (Advertencia)"
             : "Ver última línea del log";
+            // Datos específicos para WebContent
+            if (serverResult.serverName === "WebContent") {
+              return {
+                  serverName: serverResult.serverName || "N/A",
+                  ip: serverResult.ip || "N/A",
+                  status: logDetail.logDetails?.estadoBackup || "N/A",
+                  logFileName: logDetail.logFileName || "N/A",
+                  startTime: logDetail.logDetails?.fechaInicio || "N/A",
+                  endTime: logDetail.logDetails?.fechaFin || "N/A",
+                  duration: logDetail.logDetails?.duracion || "N/A",
+                  totalDmpSize: "N/A", // No aplica para WebContent
+                  totalFolderSize: "N/A", // No aplica para WebContent
+                  backupStatus: logDetail.logDetails?.estadoBackup === "Éxito" ? "Completado" : "Fallo",
+                  backupPath: logDetail.logDetails?.rutaBackup || "N/A",
+                  last10Lines: logDetail.logDetails?.errorMessage || "No hay errores",
+                  groupControlInfo: logDetail.logDetails?.errorMessage ? "Ver error" : "Sin errores"
+              };
+          }
           return {
             serverName: serverResult.serverName,
-            ip: serverResult.ip,
-            status: status,
-            statusClass: successClass,
+            ip: serverResult.ip || "N/A",
+            status: status || "N/A",
+            statusClass: successClass || "N/A",
             logFileName: logDetail.logFileName || "N/A",
             startTime: logDetail.logDetails?.startTime || "N/A",
             endTime: logDetail.logDetails?.endTime || "N/A",
             duration: logDetail.logDetails?.duration || "N/A",
-            totalDmpSize: formattedDmpSize, // Cambiado de formattedDmpSize
-            totalFolderSize: formattedFolderSize, // Cambiado de formattedFolderSize
+            totalDmpSize: formattedDmpSize || "N/A", // Cambiado de formattedDmpSize
+            totalFolderSize: formattedFolderSize || "N/A", // Cambiado de formattedFolderSize
             backupStatus: logDetail.logDetails?.backupStatus || "N/A",
             backupPath: logDetail.backupPath || "N/A",
             oraError: logDetail.logDetails?.oraError
               ? JSON.stringify(logDetail.logDetails.oraError)
-              : null,
-            statusClass: statusClass,
-            last10Lines: displayedLines,
-            groupControlInfo: groupControlInfo,
-            hasWarning: logInfo.hasWarning,
+              : null || "N/A",
+            statusClass: statusClass || "N/A",
+            last10Lines: displayedLines || "N/A",
+            groupControlInfo: groupControlInfo || "N/A",
+            hasWarning: logInfo.hasWarning || "N/A",
           };
         };
         if (Array.isArray(serverResult.logDetails)) {
