@@ -398,7 +398,7 @@ app.whenReady().then(() => {
                       await sendEmailAlert(ip, serverName, warningMessage);
                     }
                     logDetails = parseLogLine(logData);
-                    const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
+                    const validExtensions = [".dmp", ".DMP", ".dmp.gz", ".gz", ".err"];
                     const dumpFiles = subDirFiles.filter((file) => {
                       const filename = file.filename.toLowerCase();
                       // Verificar si el nombre del archivo termina con alguna de las extensiones válidas
@@ -438,8 +438,8 @@ app.whenReady().then(() => {
                           // Agrega esta línea para imprimir el tamaño de cada archivo .dmp
                           //console.log(
                           //  `Carpeta: ${subDirPath}, Tamaño del archivo ${dumpFile.filename
-                         //   }: ${(dumpStats.size / (1024 * 1024)).toFixed(2)} MB`
-                         // );
+                          //   }: ${(dumpStats.size / (1024 * 1024)).toFixed(2)} MB`
+                          // );
 
                           const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
                           totalDmpSize += dumpFileSizeInMB;
@@ -575,7 +575,7 @@ app.whenReady().then(() => {
                 await sendEmailAlert(ip, serverName, warningMessage);
               }
               const logDetails = parseLogLine(logData);
-              const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
+              const validExtensions = [".dmp", ".DMP", ".dmp.gz", ".gz", ".err"];
               let dumpFileInfo = [];
               const dumpFiles = subDirFiles.filter((file) => {
                 const filename = file.filename.toLowerCase();
@@ -599,14 +599,31 @@ app.whenReady().then(() => {
                 );
 
                 try {
-                  const dumpStats = await sftp.stat(dumpFilePath);
-                  const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
-                  dumpFileInfo.push({
-                    filePath: dumpFilePath,
-                    fileSize: dumpFileSizeInMB > 0 ? parseFloat(dumpFileSizeInMB.toFixed(2)) : 0,
+                  // Usar la promesa de sftp.stat para obtener las estadísticas del archivo
+                  const dumpStats = await new Promise((resolve, reject) => {
+                    sftp.stat(dumpFilePath, (err, stats) => {
+                      if (err) {
+                        console.error(`Error al obtener estadísticas del archivo: ${dumpFile.filename}`, err);
+                        reject(err); // Si hay error, rechaza la promesa
+                      } else {
+                        resolve(stats); // Si no hay error, resuelve la promesa
+                      }
+                    });
                   });
+
+                  // Verificar si dumpStats está definido antes de acceder a 'size'
+                  if (dumpStats && dumpStats.size) {
+                    const dumpFileSizeInMB = dumpStats.size / (1024 * 1024); // Convertir tamaño a MB
+                    totalDmpSize += dumpFileSizeInMB; // Acumular el tamaño total
+                    dumpFileInfo.push({
+                      filePath: dumpFilePath,
+                      fileSize: dumpFileSizeInMB > 0 ? parseFloat(dumpFileSizeInMB.toFixed(2)) : 0,
+                    });
+                  } else {
+                    console.warn(`El archivo ${dumpFile.filename} no tiene tamaño o no es accesible.`);
+                  }
                 } catch (err) {
-                  console.error(`Error al obtener estadísticas del archivo: ${dumpFile.filename}`, err);
+                  console.error(`Error al obtener las estadísticas del archivo: ${dumpFile.filename}`, err);
                 }
               }
 
@@ -1330,7 +1347,7 @@ app.whenReady().then(() => {
                 continue;
               }
               // Lógica específica para WebContent
-              if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && backupPath ==='/disco3/BK_RMAN_CONTRADIGI')) {
+              if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && backupPath === '/disco3/BK_RMAN_CONTRADIGI')) {
                 // Guardar detalles específicos de WebContent, por ejemplo:
                 results.push({
                   serverName,
@@ -1950,7 +1967,7 @@ async function saveLogToDatabase(
     let totalDmpSize = 0;
 
     // Función para verificar extensiones válidas
-    const validExtensions = [".dmp", ".gz", ".err"];
+    const validExtensions = [".dmp", '.DMP', ".gz", ".err"];
     const isValidDmpFile = (filePath) =>
       validExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
 
@@ -2460,7 +2477,7 @@ function extractRmanLogDetails(logContent) {
   return logDetails;
 }
 async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
-  const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage, logFileName  } = rmanLogDetails;
+  const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage, logFileName } = rmanLogDetails;
 
   // Crear la conexión a la base de datos Oracle
   let connection;
