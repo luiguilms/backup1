@@ -1006,6 +1006,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           ipSelect.disabled = false;
           ipSelect.value = ipSelect.options[0].value;
           updateBackupRoutes(); // Actualiza las rutas de backup
+          await updateFormFields(ipSelect.value);
 
         } else {
           // Si no hay servidores que coincidan, deshabilita el selector de IP y muestra un mensaje
@@ -1022,7 +1023,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
   }
-
   // Configura el evento para actualizar las IPs al cambiar el sistema operativo
   if (osSelect) {
     osSelect.addEventListener("change", updateIPOptions);
@@ -2575,6 +2575,39 @@ document.addEventListener("DOMContentLoaded", async () => {
       }, 0);
     }
   });
+  // Función para actualizar los campos del formulario con los datos del servidor
+async function updateFormFields(selectedIp) {
+  try {
+    // Obtener la lista completa de servidores
+    const servers = await window.electron.getServers();
+
+    // Buscar el servidor que tiene la IP seleccionada
+    const selectedServer = servers.find(server => server.ip === selectedIp);
+
+    if (selectedServer && selectedServer.id) {
+      const serverDetails = await window.electron.getServerDetails(selectedServer.id);
+      console.log("Detalles del servidor obtenidos:", serverDetails);
+
+      if (serverDetails) {
+        // Rellenar los campos del formulario con los detalles del servidor
+        document.getElementById("username").value = serverDetails.username || '';
+        document.getElementById("password").value = serverDetails.password || '';
+      } else {
+        console.warn("No se encontraron detalles para el servidor seleccionado.");
+      }
+    } else {
+      console.warn("No se encontró ningún servidor con la IP seleccionada.");
+    }
+  } catch (error) {
+    console.error("Error al obtener los detalles del servidor:", error);
+  }
+}
+
+// Eventos para actualizar las credenciales cuando cambia el sistema operativo o la IP
+osSelect.addEventListener("change", updateIPOptions);
+ipSelect.addEventListener("change", () => {
+  updateFormFields(ipSelect.value);
+});
   function convertToGB(totalFolderSize) {
     if (typeof totalFolderSize === "number") {
       return `${(totalFolderSize / 1000).toFixed(2)} GB`; // Si el tamaño es un número, convertirlo a GB directamente
