@@ -277,7 +277,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     content.style.borderRadius = "8px";
     content.style.width = "90%";
     content.style.height = "90%";
-    content.style.overflowY = "auto"; 
+    content.style.overflowY = "auto";
 
     const title = document.createElement("h2");
     title.textContent = "Historial de Verificaciones";
@@ -505,18 +505,32 @@ document.addEventListener("DOMContentLoaded", async () => {
           cellRenderer: (params) => {
             const button = document.createElement("button");
 
-            // Cambia el título del botón según el contenido de groupControlInfo
-            if (params.data.groupControlInfo && params.data.groupControlInfo.includes("Job")) {
-              button.innerHTML = "Ver última línea del log"; // Título si hay detalles de trabajo
-            } else {
-              button.innerHTML = "Ver advertencias"; // Título si no hay detalles de trabajo
-            }
+            // Comprobamos si el servidor es "WebContent" o "Contratacion digital" y la ruta específica
+            const isSpecialServer =
+              (params.data.serverName === "WebContent" ||
+                (params.data.serverName === "Contratacion digital" && params.data.backupPath === "/disco3/BK_RMAN_CONTRADIGI"));
 
-            button.addEventListener("click", () => {
-              // Muestra el contenido de groupControlInfo al hacer clic
-              const contentToShow = params.data.groupControlInfo; // Mantiene el contenido original
-              showLast10LinesModal(contentToShow); // Asegúrate de que este modal maneje el contenido
-            });
+            // Si es un servidor especial, usamos `error_message` como contenido del botón
+            if (isSpecialServer) {
+              button.innerHTML = "Ver error"; // Título del botón
+              button.addEventListener("click", () => {
+                const errorMessage = params.data.oraErrorMessage || "Sin errores detectados"; // `oraErrorMessage` o mensaje por defecto
+                showLast10LinesModal(errorMessage); // Llamada al modal con `error_message`
+              });
+            } else {
+              // Caso general: comprobamos si `groupControlInfo` tiene "Job" para determinar el título
+              if (params.data.groupControlInfo && params.data.groupControlInfo.includes("Job")) {
+                button.innerHTML = "Ver última línea del log";
+              } else {
+                button.innerHTML = "Ver advertencias";
+              }
+
+              // Lógica para el caso general: mostrar `groupControlInfo`
+              button.addEventListener("click", () => {
+                const contentToShow = params.data.groupControlInfo || "No disponible";
+                showLast10LinesModal(contentToShow);
+              });
+            }
 
             return button;
           }
@@ -610,9 +624,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       </span>
     </p>
     <p><strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}</p>
-    ${serverData.serverName === 'WebContent' || (serverData.serverName === 'Contratacion digital' && serverData.backupPath === '/disco3/BK_RMAN_CONTRADIGI') 
-      ? '' 
-      : `
+    ${serverData.serverName === 'WebContent' || (serverData.serverName === 'Contratacion digital' && serverData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')
+        ? ''
+        : `
         <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || 'No disponible'}</p>
         <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || 'No disponible'}</p>
       `}
@@ -1086,24 +1100,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statusClass = logData.status ? "status-success" : "status-failure";
     const statusStyle = logData.status ? "" : "color: red; cursor: pointer;";
     // Verificar si el servidor es WebContent o Contratacion Digital
-  const isSpecialServer = logData.serverName === "WebContent" || logData.serverName === "Contratacion digital" && logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI";
-  
-  // Determinar si se deben mostrar las últimas 10 líneas del log
-  let last10LinesContent = '';
-  let last10LinesTitle = '';
+    const isSpecialServer = logData.serverName === "WebContent" || logData.serverName === "Contratacion digital" && logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI";
 
-  if (!isSpecialServer) {
-    // Solo pedir last10Lines si no es WebContent o Contratacion Digital
-    const logIncludesJob = (logData.last10Lines || []).some(line => line.includes("Job"));
-    last10LinesTitle = logIncludesJob ? "Ver última línea del log" : "Advertencia:";
-    last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
+    // Determinar si se deben mostrar las últimas 10 líneas del log
+    let last10LinesContent = '';
+    let last10LinesTitle = '';
+
+    if (!isSpecialServer) {
+      // Solo pedir last10Lines si no es WebContent o Contratacion Digital
+      const logIncludesJob = (logData.last10Lines || []).some(line => line.includes("Job"));
+      last10LinesTitle = logIncludesJob ? "Ver última línea del log" : "Advertencia:";
+      last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
       ${(logData.last10Lines || []).join('\n') || 'No disponible'}
     </pre>`;
-  } else {
-    // Si es WebContent o Contratacion Digital, solo mostrar otros datos relevantes
-    last10LinesTitle = "Errores RMAN?";
-    last10LinesContent = logData.groupControlInfo;
-  }
+    } else {
+      // Si es WebContent o Contratacion Digital, solo mostrar otros datos relevantes
+      last10LinesTitle = "Errores RMAN?";
+      last10LinesContent = logData.groupControlInfo;
+    }
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
     const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
@@ -1511,25 +1525,25 @@ document.addEventListener("DOMContentLoaded", async () => {
           const groupControlInfo = logInfo.hasWarning
             ? "Ver grupos de control (Advertencia)"
             : "Ver última línea del log";
-            // Datos específicos para WebContent
-            if (serverResult.serverName === 'WebContent' || (serverResult.serverName === 'Contratacion digital' && logDetail.backupPath.trim() === '/disco3/BK_RMAN_CONTRADIGI')) {
-              
-              console.log('Procesando servidor:', serverResult.serverName, 'con ruta:', logDetail.backupPath);
-              return {
-                  serverName: serverResult.serverName || "N/A",
-                  ip: serverResult.ip || "N/A",
-                  status: logDetail.logDetails?.estadoBackup || "N/A",
-                  logFileName: logDetail.logFileName || "N/A",
-                  startTime: logDetail.logDetails?.fechaInicio || "N/A",
-                  endTime: logDetail.logDetails?.fechaFin || "N/A",
-                  duration: logDetail.logDetails?.duracion || "N/A",
-                  totalDmpSize: "N/A", // No aplica para WebContent
-                  totalFolderSize: "N/A", // No aplica para WebContent
-                  backupStatus: logDetail.logDetails?.estadoBackup === "Éxito" ? "Completado" : "Fallo",
-                  backupPath: logDetail.backupPath || "N/A",
-                  last10Lines: logDetail.logDetails?.errorMessage || "No hay errores",
-                  groupControlInfo: logDetail.logDetails?.errorMessage ? "Ver error" : "Sin errores"
-              };
+          // Datos específicos para WebContent
+          if (serverResult.serverName === 'WebContent' || (serverResult.serverName === 'Contratacion digital' && logDetail.backupPath.trim() === '/disco3/BK_RMAN_CONTRADIGI')) {
+
+            console.log('Procesando servidor:', serverResult.serverName, 'con ruta:', logDetail.backupPath);
+            return {
+              serverName: serverResult.serverName || "N/A",
+              ip: serverResult.ip || "N/A",
+              status: logDetail.logDetails?.estadoBackup || "N/A",
+              logFileName: logDetail.logFileName || "N/A",
+              startTime: logDetail.logDetails?.fechaInicio || "N/A",
+              endTime: logDetail.logDetails?.fechaFin || "N/A",
+              duration: logDetail.logDetails?.duracion || "N/A",
+              totalDmpSize: "N/A", // No aplica para WebContent
+              totalFolderSize: "N/A", // No aplica para WebContent
+              backupStatus: logDetail.logDetails?.estadoBackup === "Éxito" ? "Completado" : "Fallo",
+              backupPath: logDetail.backupPath || "N/A",
+              last10Lines: logDetail.logDetails?.errorMessage || "No hay errores",
+              groupControlInfo: logDetail.logDetails?.errorMessage ? "Ver error" : "Sin errores"
+            };
           }
           return {
             serverName: serverResult.serverName,
@@ -1760,22 +1774,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"
           } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
         `;
-      
-      if (logData.logDetails.oraError) {
-        entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
+
+        if (logData.logDetails.oraError) {
+          entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
+        }
+        const showLogButton = document.createElement("button");
+        showLogButton.textContent = logData.logDetails.hasWarning
+          ? "Ver grupos de control (Advertencia)"
+          : "Ver última línea del log";
+        showLogButton.onclick = () => {
+          const linesToShow = logData.logDetails.hasWarning
+            ? logData.logDetails.last10Lines
+            : [logData.lastLine || "No hay información disponible"];
+          showLast10LinesModal(linesToShow, logData.logDetails.hasWarning);
+        };
+        entryDiv.appendChild(showLogButton);
       }
-      const showLogButton = document.createElement("button");
-      showLogButton.textContent = logData.logDetails.hasWarning
-        ? "Ver grupos de control (Advertencia)"
-        : "Ver última línea del log";
-      showLogButton.onclick = () => {
-        const linesToShow = logData.logDetails.hasWarning
-          ? logData.logDetails.last10Lines
-          : [logData.lastLine || "No hay información disponible"];
-        showLast10LinesModal(linesToShow, logData.logDetails.hasWarning);
-      };
-      entryDiv.appendChild(showLogButton);
-    }
       document
         .getElementById("close-result")
         .addEventListener("click", function () {
@@ -1784,7 +1798,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             resultDiv.style.display = "none"; // Oculta el div por completo
           }
         });
-      
+
       // Añadir la línea divisoria después del botón
       const hr = document.createElement("hr");
       entryDiv.appendChild(hr);
@@ -1792,7 +1806,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (resultDiv) resultDiv.style.display = "block";
     }
   }
-  
+
   let tooltipError = null;
   if (logEntriesContainer) {
     logEntriesContainer.addEventListener("click", function (event) {
@@ -2691,18 +2705,69 @@ document.addEventListener("DOMContentLoaded", async () => {
               // Para WebContent, solo agregamos la entrada del log
               addLogEntry({ ...logData, ip });
             } else {
-            //console.log("Adding log entry:", logData);
-            if (serverName === "Bantotal" && logData.backupIncomplete && !hasShownBackupIncompleteError) {
-              // Encuentra las subcarpetas existentes en `directories`
-              const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta, puedes adaptarlo a cómo se obtienen tus subcarpetas.
+              //console.log("Adding log entry:", logData);
+              if (serverName === "Bantotal" && logData.backupIncomplete && !hasShownBackupIncompleteError) {
+                // Encuentra las subcarpetas existentes en `directories`
+                const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta, puedes adaptarlo a cómo se obtienen tus subcarpetas.
 
-              // Filtrar las subcarpetas requeridas que no están presentes
+                // Filtrar las subcarpetas requeridas que no están presentes
+                const missingSubfolders = requiredSubfolders.filter(required =>
+                  !existingSubfolders.includes(required) // Comparación exacta
+                );
+
+                // Mensaje para el modal
+                let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logData.foundFolders}.`;
+                if (missingSubfolders.length > 0) {
+                  warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
+                }
+                console.log("Mostrando modal de error por backup incompleto");
+                showErrorModal(
+                  warningMessage,
+                  ip
+                );
+                hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
+              }
+              // Verificación para mostrar modal si se detecta carpeta vacía
+              if (logData.backupVoid === true) {
+                console.log("Mostrando modal de advertencia por carpeta vacía");
+                showErrorModal(
+                  `Advertencia: Se detectó una carpeta vacía en la ruta ${logData.backupPath}, 
+                 En el servidor :${serverName}`,
+                  ip
+                );
+              }
+              addLogEntry({ ...logData, ip });
+              const formattedTotalFolderSize = convertToGB(logData.totalFolderSize);
+              if (
+                logData.logDetails &&
+                Object.keys(logData.logDetails).length > 0
+              ) {
+                await window.electron.saveLogToDatabase(
+                  logData.logDetails,
+                  logData.dumpFileInfo,
+                  os,
+                  logData.logFileName,
+                  logData.ip,
+                  logData.backupPath,
+                  formattedTotalFolderSize || "0 MB"
+                );
+              }
+            }
+          }
+        } else if (logDetailsArray && typeof logDetailsArray === "object") {
+          const serverName = logDetailsArray.serverName;
+          if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && logData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')) {
+            // Para WebContent, solo agregamos la entrada del log
+            addLogEntry({ ...logDetailsArray, ip });
+          } else {
+            if (serverName === "Bantotal" && logDetailsArray.backupIncomplete && !hasShownBackupIncompleteError) {
+              const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta
+
               const missingSubfolders = requiredSubfolders.filter(required =>
                 !existingSubfolders.includes(required) // Comparación exacta
               );
 
-              // Mensaje para el modal
-              let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logData.foundFolders}.`;
+              let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logDetailsArray.foundFolders}.`;
               if (missingSubfolders.length > 0) {
                 warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
               }
@@ -2714,16 +2779,17 @@ document.addEventListener("DOMContentLoaded", async () => {
               hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
             }
             // Verificación para mostrar modal si se detecta carpeta vacía
-            if (logData.backupVoid === true) {
+            if (logDetailsArray.backupVoid === true) {
               console.log("Mostrando modal de advertencia por carpeta vacía");
               showErrorModal(
-                `Advertencia: Se detectó una carpeta vacía en la ruta ${logData.backupPath}, 
-                 En el servidor :${serverName}`,
+                `Advertencia: Se detectó una carpeta vacía en la ruta ${logDetailsArray.backupPath}, 
+               En el servidor:${serverName}`,
                 ip
               );
             }
-            addLogEntry({ ...logData, ip });
-            const formattedTotalFolderSize = convertToGB(logData.totalFolderSize);
+            const logData = { ...logDetailsArray, ip };
+            console.log("Adding log entry:", logData);
+            addLogEntry(logData);
             if (
               logData.logDetails &&
               Object.keys(logData.logDetails).length > 0
@@ -2735,62 +2801,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 logData.logFileName,
                 logData.ip,
                 logData.backupPath,
-                formattedTotalFolderSize || "0 MB"
+                formattedTotalFolderSize
               );
             }
           }
-        }
-        } else if (logDetailsArray && typeof logDetailsArray === "object") {
-          const serverName = logDetailsArray.serverName;
-          if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && logData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')) {
-            // Para WebContent, solo agregamos la entrada del log
-            addLogEntry({ ...logDetailsArray, ip });
-          } else {
-          if (serverName === "Bantotal" && logDetailsArray.backupIncomplete && !hasShownBackupIncompleteError) {
-            const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta
-
-            const missingSubfolders = requiredSubfolders.filter(required =>
-              !existingSubfolders.includes(required) // Comparación exacta
-            );
-
-            let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logDetailsArray.foundFolders}.`;
-            if (missingSubfolders.length > 0) {
-              warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
-            }
-            console.log("Mostrando modal de error por backup incompleto");
-            showErrorModal(
-              warningMessage,
-              ip
-            );
-            hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
-          }
-          // Verificación para mostrar modal si se detecta carpeta vacía
-          if (logDetailsArray.backupVoid === true) {
-            console.log("Mostrando modal de advertencia por carpeta vacía");
-            showErrorModal(
-              `Advertencia: Se detectó una carpeta vacía en la ruta ${logDetailsArray.backupPath}, 
-               En el servidor:${serverName}`,
-              ip
-            );
-          }
-          const logData = { ...logDetailsArray, ip };
-          console.log("Adding log entry:", logData);
-          addLogEntry(logData);
-          if (
-            logData.logDetails &&
-            Object.keys(logData.logDetails).length > 0
-          ) {
-            await window.electron.saveLogToDatabase(
-              logData.logDetails,
-              logData.dumpFileInfo,
-              os,
-              logData.logFileName,
-              logData.ip,
-              logData.backupPath,
-              formattedTotalFolderSize
-            );
-          }
-        }
         } else {
           throw new Error("Formato de log inesperado.");
         }
