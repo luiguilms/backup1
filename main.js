@@ -487,9 +487,9 @@ app.whenReady().then(() => {
         return allLogDetails;
       } else {
         if (typeof folderSizes !== "number") {
-          throw new Error("folderSizes debe ser un número para Linux/Windows.");
+          throw new Error("folderSizes debe ser un número para /Windows.");
         }
-        // Logic for other OS (Windows, Linux)
+        // Logic for other OS (Windows, )
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
             if (err) {
@@ -505,6 +505,20 @@ app.whenReady().then(() => {
         });
         // Check if there are subdirectories
         const subdirectories = files.filter((file) => file.attrs.isDirectory());
+        // Si no hay subdirectorios, marcar el backup como vacío
+        const isBackupVoid = subdirectories.length === 0;
+
+        if (isBackupVoid) {
+          console.log(`La carpeta principal ${directoryPath} está vacía.`);
+          sftp.end();
+          conn.end();
+          return {
+            backupVoid: true,
+            backupPath: directoryPath,
+            ip,
+            serverName,
+          };
+        }
         if (subdirectories.length > 0) {
           // Process each subdirectory
           let allSubdirResults = [];
@@ -642,6 +656,7 @@ app.whenReady().then(() => {
                 hasWarning: logInfo.hasWarning,
                 warningNumber: logInfo.warningNumber,
                 lastLine: lastLine, // Añadimos la última línea aquí
+                backupVoid: false
               });
             }
           }
