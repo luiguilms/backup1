@@ -588,7 +588,7 @@ app.whenReady().then(() => {
                   )}`;
                 await sendEmailAlert(ip, serverName, warningMessage);
               }
-              const logDetails = parseLogLine(logData);
+              const logDetails = parseLogLine(logData,"Pago Institucional");
               const validExtensions = [".dmp", ".DMP", ".dmp.gz", ".gz", ".err"];
               let dumpFileInfo = [];
               const dumpFiles = subDirFiles.filter((file) => {
@@ -710,7 +710,7 @@ app.whenReady().then(() => {
                 )}`;
               await sendEmailAlert(ip, serverName, warningMessage);
             }
-            const logDetails = parseLogLine(logData);
+            const logDetails = parseLogLine(logData,"Pago Institucional");
             const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
             let dumpFileInfo = [];
             const dumpFiles = subDirFiles.filter((file) => {
@@ -1802,7 +1802,7 @@ function getLast10LogLines(logContent) {
     warningNumber: lastWarningNumber,
   };
 }
-function parseLogLine(logContent) {
+function parseLogLine(logContent, serverName) {
   const oraErrorPattern = /ORA-\d{5}/g;
   const oraSpecificErrorPattern = /ORA-39327/;
   const successPattern = /successfully completed/i;
@@ -1858,6 +1858,34 @@ function parseLogLine(logContent) {
         nextLine: i < lines.length - 1 ? lines[i + 1].trim() : "",
       };
       break;
+    }
+  }
+  // Caso especial para el servidor "Pago Institucional"
+  if (serverName === "Pago Institucional") {
+    // Buscar el tiempo en la última línea si contiene "completed at"
+    const completedAtPattern = /completed at (\d{2}:\d{2}:\d{2})/;
+    const completedMatch = lastLine.match(completedAtPattern);
+
+    if (completedMatch) {
+      // Extraer el tiempo de fin desde la última línea
+      const endTimeString = completedMatch[1];
+      endDateTime = new Date(startDateTime);
+
+      // Ajustar la hora, minutos y segundos del tiempo de fin basado en la línea
+      const [hours, minutes, seconds] = endTimeString.split(":").map(Number);
+      endDateTime.setHours(hours, minutes, seconds);
+
+      // Calcular la duración entre tiempo de inicio y tiempo de fin
+      const diffMilliseconds = endDateTime - startDateTime;
+      const totalSeconds = Math.floor(diffMilliseconds / 1000);
+      const hoursDiff = Math.floor(totalSeconds / 3600);
+      const minutesDiff = Math.floor((totalSeconds % 3600) / 60);
+      const secondsDiff = totalSeconds % 60;
+
+      // Formatear la duración como "hh:mm:ss"
+      duration = `${hoursDiff.toString().padStart(2, "0")}:${minutesDiff
+        .toString()
+        .padStart(2, "0")}:${secondsDiff.toString().padStart(2, "0")}`;
     }
   }
   //console.log("Last line of log:", lastLine);

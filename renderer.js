@@ -389,6 +389,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           sortable: true,
           filter: true,
           minWidth: 120,
+          headerTooltip: "1 = Éxito, 0 = Fallo",
           cellRenderer: (params) => {
             const statusText = params.value === 1 ? "Éxito" : "Fallo";
             const statusClass = params.value === 1 ? "status-success" : "status-failure";
