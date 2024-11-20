@@ -302,7 +302,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     content.appendChild(dateInput);
 
     const filterButton = document.createElement("button");
-    filterButton.textContent = "Filtrar por Fecha";
+    filterButton.textContent = "Filtrar por Fecha de ejecución";
     filterButton.onclick = async () => {
       const selectedDate = dateInput.value;
       await loadHistoryData(selectedDate, resultsContainer);
