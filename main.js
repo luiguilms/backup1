@@ -2189,7 +2189,8 @@ async function getDmpSizeData(days = 30) {
         l.ip,
         l.backupPath,
         l.horaFIN as fecha,
-        l.dumpFileSize
+        l.dumpFileSize,
+        l.duration
       FROM LogBackup l
       WHERE l.horaFIN >= SYSDATE - :days
       ORDER BY l.serverName, l.ip, l.backupPath, l.horaFIN
@@ -2232,6 +2233,7 @@ async function getDmpSizeData(days = 30) {
         backupPath: row[2],
         fecha: row[3],
         tamanoDMP: convertToGB(row[4]),
+        duracion: row[5]
       });
       return acc;
     }, {});

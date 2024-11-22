@@ -2060,6 +2060,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     statisticsModal = document.getElementById("statisticsModal");
     console.log("Modal de estadísticas creado");
   }
+  function convertDurationToMinutes(duration) {
+    const match = duration.match(/^(\d+):(\d+):(\d+)$/); // HH:mm:ss
+    if (!match) return 0; // Retornar 0 si el formato es inválido
+    const [_, hours, minutes, seconds] = match.map(Number);
+    return hours * 60 + minutes + seconds / 60; // Convertir todo a minutos
+  }
+  
   async function showStatistics() {
     try {
       if (!statisticsModal) {
@@ -2178,16 +2185,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
           const ctx = canvasElement.getContext("2d");
 
-          const sortedData = serverData.data.sort(
-            (a, b) => new Date(a.fecha) - new Date(b.fecha)
-          );
+          const sortedData = serverData.data.map((d) => ({
+            ...d,
+            duracion: convertDurationToMinutes(d.duracion), // Convertir duración a minutos
+          })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
           new Chart(ctx, {
             type: "line",
             data: {
               datasets: [
                 {
-                  label: serverData.identifier,
+                  label: `${serverData.identifier} - Tamaño`,
                   data: sortedData.map((d) => ({
                     x: new Date(d.fecha),
                     y: d.tamanoDMP,
@@ -2195,7 +2203,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                   fill: false,
                   borderColor: getRandomColor(),
                   tension: 0.1,
+                  yAxisID: 'y1'
                 },
+                {
+                  label: `${serverData.identifier} - Duración`,
+                  data: sortedData.map((d) => ({
+                    x: new Date(d.fecha),
+                    y: d.duracion, // Duración en minutos
+                  })),
+                  fill: false,
+                  borderColor: getRandomColor(),
+                  tension: 0.1,
+                  yAxisID: 'y2'
+                }
               ],
             },
             options: {
@@ -2215,9 +2235,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                         second: "2-digit",
                         hour12: false,
                       });
-                      return `${formattedDate}: ${context.parsed.y.toFixed(
-                        2
-                      )} GB`;
+                      if (context.datasetIndex === 0) {
+                        return `Tamaño: ${context.parsed.y.toFixed(2)} GB`;
+                      } else {
+                        return `Duración: ${context.parsed.y.toFixed(2)} min`;
+                      }
                     },
                   },
                 },
@@ -2253,7 +2275,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     text: "Fecha",
                   },
                 },
-                y: {
+                y1: {
                   title: {
                     display: true,
                     text: "Tamaño (GB)",
@@ -2264,7 +2286,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                     },
                   },
                 },
-              },
+                y2: {
+                  type: 'linear',
+                  display: true,
+                  position: 'right',
+                  title: {
+                    display: true,
+                    text: 'Duración (min)',
+                  },
+                  grid: {
+                    drawOnChartArea: false,
+                  }
+              },}
             },
           });
         });
