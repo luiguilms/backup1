@@ -1140,8 +1140,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       <p><strong>Hora de Fin:</strong> ${logData.endTime || 'No disponible'}</p>
       <p><strong>Duración:</strong> ${logData.duration || 'No disponible'}</p>
       <p><strong>Estado de Backup:</strong> ${logData.backupStatus || 'No disponible'}</p>
-      <p><strong>Peso total de archivo .dmp:</strong> ${logData.totalDmpSize || 'No disponible'}</p>
-      <p><strong>Tamaño Total Carpeta:</strong> ${logData.totalFolderSize || 'No disponible'}</p>
+      ${!isSpecialServer 
+        ? `
+        <p><strong>Peso total de archivo .dmp:</strong> ${logData.totalDmpSize || 'No disponible'}</p>
+        <p><strong>Tamaño Total Carpeta:</strong> ${logData.totalFolderSize || 'No disponible'}</p>
+        ` 
+        : ''
+      }
       <p><strong>Exitoso:</strong> 
       <span id="success-status" class="${statusClass}" style="${statusStyle}">
         ${successStatus}
