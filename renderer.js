@@ -485,7 +485,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             return statusDiv;
           }
         },
-        { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 150 },
+        { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 300,
+          cellRenderer: (params) => {
+            const logDiv = document.createElement("div");
+            logDiv.classList.add("server-cell");
+            logDiv.textContent = `${params.data.logFileName}`; // Muestra el nombre del servidor 
+            logDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
+            
+            logDiv.addEventListener("click", () => {
+              console.log("Clic en Servidor:", params.data.logFileName);
+              showServerDetailsModal(params.data); // Llamar a la función para mostrar el modal con los datos del servidor
+            });
+            return logDiv;
+          }
+         },
         {
           headerName: "Hora de Inicio",
           field: "horaINI",
@@ -1301,6 +1314,19 @@ document.addEventListener("DOMContentLoaded", async () => {
           sortable: true,
           filter: true,
           minWidth: 100,
+          cellRenderer: (params) => {
+            const ipDiv = document.createElement("div");
+            ipDiv.classList.add("server-cell");
+            ipDiv.textContent = params.data.ip;
+            ipDiv.style.cursor = "pointer";
+
+            // Agregar evento de clic para mostrar el modal
+            ipDiv.addEventListener("click", () => {
+              showLogDetailsModal(params.data); // Llamar a la función para mostrar el modal
+            });
+
+            return ipDiv;
+          },
         },
         {
           headerName: "Estado",
@@ -1317,7 +1343,20 @@ document.addEventListener("DOMContentLoaded", async () => {
           field: "logFileName",
           sortable: true,
           filter: true,
-          minWidth: 150,
+          minWidth: 300,
+          cellRenderer: (params) => {
+            const logDiv = document.createElement("div");
+            logDiv.classList.add("server-cell");
+            logDiv.textContent = params.data.logFileName;
+            logDiv.style.cursor = "pointer";
+
+            // Agregar evento de clic para mostrar el modal
+            logDiv.addEventListener("click", () => {
+              showLogDetailsModal(params.data); // Llamar a la función para mostrar el modal
+            });
+
+            return logDiv;
+          },
         },
         {
           headerName: "Hora de Inicio",
