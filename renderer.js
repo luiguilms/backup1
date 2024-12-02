@@ -349,9 +349,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           sortable: true,
           filter: true,
           minWidth: 180,
-          valueFormatter: (params) => {
-            const date = new Date(params.value);
-            return date.toLocaleString("es-ES", {
+          cellRenderer: (params) => {
+            const dateDiv = document.createElement("div");
+            dateDiv.classList.add("server-cell");
+            
+            // Llamamos al valueFormatter para obtener la fecha con el formato deseado
+            const formattedDate = new Date(params.data.executionDate);
+            const formattedDateString = formattedDate.toLocaleString("es-ES", {
               year: "numeric",
               month: "2-digit",
               day: "2-digit",
@@ -359,6 +363,17 @@ document.addEventListener("DOMContentLoaded", async () => {
               minute: "2-digit",
               second: "2-digit"
             });
+      
+            dateDiv.textContent = formattedDateString;  // Muestra la fecha formateada
+            dateDiv.style.cursor = "pointer";  // Agrega el cursor pointer para indicar que es clickeable
+      
+            // Agregar evento de clic para mostrar el modal con los detalles
+            dateDiv.addEventListener("click", () => {
+              console.log("Clic en Servidor:", params.data.serverName);
+              showServerDetailsModal(params.data);  // Llamar a la función para mostrar el modal con los datos del servidor
+            });
+
+            return dateDiv;
           }
         },
         {
@@ -382,7 +397,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             return serverDiv;
           }
         },
-        { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120 },
+        { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120,
+          cellRenderer: (params) => {
+            const ipDiv = document.createElement("div");
+            ipDiv.classList.add("server-cell");
+            ipDiv.textContent = `${params.data.ip}`; // Muestra el nombre del servidor 
+            ipDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
+            
+            ipDiv.addEventListener("click", () => {
+              console.log("Clic en Servidor:", params.data.serverName);
+              showServerDetailsModal(params.data); // Llamar a la función para mostrar el modal con los datos del servidor
+            });
+            return ipDiv;
+          }
+         },
         {
           headerName: "Estado",
           field: "success",
