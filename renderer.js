@@ -594,7 +594,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statusClass = serverData.success === 1 ? "status-success" : "status-failure";
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas especificadas
-    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
+    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_MD_ALL_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
     const isBantotal = serverData.serverName.includes("Bantotal"); // Verificar si es el servidor Bantotal
     let subcarpeta = '';
 
@@ -1121,7 +1121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
-    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
+    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_MD_ALL_ANTES","BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
     const isBantotal = logData.serverName === "Bantotal"; // Asegurarse que el servidor sea "Bantotal"
     let subcarpeta = '';
 
