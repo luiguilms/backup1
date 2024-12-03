@@ -2438,6 +2438,9 @@ ipcMain.handle("get-verification-history", async (event, date) => {
   }
 });
 function formatOracleDate(date) {
+  if (!date || isNaN(date.getTime())) {
+      throw new Error("La fecha proporcionada no es válida");
+  }
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');
@@ -2445,7 +2448,7 @@ function formatOracleDate(date) {
   const minutes = date.getMinutes().toString().padStart(2, '0');
   const seconds = date.getSeconds().toString().padStart(2, '0');
 
-  // Formato para Oracle en hora local
+  // Use template literals correctly
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 function extractRmanLogDetails(logContent) {
@@ -2458,26 +2461,37 @@ function extractRmanLogDetails(logContent) {
     errorMessage: null,
   };
 
-  // Expresiones regulares para capturar la información específica del log
-  const startDateRegex = /Recovery Manager: Release.*on ([A-Za-z]{3} \w{3} \d{1,2} \d{2}:\d{2}:\d{2} \d{4})/;
+  const startDateRegex = /Recovery Manager: Release.*on (\w{3}) (\w{3}) (\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})/;
   const elapsedRegex = /elapsed time: ([\d:]+)/g;
   const pathRegex = /piece handle=([\S]+)/;
   const errorRegex = /(ORA-\d+|RMAN-\d+)/;
 
-  // Captura de la fecha de inicio
-  const startMatch = logContent.match(startDateRegex);
+  const lines = logContent.split('\n').filter(line => line.trim() !== "");
+  const cleanedLogContent = lines.join('\n');
+
+  const startMatch = cleanedLogContent.match(startDateRegex);
   if (startMatch) {
-    const startDateString = startMatch[1];
-    // Convertimos la fecha a un formato adecuado para JavaScript
-    const startDate = new Date(startDateString.replace(/(\w{3}) (\w{3}) (\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})/, (match, p1, p2, p3, p4, p5, p6, p7) => {
-      const months = {
+    const [, , month, day, hours, minutes, seconds, year] = startMatch;
+    
+    // Mapping of month abbreviations
+    const months = {
         Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
         Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
-      };
-      return `${p7}-${months[p2]}-${p3}T${p4}:${p5}:${p6}.000`; // Sin "Z" para no forzar UTC
-    }));
+    };
+
+    // Create a date string in a format that new Date() can parse
+    const formattedDateString = `${year}-${months[month]}-${day.padStart(2, '0')}T${hours}:${minutes}:${seconds}`;
+    
+    const startDate = new Date(formattedDateString);
+    
+    // Verify the date is valid
+    if (isNaN(startDate.getTime())) {
+        console.error("Fecha de inicio no válida:", formattedDateString);
+        throw new Error("La fecha proporcionada no es válida");
+    }
+
     logDetails.fechaInicio = formatOracleDate(startDate);
-  }
+}
 
   // Calcular la duración total sumando todos los `elapsed time`
   let totalDuration = [0, 0, 0];  // [horas, minutos, segundos]
