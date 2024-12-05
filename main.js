@@ -387,7 +387,7 @@ app.whenReady().then(() => {
 
                     logLines = logData.trim().split("\n");
                     lastLine = logLines[logLines.length - 1].trim();
-                    logInfo = getLast10LogLines(logData);
+                    logInfo = getLast10LogLines(logData,globalThreshold);
                     logDetails = parseLogLine(logData);
 
                     if (logInfo.hasWarning) {
@@ -579,7 +579,7 @@ app.whenReady().then(() => {
               });
               const logLines = logData.trim().split("\n");
               const lastLine = logLines[logLines.length - 1].trim();
-              const logInfo = getLast10LogLines(logData);
+              const logInfo = getLast10LogLines(logData,globalThreshold);
 
               if (logInfo.hasWarning) {
                 const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
@@ -701,7 +701,7 @@ app.whenReady().then(() => {
             });
             const logLines = logData.trim().split("\n");
             const lastLine = logLines[logLines.length - 1].trim();
-            const logInfo = getLast10LogLines(logData);
+            const logInfo = getLast10LogLines(logData,globalThreshold);
 
             if (logInfo.hasWarning) {
               const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
@@ -1775,9 +1775,17 @@ function formatDateForOracle(date) {
     })
     .replace(/(\d+)\/(\d+)\/(\d+),/, "$3-$1-$2");
 }
-function getLast10LogLines(logContent) {
+let globalThreshold = 90;  // Umbral predeterminado
+// Escuchar el canal IPC 'update-threshold'
+ipcMain.on('update-threshold', (event, thresholdValue) => {
+  console.log('Nuevo umbral recibido:', thresholdValue);
+  globalThreshold = thresholdValue;
+  // Aquí puedes usar el valor de thresholdValue según sea necesario.
+  // Por ejemplo, almacenarlo o pasarlo a una función que procese los logs.
+});
+function getLast10LogLines(logContent, threshold = globalThreshold) {
   const lines = logContent.trim().split("\n");
-  const warningPattern = /_9[0-9]/;
+  const warningPattern = /_(\d{2})/;
   let lastWarningNumber = -1;
   let relevantLines = [];
 
@@ -1786,27 +1794,27 @@ function getLast10LogLines(logContent) {
     const line = lines[i];
     const match = line.match(warningPattern);
     if (match) {
-      const warningNumber = parseInt(match[0].substring(1));
-      if (warningNumber > lastWarningNumber) {
-        lastWarningNumber = warningNumber;
-        relevantLines = [line];
-      } else if (warningNumber === lastWarningNumber) {
+      const warningNumber = parseInt(match[1], 10);
+      if (warningNumber >= threshold) {
+        // Insertar la línea al inicio para mantener el orden ascendente
         relevantLines.unshift(line);
       }
     }
   }
 
   return {
-    relevantLines: relevantLines.slice(0, 10), // Limitamos a 10 líneas relevantes
-    hasWarning: lastWarningNumber !== -1,
-    warningNumber: lastWarningNumber,
+    relevantLines: relevantLines.slice(-10), // Tomamos las últimas 10 líneas relevantes (en orden ascendente)
+    hasWarning: relevantLines.length > 0,
+    warningNumber: relevantLines.length > 0 
+      ? parseInt(relevantLines[relevantLines.length - 1].match(warningPattern)[1], 10)
+      : -1, // Último número de advertencia (si existe)
   };
 }
 function parseLogLine(logContent, serverName) {
   const oraErrorPattern = /ORA-\d{5}/g;
   const oraSpecificErrorPattern = /ORA-39327/;
   const successPattern = /successfully completed/i;
-  const logInfo = getLast10LogLines(logContent);
+  const logInfo = getLast10LogLines(logContent,globalThreshold);
   const lines = logContent.split("\n");
   let lastLine = lines[lines.length - 1].trim();
   // Si la última línea está vacía, busca la primera línea no vacía desde el final

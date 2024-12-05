@@ -55,4 +55,5 @@ contextBridge.exposeInMainWorld("electron", {
   deleteBackupRoute: (ip, backupPath) =>
     ipcRenderer.invoke("deleteBackupRoute", ip, backupPath),
   getVerificationHistory: (date) => ipcRenderer.invoke("get-verification-history", date),
+  send: (channel, data) => ipcRenderer.send(channel, data),
 });

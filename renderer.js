@@ -247,6 +247,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     z-index: 1000;
   `;
+  // Agregar entrada de umbral
+  const thresholdInput = document.createElement("input");
+  thresholdInput.type = "number";
+  thresholdInput.id = "warningThresholdInput";
+  thresholdInput.placeholder = "Umbral de Advertencia (ej: 90)";
+  thresholdInput.style.marginRight = "10px";
+  thresholdInput.value = 90; // Valor predeterminado
+
+  // Insertar la entrada antes de los botones
+  topBar.insertBefore(thresholdInput, topBar.firstChild);
     // Botón de Historial
     const historyButton = document.createElement("button");
     historyButton.textContent = "Historial de Verificaciones";
@@ -256,6 +266,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     topBar.appendChild(historyButton);
     document.body.insertBefore(topBar, document.body.firstChild);
     document.body.style.marginTop = "50px"; // Ajusta este valor según sea necesario
+    // Escuchar el cambio del umbral y enviarlo al proceso principal
+    thresholdInput.addEventListener('input', () => {
+      const thresholdValue = parseInt(thresholdInput.value, 10) || 90;  // Si no hay valor, usar 90 como predeterminado
+      window.electron.send('update-threshold', thresholdValue);  // Aquí 'update-threshold' es el nombre del canal IPC
+  });
   }
   async function showHistory() {
     const modal = document.createElement("div");
