@@ -1854,18 +1854,31 @@ function parseLogLine(logContent, serverName) {
     duration = duration.substring(2); // Elimina los primeros dos caracteres "0 "
   }
   //console.log("Extracted Data:", { startDateTime, endDateTime, duration });
-  let oraError = null;
+  // Capturar todos los errores ORA-
+  let oraError = {
+    previousLine: "", // Línea anterior al primer error ORA-
+    errorLine: "", // Todos los errores ORA-
+    nextLine: "", // Línea posterior al último error ORA-
+  };
+
+  let foundFirstError = false;
   for (let i = 0; i < lines.length; i++) {
-    if (
-      lines[i].match(oraErrorPattern) &&
-      !lines[i].match(oraSpecificErrorPattern)
-    ) {
-      oraError = {
-        previousLine: i > 0 ? lines[i - 1].trim() : "",
-        errorLine: lines[i].trim(),
-        nextLine: i < lines.length - 1 ? lines[i + 1].trim() : "",
-      };
-      break;
+    if (lines[i].match(oraErrorPattern) && !lines[i].match(oraSpecificErrorPattern)) {
+      // Al encontrar el primer error ORA-, guarda la línea anterior
+      if (!foundFirstError && i > 0) {
+        oraError.previousLine = lines[i - 1].trim();
+        foundFirstError = true;
+      }
+      // Añadir todos los errores ORA- a errorLine
+      oraError.errorLine += lines[i].trim() + "\n";
+    }
+  }
+
+  // Si se encontró algún error ORA-, guarda la línea posterior al último error
+  if (foundFirstError) {
+    const lastErrorIndex = lines.findIndex((line) => line === oraError.errorLine.trim().split("\n").pop().trim());
+    if (lastErrorIndex < lines.length - 1) {
+      oraError.nextLine = lines[lastErrorIndex + 1].trim();
     }
   }
   // Caso especial para el servidor "Pago Institucional"

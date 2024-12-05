@@ -688,7 +688,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || 'No disponible'}</p>
       `}
     <h3 style="margin-top: 20px;">${last10LinesTitle || 'No disponible'}</h3>
-    <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
+    <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
        ${(serverData.groupControlInfo || serverData.oraErrorMessage || "No disponible")}
     </pre>
   `;
@@ -770,7 +770,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         tooltipError.style.zIndex = "10000";
         tooltipError.style.display = "block";
         tooltipError.style.opacity = "1";
-        tooltipError.style.maxWidth = "300px";
+        tooltipError.style.maxWidth = "400px";
         tooltipError.style.wordWrap = "break-word";
 
         // Cerrar el tooltip al hacer clic fuera
@@ -1153,9 +1153,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function showLogDetailsModal(logData) {
     console.log("Entrando en showLogDetailsModal con datos:", logData);
-    const successStatus = logData.status ? "Éxitoso" : "Fallo";
-    const statusClass = logData.status ? "status-success" : "status-failure";
-    const statusStyle = logData.status ? "" : "color: red; cursor: pointer;";
+    const successStatus = logData.status === "Fallo" ? "Fallo" : "Éxito"; 
+    const statusClass = logData.status === "Fallo" ? "status-failure" : "status-success"; 
     // Verificar si el servidor es WebContent o Contratacion Digital
     const isSpecialServer = logData.serverName === "WebContent" || logData.serverName === "Contratacion digital" && logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI";
 
@@ -1167,7 +1166,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Solo pedir last10Lines si no es WebContent o Contratacion Digital
       const logIncludesJob = (logData.last10Lines || []).some(line => line.includes("Job"));
       last10LinesTitle = logIncludesJob ? "Ver última línea del log" : "Advertencia:";
-      last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
+      last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
       ${(logData.last10Lines || []).join('\n') || 'No disponible'}
     </pre>`;
     } else {
@@ -1204,15 +1203,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         : ''
       }
       <p><strong>Exitoso:</strong> 
-      <span id="success-status" class="${statusClass}" style="${statusStyle}">
+      <span id="success-status" class="${statusClass}" style="cursor: pointer;">
         ${successStatus}
       </span>
     </p>
       <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}
       <h3 style="margin-top: 20px;">${last10LinesTitle}</h3>
-    <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; overflow-y: auto;">
-      ${last10LinesContent}
-    </pre>
+${last10LinesContent}
     `;
 
     // Crear el contenedor del modal
@@ -1283,8 +1280,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         tooltip.style.borderRadius = "5px";
         tooltip.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
         tooltip.style.zIndex = "9000";
-        tooltip.style.maxWidth = "300px";
-        tooltip.style.wordWrap = "break-word";
+        tooltip.style.maxWidth = "600px"; // Ajusta el ancho máximo
+        tooltip.style.wordWrap = "break-word"; // Asegura que el texto largo se ajuste
 
         document.body.appendChild(tooltip);
 
