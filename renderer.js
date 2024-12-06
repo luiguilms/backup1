@@ -235,42 +235,62 @@ document.addEventListener("DOMContentLoaded", async () => {
     statsButton.textContent = "Mostrar Estadísticas";
     statsButton.id = "showStatsButton";
     statsButton.onclick = showStatistics;
-    const topBar = document.createElement("div");
-    topBar.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background-color: #f8f9fa;
-    padding: 5px;
-    text-align: right;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 1000;
-  `;
-  // Agregar entrada de umbral
-  const thresholdInput = document.createElement("input");
-  thresholdInput.type = "number";
-  thresholdInput.id = "warningThresholdInput";
-  thresholdInput.placeholder = "Umbral de Advertencia (ej: 90)";
-  thresholdInput.style.marginRight = "10px";
-  thresholdInput.value = 90; // Valor predeterminado
-
-  // Insertar la entrada antes de los botones
-  topBar.insertBefore(thresholdInput, topBar.firstChild);
-    // Botón de Historial
+    statsButton.style.padding = "5px 10px";
+    statsButton.style.marginLeft = "10px";
+  
     const historyButton = document.createElement("button");
     historyButton.textContent = "Historial de Verificaciones";
     historyButton.id = "showHistoryButton";
     historyButton.onclick = showHistory;
-    topBar.appendChild(statsButton);
-    topBar.appendChild(historyButton);
+    historyButton.style.padding = "5px 10px";
+    historyButton.style.marginLeft = "10px";
+  
+    const topBar = document.createElement("div");
+    topBar.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background-color: #f8f9fa;
+      padding: 5px;
+      text-align: right;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 1000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    `;
+  
+    const controlContainer = document.createElement("div");
+    controlContainer.style.display = "flex";
+    controlContainer.style.alignItems = "center";
+    controlContainer.style.justifyContent = "flex-end";
+  
+    const thresholdLabel = document.createElement("label");
+    thresholdLabel.textContent = "Umbral de Advertencia:";
+    thresholdLabel.setAttribute("for", "warningThresholdInput");
+    thresholdLabel.style.marginRight = "10px";
+  
+    const thresholdInput = document.createElement("input");
+    thresholdInput.type = "number";
+    thresholdInput.id = "warningThresholdInput";
+    thresholdInput.placeholder = "Umbral de Advertencia (ej: 90)";
+    thresholdInput.style.marginRight = "10px";
+    thresholdInput.value = 90;
+  
+    controlContainer.appendChild(thresholdLabel);
+    controlContainer.appendChild(thresholdInput);
+    controlContainer.appendChild(statsButton);
+    controlContainer.appendChild(historyButton);
+  
+    topBar.appendChild(controlContainer);
     document.body.insertBefore(topBar, document.body.firstChild);
-    document.body.style.marginTop = "50px"; // Ajusta este valor según sea necesario
-    // Escuchar el cambio del umbral y enviarlo al proceso principal
+    document.body.style.marginTop = "50px";
+  
     thresholdInput.addEventListener('input', () => {
-      const thresholdValue = parseInt(thresholdInput.value, 10) || 90;  // Si no hay valor, usar 90 como predeterminado
-      window.electron.send('update-threshold', thresholdValue);  // Aquí 'update-threshold' es el nombre del canal IPC
-  });
+      const thresholdValue = parseInt(thresholdInput.value, 10) || 90;
+      window.electron.send('update-threshold', thresholdValue);
+    });
   }
   async function showHistory() {
     const modal = document.createElement("div");
