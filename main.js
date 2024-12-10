@@ -58,6 +58,19 @@ function createWindow() {
   mainWindow.setIcon(`${__dirname}/respaldo.png`);
   mainWindow.maximize(); // Maximiza la ventana
   mainWindow.loadFile("index.html");
+  // Verificar si la aplicación fue lanzada con el argumento --scheduled
+  const isScheduled = process.argv.includes('--scheduled');  // Si el argumento --scheduled está presente
+  console.log("La aplicación fue lanzada con el argumento --scheduled?", isScheduled);
+
+  if (isScheduled) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      console.log("Iniciando proceso automático...");
+      setTimeout(() => {
+        mainWindow.webContents.send('start-processing');
+        console.log("Señal de inicio enviada");
+      }, 3000);
+    });
+  }
 }
 app.whenReady().then(() => {
   createWindow();

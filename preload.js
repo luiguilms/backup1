@@ -56,4 +56,11 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.invoke("deleteBackupRoute", ip, backupPath),
   getVerificationHistory: (date) => ipcRenderer.invoke("get-verification-history", date),
   send: (channel, data) => ipcRenderer.send(channel, data),
+  // Escuchar el evento 'start-processing' del main process
+  startProcessingIfScheduled: (callback) => {
+    ipcRenderer.on('start-processing', () => {
+      console.log("Recibida señal de inicio automático");
+      callback();
+    });
+  }
 });

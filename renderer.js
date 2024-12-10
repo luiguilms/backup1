@@ -810,9 +810,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   //const tooltipError = document.createElement("div");
-  const processAllServersBtn = document.getElementById(
-    "process-all-servers-btn"
-  );
   const gridContainer = document.getElementById("gridContainer");
   const gridDiv = document.querySelector("#myGrid");
   let currentOS = ""; // Variable para el sistema operativo actual
@@ -1166,6 +1163,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else {
     console.error("Elemento #myGrid no encontrado");
   }
+// Llamamos a la función que escucha el evento 'start-processing'
+window.electron.startProcessingIfScheduled(() => {
+  console.log("Ejecutando proceso automático");
+  const processAllServersBtn = document.getElementById("process-all-servers-btn");
+  if (processAllServersBtn) {
+    console.log("Iniciando procesamiento automático...");
+    processAllServersBtn.click();
+  } else {
+    console.error("No se encontró el botón de procesamiento");
+  }
+});
+  
+  const processAllServersBtn = document.getElementById(
+    "process-all-servers-btn"
+  );
+
   if (processAllServersBtn) {
     processAllServersBtn.addEventListener("click", startProcessAllServers);
   } else {
