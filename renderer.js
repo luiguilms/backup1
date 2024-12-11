@@ -237,14 +237,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     statsButton.onclick = showStatistics;
     statsButton.style.padding = "5px 10px";
     statsButton.style.marginLeft = "10px";
-  
+
     const historyButton = document.createElement("button");
     historyButton.textContent = "Historial de Verificaciones";
     historyButton.id = "showHistoryButton";
     historyButton.onclick = showHistory;
     historyButton.style.padding = "5px 10px";
     historyButton.style.marginLeft = "10px";
-  
+
     const topBar = document.createElement("div");
     topBar.style.cssText = `
       position: fixed;
@@ -260,33 +260,33 @@ document.addEventListener("DOMContentLoaded", async () => {
       justify-content: space-between;
       align-items: center;
     `;
-  
+
     const controlContainer = document.createElement("div");
     controlContainer.style.display = "flex";
     controlContainer.style.alignItems = "center";
     controlContainer.style.justifyContent = "flex-end";
-  
+
     const thresholdLabel = document.createElement("label");
     thresholdLabel.textContent = "Umbral de Advertencia:";
     thresholdLabel.setAttribute("for", "warningThresholdInput");
     thresholdLabel.style.marginRight = "10px";
-  
+
     const thresholdInput = document.createElement("input");
     thresholdInput.type = "number";
     thresholdInput.id = "warningThresholdInput";
     thresholdInput.placeholder = "Umbral de Advertencia (ej: 90)";
     thresholdInput.style.marginRight = "10px";
     thresholdInput.value = 90;
-  
+
     controlContainer.appendChild(thresholdLabel);
     controlContainer.appendChild(thresholdInput);
     controlContainer.appendChild(statsButton);
     controlContainer.appendChild(historyButton);
-  
+
     topBar.appendChild(controlContainer);
     document.body.insertBefore(topBar, document.body.firstChild);
     document.body.style.marginTop = "50px";
-  
+
     thresholdInput.addEventListener('input', () => {
       const thresholdValue = parseInt(thresholdInput.value, 10) || 90;
       window.electron.send('update-threshold', thresholdValue);
@@ -387,7 +387,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           cellRenderer: (params) => {
             const dateDiv = document.createElement("div");
             dateDiv.classList.add("server-cell");
-            
+
             // Llamamos al valueFormatter para obtener la fecha con el formato deseado
             const formattedDate = new Date(params.data.executionDate);
             const formattedDateString = formattedDate.toLocaleString("es-ES", {
@@ -398,10 +398,10 @@ document.addEventListener("DOMContentLoaded", async () => {
               minute: "2-digit",
               second: "2-digit"
             });
-      
+
             dateDiv.textContent = formattedDateString;  // Muestra la fecha formateada
             dateDiv.style.cursor = "pointer";  // Agrega el cursor pointer para indicar que es clickeable
-      
+
             // Agregar evento de clic para mostrar el modal con los detalles
             dateDiv.addEventListener("click", () => {
               console.log("Clic en Servidor:", params.data.serverName);
@@ -432,20 +432,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             return serverDiv;
           }
         },
-        { headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120,
+        {
+          headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120,
           cellRenderer: (params) => {
             const ipDiv = document.createElement("div");
             ipDiv.classList.add("server-cell");
             ipDiv.textContent = `${params.data.ip}`; // Muestra el nombre del servidor 
             ipDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
-            
+
             ipDiv.addEventListener("click", () => {
               console.log("Clic en Servidor:", params.data.serverName);
               showServerDetailsModal(params.data); // Llamar a la función para mostrar el modal con los datos del servidor
             });
             return ipDiv;
           }
-         },
+        },
         {
           headerName: "Estado",
           field: "success",
@@ -520,20 +521,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             return statusDiv;
           }
         },
-        { headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 300,
+        {
+          headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 300,
           cellRenderer: (params) => {
             const logDiv = document.createElement("div");
             logDiv.classList.add("server-cell");
             logDiv.textContent = `${params.data.logFileName}`; // Muestra el nombre del servidor 
             logDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
-            
+
             logDiv.addEventListener("click", () => {
               console.log("Clic en Servidor:", params.data.logFileName);
               showServerDetailsModal(params.data); // Llamar a la función para mostrar el modal con los datos del servidor
             });
             return logDiv;
           }
-         },
+        },
         {
           headerName: "Hora de Inicio",
           field: "horaINI",
@@ -700,7 +702,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         ${successStatus || 'No disponible'}
       </span>
     </p>
-    <p><strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}</p>
+    <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;">
+    <strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}
+    </p>
     ${serverData.serverName === 'WebContent' || (serverData.serverName === 'Contratacion digital' && serverData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')
         ? ''
         : `
@@ -1163,18 +1167,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else {
     console.error("Elemento #myGrid no encontrado");
   }
-// Llamamos a la función que escucha el evento 'start-processing'
-window.electron.startProcessingIfScheduled(() => {
-  console.log("Ejecutando proceso automático");
-  const processAllServersBtn = document.getElementById("process-all-servers-btn");
-  if (processAllServersBtn) {
-    console.log("Iniciando procesamiento automático...");
-    processAllServersBtn.click();
-  } else {
-    console.error("No se encontró el botón de procesamiento");
-  }
-});
-  
+  // Llamamos a la función que escucha el evento 'start-processing'
+  window.electron.startProcessingIfScheduled(() => {
+    console.log("Ejecutando proceso automático");
+    const processAllServersBtn = document.getElementById("process-all-servers-btn");
+    if (processAllServersBtn) {
+      console.log("Iniciando procesamiento automático...");
+      processAllServersBtn.click();
+    } else {
+      console.error("No se encontró el botón de procesamiento");
+    }
+  });
+
   const processAllServersBtn = document.getElementById(
     "process-all-servers-btn"
   );
@@ -1186,8 +1190,8 @@ window.electron.startProcessingIfScheduled(() => {
   }
   function showLogDetailsModal(logData) {
     console.log("Entrando en showLogDetailsModal con datos:", logData);
-    const successStatus = logData.status === "Fallo" ? "Fallo" : "Éxito"; 
-    const statusClass = logData.status === "Fallo" ? "status-failure" : "status-success"; 
+    const successStatus = logData.status === "Fallo" ? "Fallo" : "Éxito";
+    const statusClass = logData.status === "Fallo" ? "status-failure" : "status-success";
     // Verificar si el servidor es WebContent o Contratacion Digital
     const isSpecialServer = logData.serverName === "WebContent" || logData.serverName === "Contratacion digital" && logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI";
 
@@ -1209,7 +1213,7 @@ window.electron.startProcessingIfScheduled(() => {
     }
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
-    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_MD_ALL_ANTES","BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
+    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_MD_ALL_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
     const isBantotal = logData.serverName === "Bantotal"; // Asegurarse que el servidor sea "Bantotal"
     let subcarpeta = '';
 
@@ -1228,11 +1232,11 @@ window.electron.startProcessingIfScheduled(() => {
       <p><strong>Hora de Fin:</strong> ${logData.endTime || 'No disponible'}</p>
       <p><strong>Duración:</strong> ${logData.duration || 'No disponible'}</p>
       <p><strong>Estado de Backup:</strong> ${logData.backupStatus || 'No disponible'}</p>
-      ${!isSpecialServer 
+      ${!isSpecialServer
         ? `
         <p><strong>Peso total de archivo .dmp:</strong> ${logData.totalDmpSize || 'No disponible'}</p>
         <p><strong>Tamaño Total Carpeta:</strong> ${logData.totalFolderSize || 'No disponible'}</p>
-        ` 
+        `
         : ''
       }
       <p><strong>Exitoso:</strong> 
@@ -1240,7 +1244,7 @@ window.electron.startProcessingIfScheduled(() => {
         ${successStatus}
       </span>
     </p>
-      <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}
+      <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;"><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}
       <h3 style="margin-top: 20px;">${last10LinesTitle}</h3>
 ${last10LinesContent}
     `;
@@ -2183,7 +2187,7 @@ ${last10LinesContent}
     const [_, hours, minutes, seconds] = match.map(Number);
     return hours * 60 + minutes + seconds / 60; // Convertir todo a minutos
   }
-  
+
   async function showStatistics() {
     try {
       if (!statisticsModal) {
@@ -2414,7 +2418,8 @@ ${last10LinesContent}
                   grid: {
                     drawOnChartArea: false,
                   }
-              },}
+                },
+              }
             },
           });
         });
@@ -2727,38 +2732,38 @@ ${last10LinesContent}
     }
   });
   // Función para actualizar los campos del formulario con los datos del servidor
-async function updateFormFields(selectedIp) {
-  try {
-    // Obtener la lista completa de servidores
-    const servers = await window.electron.getServers();
+  async function updateFormFields(selectedIp) {
+    try {
+      // Obtener la lista completa de servidores
+      const servers = await window.electron.getServers();
 
-    // Buscar el servidor que tiene la IP seleccionada
-    const selectedServer = servers.find(server => server.ip === selectedIp);
+      // Buscar el servidor que tiene la IP seleccionada
+      const selectedServer = servers.find(server => server.ip === selectedIp);
 
-    if (selectedServer && selectedServer.id) {
-      const serverDetails = await window.electron.getServerDetails(selectedServer.id);
-      console.log("Detalles del servidor obtenidos:", serverDetails);
+      if (selectedServer && selectedServer.id) {
+        const serverDetails = await window.electron.getServerDetails(selectedServer.id);
+        console.log("Detalles del servidor obtenidos:", serverDetails);
 
-      if (serverDetails) {
-        // Rellenar los campos del formulario con los detalles del servidor
-        document.getElementById("username").value = serverDetails.username || '';
-        document.getElementById("password").value = serverDetails.password || '';
+        if (serverDetails) {
+          // Rellenar los campos del formulario con los detalles del servidor
+          document.getElementById("username").value = serverDetails.username || '';
+          document.getElementById("password").value = serverDetails.password || '';
+        } else {
+          console.warn("No se encontraron detalles para el servidor seleccionado.");
+        }
       } else {
-        console.warn("No se encontraron detalles para el servidor seleccionado.");
+        console.warn("No se encontró ningún servidor con la IP seleccionada.");
       }
-    } else {
-      console.warn("No se encontró ningún servidor con la IP seleccionada.");
+    } catch (error) {
+      console.error("Error al obtener los detalles del servidor:", error);
     }
-  } catch (error) {
-    console.error("Error al obtener los detalles del servidor:", error);
   }
-}
 
-// Eventos para actualizar las credenciales cuando cambia el sistema operativo o la IP
-osSelect.addEventListener("change", updateIPOptions);
-ipSelect.addEventListener("change", () => {
-  updateFormFields(ipSelect.value);
-});
+  // Eventos para actualizar las credenciales cuando cambia el sistema operativo o la IP
+  osSelect.addEventListener("change", updateIPOptions);
+  ipSelect.addEventListener("change", () => {
+    updateFormFields(ipSelect.value);
+  });
   function convertToGB(totalFolderSize) {
     if (typeof totalFolderSize === "number") {
       return `${(totalFolderSize / 1000).toFixed(2)} GB`; // Si el tamaño es un número, convertirlo a GB directamente
