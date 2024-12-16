@@ -123,6 +123,10 @@ app.whenReady().then(() => {
       );
     }
   );
+  function isFirstDayOfMonth() {
+    const today = new Date();
+    return today.getDate() === 1; // Verifica si es el primer día del mes
+  }
   // Función que encapsula la lógica de get-log-details
   async function getLogDetailsLogic(
     directoryPath,
@@ -133,6 +137,16 @@ app.whenReady().then(() => {
     targetOS
   ) {
     let allLogDetails = [];
+    const isMensualRoute = directoryPath.includes("MENSUAL");
+    const firstDay = isFirstDayOfMonth();
+    // Filtrar según la fecha
+    if ((firstDay && !isMensualRoute) || (!firstDay && isMensualRoute)) {
+      console.log(`Ruta excluida: ${directoryPath}`);
+      return null; // Excluye la ruta y no procesa más
+    }
+
+    console.log(`Procesando ruta: ${directoryPath}`);
+
     // Obtener el nombre del servidor
     const servers = await getServers(); // Usa la función que ya tienes
     const server = servers.find((s) => s.ip === ip);
@@ -400,7 +414,7 @@ app.whenReady().then(() => {
 
                     logLines = logData.trim().split("\n");
                     lastLine = logLines[logLines.length - 1].trim();
-                    logInfo = getLast10LogLines(logData,globalThreshold);
+                    logInfo = getLast10LogLines(logData, globalThreshold);
                     logDetails = parseLogLine(logData);
 
                     if (logInfo.hasWarning) {
@@ -592,7 +606,7 @@ app.whenReady().then(() => {
               });
               const logLines = logData.trim().split("\n");
               const lastLine = logLines[logLines.length - 1].trim();
-              const logInfo = getLast10LogLines(logData,globalThreshold);
+              const logInfo = getLast10LogLines(logData, globalThreshold);
 
               if (logInfo.hasWarning) {
                 const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
@@ -601,7 +615,7 @@ app.whenReady().then(() => {
                   )}`;
                 await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
               }
-              const logDetails = parseLogLine(logData,"Pago Institucional");
+              const logDetails = parseLogLine(logData, "Pago Institucional");
               const validExtensions = [".dmp", ".DMP", ".dmp.gz", ".gz", ".err"];
               let dumpFileInfo = [];
               const dumpFiles = subDirFiles.filter((file) => {
@@ -714,7 +728,7 @@ app.whenReady().then(() => {
             });
             const logLines = logData.trim().split("\n");
             const lastLine = logLines[logLines.length - 1].trim();
-            const logInfo = getLast10LogLines(logData,globalThreshold);
+            const logInfo = getLast10LogLines(logData, globalThreshold);
 
             if (logInfo.hasWarning) {
               const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
@@ -723,7 +737,7 @@ app.whenReady().then(() => {
                 )}`;
               await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
             }
-            const logDetails = parseLogLine(logData,"Pago Institucional");
+            const logDetails = parseLogLine(logData, "Pago Institucional");
             const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
             let dumpFileInfo = [];
             const dumpFiles = subDirFiles.filter((file) => {
@@ -1352,6 +1366,12 @@ app.whenReady().then(() => {
                 decryptedPassword,
                 osType
               );
+              // Si logDetails es null, significa que la ruta fue excluida
+              if (logDetails === null) {
+                console.log(`Ruta ${backupPath} excluida para el servidor ${serverName}`);
+                continue; // Saltar esta ruta y pasar a la siguiente
+              }
+
               // Verificar si logDetails está vacío o contiene un error
               if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
                 results.push({
@@ -1359,9 +1379,9 @@ app.whenReady().then(() => {
                   ip,
                   backupPath,
                   error: `Archivo log no válido o incompatible para la carpeta: ${backupPath}, en el servidor: ${serverName}, IP: ${ip}`,
-                  logDetails: null, // Asegúrate de incluir esto
+                  logDetails: null,
                 });
-                continue; // Continuar con el siguiente backup
+                continue; // Continuar con la siguiente ruta
               }
 
               if (logDetails.error) {
@@ -1818,7 +1838,7 @@ function getLast10LogLines(logContent, threshold = globalThreshold) {
   return {
     relevantLines: relevantLines.slice(-10), // Tomamos las últimas 10 líneas relevantes (en orden ascendente)
     hasWarning: relevantLines.length > 0,
-    warningNumber: relevantLines.length > 0 
+    warningNumber: relevantLines.length > 0
       ? parseInt(relevantLines[relevantLines.length - 1].match(warningPattern)[1], 10)
       : -1, // Último número de advertencia (si existe)
   };
@@ -1827,7 +1847,7 @@ function parseLogLine(logContent, serverName) {
   const oraErrorPattern = /ORA-\d{5}/g;
   const oraSpecificErrorPattern = /ORA-39327/;
   const successPattern = /successfully completed/i;
-  const logInfo = getLast10LogLines(logContent,globalThreshold);
+  const logInfo = getLast10LogLines(logContent, globalThreshold);
   const lines = logContent.split("\n");
   let lastLine = lines[lines.length - 1].trim();
   // Si la última línea está vacía, busca la primera línea no vacía desde el final
@@ -2455,7 +2475,7 @@ ipcMain.handle("get-verification-history", async (event, date) => {
 });
 function formatOracleDate(date) {
   if (!date || isNaN(date.getTime())) {
-      throw new Error("La fecha proporcionada no es válida");
+    throw new Error("La fecha proporcionada no es válida");
   }
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -2488,26 +2508,26 @@ function extractRmanLogDetails(logContent) {
   const startMatch = cleanedLogContent.match(startDateRegex);
   if (startMatch) {
     const [, , month, day, hours, minutes, seconds, year] = startMatch;
-    
+
     // Mapping of month abbreviations
     const months = {
-        Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
-        Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
+      Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
+      Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
     };
 
     // Create a date string in a format that new Date() can parse
     const formattedDateString = `${year}-${months[month]}-${day.padStart(2, '0')}T${hours}:${minutes}:${seconds}`;
-    
+
     const startDate = new Date(formattedDateString);
-    
+
     // Verify the date is valid
     if (isNaN(startDate.getTime())) {
-        console.error("Fecha de inicio no válida:", formattedDateString);
-        throw new Error("La fecha proporcionada no es válida");
+      console.error("Fecha de inicio no válida:", formattedDateString);
+      throw new Error("La fecha proporcionada no es válida");
     }
 
     logDetails.fechaInicio = formatOracleDate(startDate);
-}
+  }
 
   // Calcular la duración total sumando todos los `elapsed time`
   let totalDuration = [0, 0, 0];  // [horas, minutos, segundos]

@@ -2868,6 +2868,7 @@ ${last10LinesContent}
         );
         console.log("logDetailsArray:", logDetailsArray);
         // Verificar si se devolvió un error sobre la ruta
+      
         if (logDetailsArray?.error) {
           showErrorModal(
             logDetailsArray.error,
@@ -2877,11 +2878,15 @@ ${last10LinesContent}
           );
           return;
         }
-        // Verificar si logDetailsArray está vacío y mostrar un modal si es necesario
+        if (logDetailsArray === null) {
+          console.log(`Ruta ${directoryPath} excluida del procesamiento.`); 
+          return; // Ignorar rutas excluidas
+        }
+        
         if (!logDetailsArray || (Array.isArray(logDetailsArray) && logDetailsArray.length === 0)) {
           const warningMessage = `Archivo log no válido o incompatible para la ruta: ${directoryPath}, en el servidor: ${serverName}`;
           showErrorModal(warningMessage, ip);
-          return; // Salimos si no hay datos válidos
+          return; // Mostrar modal solo si no hay datos válidos reales
         }
         // Verifica si hay elementos en logDetailsArray
         // Antes del bucle que procesa los detalles del log
