@@ -139,18 +139,25 @@ app.whenReady().then(() => {
     let allLogDetails = [];
     const isMensualRoute = directoryPath.includes("MENSUAL");
     const firstDay = isFirstDayOfMonth();
-    // Filtrar según la fecha
-    if ((firstDay && !isMensualRoute) || (!firstDay && isMensualRoute)) {
-      console.log(`Ruta excluida: ${directoryPath}`);
-      return null; // Excluye la ruta y no procesa más
-    }
-
-    console.log(`Procesando ruta: ${directoryPath}`);
-
     // Obtener el nombre del servidor
     const servers = await getServers(); // Usa la función que ya tienes
     const server = servers.find((s) => s.ip === ip);
     const serverName = server ? server.name : "N/A";
+    if (serverName === "EBS" || serverName === "BI") {
+      if (firstDay && !isMensualRoute) {
+        console.log(
+          `Ruta normal excluida el primer día del mes: ${directoryPath} (Servidor: ${serverName})`
+        );
+        return null; // Excluir rutas normales el primer día del mes
+      }
+      if (!firstDay && isMensualRoute) {
+        console.log(
+          `Ruta mensual excluida fuera del primer día del mes: ${directoryPath} (Servidor: ${serverName})`
+        );
+        return null; // Excluir rutas mensuales fuera del primer día
+      }
+    }
+    console.log(`Procesando ruta: ${directoryPath} (Servidor: ${serverName})`);
     try {
       //console.log(`Fetching log details from directory: ${directoryPath}`);
       // Initialize SSH connection
