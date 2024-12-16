@@ -408,7 +408,7 @@ app.whenReady().then(() => {
                         }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
                           "\n"
                         )}`;
-                      await sendEmailAlert(ip, serverName, warningMessage);
+                      await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
                     }
                     logDetails = parseLogLine(logData);
                     const validExtensions = [".dmp", ".DMP", ".dmp.gz", ".gz", ".err"];
@@ -599,7 +599,7 @@ app.whenReady().then(() => {
                   }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
                     "\n"
                   )}`;
-                await sendEmailAlert(ip, serverName, warningMessage);
+                await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
               }
               const logDetails = parseLogLine(logData,"Pago Institucional");
               const validExtensions = [".dmp", ".DMP", ".dmp.gz", ".gz", ".err"];
@@ -721,7 +721,7 @@ app.whenReady().then(() => {
                 }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
                   "\n"
                 )}`;
-              await sendEmailAlert(ip, serverName, warningMessage);
+              await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
             }
             const logDetails = parseLogLine(logData,"Pago Institucional");
             const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
@@ -2141,60 +2141,42 @@ async function saveLogToDatabase(
     }
   }
 }
-const Mailjet = require("node-mailjet");
+const nodemailer = require('nodemailer');
 
-const mailjet = new Mailjet({
-  apiKey: "e88d0e4474aae45518847e1e2c6b1008",
-  apiSecret: "3578348b5eb98121adce82c7a757bc58",
-});
-
-async function sendEmailAlert(ip, serverName, message) {
+async function sendEmailAlert(ip, serverName, subfolderName, message) {
   try {
-    const response = await mailjet.post("send", { version: "v3.1" }).request({
-      Messages: [
-        {
-          From: {
-            Email: "luiguilmsz3@gmail.com",
-            Name: "Monitoreo de Backup",
-          },
-          To: [
-            {
-              Email: "igs_llupacca@cajaarequipa.pe",
-              Name: "Receptor",
-            },
-          ],
-          Subject: `Alerta de espacio en servidor ${serverName}`,
-          TextPart: `Se ha detectado una advertencia de espacio en el servidor ${serverName} (IP: ${ip}).\n\n${message}`,
-          HTMLPart: `
-            <h3>Alerta de espacio en servidor ${serverName}</h3>
-            <p>Se ha detectado una advertencia de espacio en el servidor ${serverName} (IP: ${ip}).</p>
-            <h4>Detalles del log:</h4>
-            <pre>${message.replace(/\n/g, "<br>")}</pre>
-          `,
-        },
-      ],
+    // Crear el transportador SMTP
+    const transporter = nodemailer.createTransport({
+      host: '10.0.200.68', // Dirección del servidor SMTP
+      port: 25,            // Puerto del servidor SMTP
+      secure: false,       // Cambiar a true si usas SSL/TLS
+      tls: {
+        rejectUnauthorized: false, // Deshabilitar verificación del certificado
+      },
     });
 
-    // Verificar el estado de la respuesta
-    if (
-      response.body &&
-      response.body.Messages &&
-      response.body.Messages.length > 0
-    ) {
-      const messageStatus = response.body.Messages[0].Status;
-      console.log("Estado del email:", messageStatus);
-      console.log("ID del mensaje:", response.body.Messages[0].To[0].MessageID);
-      console.log("Email enviado correctamente");
-    } else {
-      console.log("Respuesta inesperada de Mailjet:", response.body);
-    }
+    // Crear el contenido del correo
+    const mailOptions = {
+      from: 'igs_llupacca@cajaarequipa.pe', // Dirección del remitente
+      to: 'igs_llupacca@cajaarequipa.pe',   // Dirección del destinatario
+      subject: `Alerta de espacio en servidor ${serverName}`, // Asunto del correo
+      html: `
+        <h1>Alerta de espacio en servidor ${serverName}</h1>
+        <p>Se ha detectado una advertencia de espacio en el servidor <b>${serverName}</b> (IP: ${ip}).</p>
+        <p><b>Subcarpeta afectada:</b> ${subfolderName}</p>
+        <h4>Detalles del log:</h4>
+        <pre>${message.replace(/\n/g, '<br>')}</pre>
+      `,
+    };
+
+    // Enviar el correo
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Correo enviado con éxito:', info.response);
   } catch (error) {
-    console.error("Error al enviar email:", error.statusCode);
-    if (error.response) {
-      console.error("Detalles del error:", error.response.body);
-    }
+    console.error('Error al enviar el correo:', error.message);
   }
 }
+
 // Añade estas funciones en algún lugar apropiado en tu main.js
 
 function getConstantIdentifier(fullPath, serverIdentifier, characterCount = 12) {
