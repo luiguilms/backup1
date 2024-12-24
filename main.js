@@ -2170,38 +2170,78 @@ async function saveLogToDatabase(
 }
 const nodemailer = require('nodemailer');
 
-async function sendEmailAlert(ip, serverName, subfolderName, message) {
+// Array para almacenar las alertas
+let pendingAlerts = [];
+let timeoutId = null;
+
+async function addAlert(ip, serverName, subfolderName, message) {
+  // Agregar alerta al array
+  pendingAlerts.push({ ip, serverName, subfolderName, message });
+
+  // Limpiar el timeout anterior si existe
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+  }
+
+  // Establecer un nuevo timeout de 1 minuto
+  timeoutId = setTimeout(() => {
+    if (pendingAlerts.length > 0) {
+      sendCombinedAlerts();
+    }
+  }, 300000); // Espera 1 minuto antes de enviar
+}
+
+async function sendCombinedAlerts() {
   try {
-    // Crear el transportador SMTP
     const transporter = nodemailer.createTransport({
-      host: '10.0.200.68', // Dirección del servidor SMTP
-      port: 25,            // Puerto del servidor SMTP
-      secure: false,       // Cambiar a true si usas SSL/TLS
+      host: '10.0.200.68',
+      port: 25,
+      secure: false,
       tls: {
-        rejectUnauthorized: false, // Deshabilitar verificación del certificado
+        rejectUnauthorized: false,
       },
     });
 
-    // Crear el contenido del correo
-    const mailOptions = {
-      from: 'igs_llupacca@cajaarequipa.pe', // Dirección del remitente
-      to: 'igs_llupacca@cajaarequipa.pe',   // Dirección del destinatario
-      subject: `Alerta de espacio en servidor ${serverName}`, // Asunto del correo
-      html: `
-        <h1>Alerta de espacio en servidor ${serverName}</h1>
-        <p>Se ha detectado una advertencia de espacio en el servidor <b>${serverName}</b> (IP: ${ip}).</p>
-        <p><b>Subcarpeta afectada:</b> ${subfolderName}</p>
+    // Crear el HTML para todas las alertas
+    const alertsHtml = pendingAlerts.map(alert => `
+      <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        <h2 style="color: #d9534f;">Alerta de espacio en servidor ${alert.serverName}</h2>
+        <p>Se ha detectado una advertencia de espacio en el servidor <b>${alert.serverName}</b> (IP: ${alert.ip}).</p>
+        <p><b>Subcarpeta afectada:</b> ${alert.subfolderName}</p>
         <h4>Detalles del log:</h4>
-        <pre>${message.replace(/\n/g, '<br>')}</pre>
+        <pre style="background-color: #f8f9fa; padding: 10px; border-radius: 3px;">${alert.message.replace(/\n/g, '<br>')}</pre>
+      </div>
+    `).join('');
+
+    const mailOptions = {
+      from: 'igs_llupacca@cajaarequipa.pe',
+      to: 'ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe, mblas@cajaarequipa.pe, igs_llupacca@cajaarequipa.pe',
+      subject: `Alertas de espacio en servidores (${pendingAlerts.length} alertas)`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h1>Resumen de Alertas de Espacio</h1>
+          ${alertsHtml}
+          <p style="color: #666; font-size: 12px; margin-top: 20px;">
+            Este es un mensaje automático generado por el sistema de monitoreo de backups.
+            Por favor, no responda a este correo.
+          </p>
+        </div>
       `,
     };
 
-    // Enviar el correo
     const info = await transporter.sendMail(mailOptions);
-    console.log('Correo enviado con éxito:', info.response);
+    console.log('Correo combinado enviado con éxito:', info.response);
+    
+    // Limpiar las alertas pendientes
+    pendingAlerts = [];
   } catch (error) {
     console.error('Error al enviar el correo:', error.message);
   }
+}
+
+// Esta es la función que deberás llamar en lugar de sendEmailAlert
+async function sendEmailAlert(ip, serverName, subfolderName, message) {
+  await addAlert(ip, serverName, subfolderName, message);
 }
 
 // Añade estas funciones en algún lugar apropiado en tu main.js
