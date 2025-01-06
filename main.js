@@ -2215,7 +2215,7 @@ async function sendCombinedAlerts() {
 
     const mailOptions = {
       from: 'igs_llupacca@cajaarequipa.pe',
-      to: 'ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe, mblas@cajaarequipa.pe, igs_llupacca@cajaarequipa.pe',
+      to: 'igs_llupacca@cajaarequipa.pe',
       subject: `Alertas de espacio en servidores (${pendingAlerts.length} alertas)`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
@@ -2452,8 +2452,8 @@ ipcMain.handle("get-verification-history", async (event, date) => {
         lb.backupPath, 
         lb.totalFolderSize, 
         lb.backupStatus, 
-        TO_CHAR(lb.groupControlInfo) AS groupControlInfo,
-        TO_CHAR(lb.oraErrorMessage) AS oraErrorMessage
+        DBMS_LOB.SUBSTR(lb.groupControlInfo, 4000, 1) AS groupControlInfo,
+        DBMS_LOB.SUBSTR(lb.oraErrorMessage, 4000, 1) AS oraErrorMessage
       FROM 
         LogBackup lb
       JOIN 
@@ -2478,8 +2478,8 @@ ipcMain.handle("get-verification-history", async (event, date) => {
         rbl.ruta_backup AS backupPath,
         NULL AS totalFolderSize,
         rbl.estado_backup AS backupStatus,
-        TO_CHAR(rbl.error_message) AS groupControlInfo,
-        TO_CHAR(rbl.error_message) AS oraErrorMessage
+        DBMS_LOB.SUBSTR(rbl.error_message, 4000, 1) AS groupControlInfo,
+        DBMS_LOB.SUBSTR(rbl.error_message, 4000, 1) AS oraErrorMessage
       FROM 
         rman_backup_logs rbl
       WHERE 
@@ -2487,7 +2487,14 @@ ipcMain.handle("get-verification-history", async (event, date) => {
       
       ORDER BY 
         executionDate DESC
-    `, { selectedDate: date });
+    `, { selectedDate: date 
+      },
+      {
+        fetchInfo: {
+          groupControlInfo: { type: oracledb.STRING },
+          oraErrorMessage: { type: oracledb.STRING }
+        }}
+    );
 
     return result.rows.map((row) => ({
       id: row[0],
