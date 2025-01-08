@@ -14,29 +14,35 @@ document.addEventListener("DOMContentLoaded", async () => {
   const backupRouteSelect = document.getElementById("backup-routes");
   const exportExcelButton = document.getElementById("exportExcel");
 
-
   if (currentPage.includes("index.html")) {
-    document.getElementById("verify-connection-btn").addEventListener("click", async () => {
-      // Obtén los valores del formulario
-      const ip = document.getElementById("ip").value;
-      const port = document.getElementById("port").value || 22; // Usa 22 como puerto por defecto
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
+    document
+      .getElementById("verify-connection-btn")
+      .addEventListener("click", async () => {
+        // Obtén los valores del formulario
+        const ip = document.getElementById("ip").value;
+        const port = document.getElementById("port").value || 22; // Usa 22 como puerto por defecto
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
 
-      try {
-        // Llama a la función de conexión en el backend usando ipcRenderer
-        const result = await window.electron.connectToServer(ip, port, username, password);
+        try {
+          // Llama a la función de conexión en el backend usando ipcRenderer
+          const result = await window.electron.connectToServer(
+            ip,
+            port,
+            username,
+            password
+          );
 
-        if (result.success) {
-          showCustomAlert("Conexión existosa al servidor");
-        } else {
-          showCustomAlert(`Error en la conexión: ${result.message}`);
+          if (result.success) {
+            showCustomAlert("Conexión existosa al servidor");
+          } else {
+            showCustomAlert(`Error en la conexión: ${result.message}`);
+          }
+        } catch (error) {
+          console.error("Error al intentar conectar:", error);
+          showCustomAlert("Ocurrió un error inesperado al intentar conectar.");
         }
-      } catch (error) {
-        console.error("Error al intentar conectar:", error);
-        showCustomAlert("Ocurrió un error inesperado al intentar conectar.");
-      }
-    });
+      });
   }
   if (exportExcelButton) {
     exportExcelButton.addEventListener("click", () => handleExport("excel"));
@@ -287,9 +293,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.body.insertBefore(topBar, document.body.firstChild);
     document.body.style.marginTop = "50px";
 
-    thresholdInput.addEventListener('input', () => {
+    thresholdInput.addEventListener("input", () => {
       const thresholdValue = parseInt(thresholdInput.value, 10) || 90;
-      window.electron.send('update-threshold', thresholdValue);
+      window.electron.send("update-threshold", thresholdValue);
     });
   }
   async function showHistory() {
@@ -396,20 +402,20 @@ document.addEventListener("DOMContentLoaded", async () => {
               day: "2-digit",
               hour: "2-digit",
               minute: "2-digit",
-              second: "2-digit"
+              second: "2-digit",
             });
 
-            dateDiv.textContent = formattedDateString;  // Muestra la fecha formateada
-            dateDiv.style.cursor = "pointer";  // Agrega el cursor pointer para indicar que es clickeable
+            dateDiv.textContent = formattedDateString; // Muestra la fecha formateada
+            dateDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
 
             // Agregar evento de clic para mostrar el modal con los detalles
             dateDiv.addEventListener("click", () => {
               console.log("Clic en Servidor:", params.data.serverName);
-              showServerDetailsModal(params.data);  // Llamar a la función para mostrar el modal con los datos del servidor
+              showServerDetailsModal(params.data); // Llamar a la función para mostrar el modal con los datos del servidor
             });
 
             return dateDiv;
-          }
+          },
         },
         {
           headerName: "Servidor",
@@ -420,7 +426,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           cellRenderer: (params) => {
             const serverDiv = document.createElement("div");
             serverDiv.classList.add("server-cell");
-            serverDiv.textContent = `${params.data.serverName}`; // Muestra el nombre del servidor 
+            serverDiv.textContent = `${params.data.serverName}`; // Muestra el nombre del servidor
             serverDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
 
             // Agregar evento de clic para mostrar el modal con los detalles
@@ -430,14 +436,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             return serverDiv;
-          }
+          },
         },
         {
-          headerName: "IP", field: "ip", sortable: true, filter: true, minWidth: 120,
+          headerName: "IP",
+          field: "ip",
+          sortable: true,
+          filter: true,
+          minWidth: 120,
           cellRenderer: (params) => {
             const ipDiv = document.createElement("div");
             ipDiv.classList.add("server-cell");
-            ipDiv.textContent = `${params.data.ip}`; // Muestra el nombre del servidor 
+            ipDiv.textContent = `${params.data.ip}`; // Muestra el nombre del servidor
             ipDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
 
             ipDiv.addEventListener("click", () => {
@@ -445,7 +455,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               showServerDetailsModal(params.data); // Llamar a la función para mostrar el modal con los datos del servidor
             });
             return ipDiv;
-          }
+          },
         },
         {
           headerName: "Estado",
@@ -456,7 +466,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           headerTooltip: "1 = Éxito, 0 = Fallo",
           cellRenderer: (params) => {
             const statusText = params.value === 1 ? "Éxito" : "Fallo";
-            const statusClass = params.value === 1 ? "status-success" : "status-failure";
+            const statusClass =
+              params.value === 1 ? "status-success" : "status-failure";
             const oraErrorMessage = params.data.oraErrorMessage;
 
             // Crear el elemento para el estado
@@ -500,7 +511,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 tooltipError.style.maxWidth = "300px";
                 tooltipError.style.wordWrap = "break-word";
 
-                console.log("Estilos aplicados al tooltip:", tooltipError.style);
+                console.log(
+                  "Estilos aplicados al tooltip:",
+                  tooltipError.style
+                );
 
                 // Cerrar el tooltip al hacer clic fuera
                 const closeTooltip = (e) => {
@@ -519,14 +533,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             return statusDiv;
-          }
+          },
         },
         {
-          headerName: "Archivo de Log", field: "logFileName", sortable: true, filter: true, minWidth: 300,
+          headerName: "Archivo de Log",
+          field: "logFileName",
+          sortable: true,
+          filter: true,
+          minWidth: 300,
           cellRenderer: (params) => {
             const logDiv = document.createElement("div");
             logDiv.classList.add("server-cell");
-            logDiv.textContent = `${params.data.logFileName}`; // Muestra el nombre del servidor 
+            logDiv.textContent = `${params.data.logFileName}`; // Muestra el nombre del servidor
             logDiv.style.cursor = "pointer"; // Agrega el cursor pointer para indicar que es clickeable
 
             logDiv.addEventListener("click", () => {
@@ -534,7 +552,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               showServerDetailsModal(params.data); // Llamar a la función para mostrar el modal con los datos del servidor
             });
             return logDiv;
-          }
+          },
         },
         {
           headerName: "Hora de Inicio",
@@ -550,9 +568,9 @@ document.addEventListener("DOMContentLoaded", async () => {
               day: "2-digit",
               hour: "2-digit",
               minute: "2-digit",
-              second: "2-digit"
+              second: "2-digit",
             });
-          }
+          },
         },
         {
           headerName: "Hora de Fin",
@@ -568,15 +586,45 @@ document.addEventListener("DOMContentLoaded", async () => {
               day: "2-digit",
               hour: "2-digit",
               minute: "2-digit",
-              second: "2-digit"
+              second: "2-digit",
             });
-          }
+          },
         },
-        { headerName: "Duración", field: "duration", sortable: true, filter: true, minWidth: 150 },
-        { headerName: "Tamaño Total DMP", field: "dumpFileSize", sortable: true, filter: true, minWidth: 200 },
-        { headerName: "Tamaño Total Carpeta", field: "totalFolderSize", sortable: true, filter: true, minWidth: 200 },
-        { headerName: "Estado de Backup", field: "backupStatus", sortable: true, filter: true, minWidth: 200 },
-        { headerName: "Ruta de Backup", field: "backupPath", sortable: true, filter: true, minWidth: 170 },
+        {
+          headerName: "Duración",
+          field: "duration",
+          sortable: true,
+          filter: true,
+          minWidth: 150,
+        },
+        {
+          headerName: "Tamaño Total DMP",
+          field: "dumpFileSize",
+          sortable: true,
+          filter: true,
+          minWidth: 200,
+        },
+        {
+          headerName: "Tamaño Total Carpeta",
+          field: "totalFolderSize",
+          sortable: true,
+          filter: true,
+          minWidth: 200,
+        },
+        {
+          headerName: "Estado de Backup",
+          field: "backupStatus",
+          sortable: true,
+          filter: true,
+          minWidth: 200,
+        },
+        {
+          headerName: "Ruta de Backup",
+          field: "backupPath",
+          sortable: true,
+          filter: true,
+          minWidth: 170,
+        },
         {
           headerName: "Grupo de control",
           field: "last10Lines",
@@ -586,19 +634,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             // Comprobamos si el servidor es "WebContent" o "Contratacion digital" y la ruta específica
             const isSpecialServer =
-              (params.data.serverName === "WebContent" ||
-                (params.data.serverName === "Contratacion digital" && params.data.backupPath === "/disco3/BK_RMAN_CONTRADIGI"));
+              params.data.serverName === "WebContent" ||
+              (params.data.serverName === "Contratacion digital" &&
+                params.data.backupPath === "/disco3/BK_RMAN_CONTRADIGI");
 
             // Si es un servidor especial, usamos `error_message` como contenido del botón
             if (isSpecialServer) {
               button.innerHTML = "Ver error"; // Título del botón
               button.addEventListener("click", () => {
-                const errorMessage = params.data.oraErrorMessage || "Sin errores detectados"; // `oraErrorMessage` o mensaje por defecto
+                const errorMessage =
+                  params.data.oraErrorMessage || "Sin errores detectados"; // `oraErrorMessage` o mensaje por defecto
                 showLast10LinesModal(errorMessage); // Llamada al modal con `error_message`
               });
             } else {
               // Caso general: comprobamos si `groupControlInfo` tiene "Job" para determinar el título
-              if (params.data.groupControlInfo && params.data.groupControlInfo.includes("Job")) {
+              if (
+                params.data.groupControlInfo &&
+                params.data.groupControlInfo.includes("Job")
+              ) {
                 button.innerHTML = "Ver última línea del log";
               } else {
                 button.innerHTML = "Ver advertencias";
@@ -606,14 +659,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
               // Lógica para el caso general: mostrar `groupControlInfo`
               button.addEventListener("click", () => {
-                const contentToShow = params.data.groupControlInfo || "No disponible";
+                const contentToShow =
+                  params.data.groupControlInfo || "No disponible";
                 showLast10LinesModal(contentToShow);
               });
             }
 
             return button;
-          }
-        }
+          },
+        },
       ];
 
       const gridOptions = {
@@ -632,7 +686,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         },
         onFirstDataRendered: (params) => {
           params.api.sizeColumnsToFit(); // Ajusta las columnas al tamaño del contenedor al renderizar los datos
-        }
+        },
       };
 
       // Inicializar el grid con las opciones configuradas
@@ -642,7 +696,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.addEventListener("resize", () => {
         gridOptions.api.sizeColumnsToFit();
       });
-
     } catch (error) {
       console.error("Error al cargar el historial de verificaciones:", error);
       container.innerHTML = "<p>Error al cargar el historial.</p>";
@@ -655,11 +708,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const formatDate = (dateString) => {
       const date = new Date(dateString);
       const year = date.getFullYear();
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-      const seconds = date.getSeconds().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, "0");
+      const day = date.getDate().toString().padStart(2, "0");
+      const hours = date.getHours().toString().padStart(2, "0");
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      const seconds = date.getSeconds().toString().padStart(2, "0");
       return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
     };
 
@@ -669,51 +722,87 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Determinar el estado "Exitoso?"
     const successStatus = serverData.success === 1 ? "Éxito" : "Fallo";
-    const statusClass = serverData.success === 1 ? "status-success" : "status-failure";
+    const statusClass =
+      serverData.success === 1 ? "status-success" : "status-failure";
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas especificadas
-    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_MD_ALL_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
+    const subcarpetas = [
+      "ESQ_USRREPBI",
+      "BK_ANTES2",
+      "APP_ESQUEMAS",
+      "BK_MD_ANTES",
+      "BK_MD_ALL_ANTES",
+      "BK_JAQL546_FPAE71",
+      "BK_ANTES",
+      "RENIEC",
+    ];
     const isBantotal = serverData.serverName.includes("Bantotal"); // Verificar si es el servidor Bantotal
-    let subcarpeta = '';
+    let subcarpeta = "";
 
     if (isBantotal) {
-      subcarpeta = subcarpetas.find(sub => serverData.backupPath.includes(sub)) || ''; // Buscar si alguna subcarpeta está en la ruta de backup
+      subcarpeta =
+        subcarpetas.find((sub) => serverData.backupPath.includes(sub)) || ""; // Buscar si alguna subcarpeta está en la ruta de backup
     }
 
-
     // Verificar si el log contiene "Job"
-    const containsJob = (serverData.groupControlInfo || '').includes("Job");
+    const containsJob = (serverData.groupControlInfo || "").includes("Job");
 
     // Determinar el título para las últimas 10 líneas
-    const last10LinesTitle = containsJob ? "Ver última línea del log" : "Advertencia:";
+    const last10LinesTitle = containsJob
+      ? "Ver última línea del log"
+      : "Advertencia:";
 
     // Crear contenido del modal
     const modalContent = `
-    <h2 style="text-align: center; font-size: 20px;">Detalles del Servidor ${serverData.serverName}</h2>
-    ${subcarpeta ? `<h3 style="text-align: center; font-size: 18px; color: #555;">Subcarpeta: ${subcarpeta}</h3>` : ''}
+    <h2 style="text-align: center; font-size: 20px;">Detalles del Servidor ${
+      serverData.serverName
+    }</h2>
+    ${
+      subcarpeta
+        ? `<h3 style="text-align: center; font-size: 18px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`
+        : ""
+    }
     <p><strong>IP:</strong> ${serverData.ip}</p>
-    <p><strong>Archivo Log:</strong> ${serverData.logFileName || 'No disponible'}</p>
-    <p><strong>Hora de Inicio:</strong> ${formattedHoraINI || 'No disponible'}</p>
-    <p><strong>Hora de Fin:</strong> ${formattedHoraFIN || 'No disponible'}</p>
-    <p><strong>Duración:</strong> ${serverData.duration || 'No disponible'}</p>
-    <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"}</p>
+    <p><strong>Archivo Log:</strong> ${
+      serverData.logFileName || "No disponible"
+    }</p>
+    <p><strong>Hora de Inicio:</strong> ${
+      formattedHoraINI || "No disponible"
+    }</p>
+    <p><strong>Hora de Fin:</strong> ${formattedHoraFIN || "No disponible"}</p>
+    <p><strong>Duración:</strong> ${serverData.duration || "No disponible"}</p>
+    <p><strong>Estado de Backup:</strong> ${
+      serverData.backupStatus || "No disponible"
+    }</p>
     <p><strong>Exitoso?:</strong> 
       <span id="success-status" class="${statusClass}" style="cursor: pointer;">
-        ${successStatus || 'No disponible'}
+        ${successStatus || "No disponible"}
       </span>
     </p>
     <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;">
     <strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}
     </p>
-    ${serverData.serverName === 'WebContent' || (serverData.serverName === 'Contratacion digital' && serverData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')
-        ? ''
+    ${
+      serverData.serverName === "WebContent" ||
+      (serverData.serverName === "Contratacion digital" &&
+        serverData.backupPath === "/disco3/BK_RMAN_CONTRADIGI")
+        ? ""
         : `
-        <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || 'No disponible'}</p>
-        <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || 'No disponible'}</p>
-      `}
-    <h3 style="margin-top: 20px;">${last10LinesTitle || 'No disponible'}</h3>
+        <p><strong>Peso total del archivo .dmp:</strong> ${
+          serverData.dumpFileSize || "No disponible"
+        }</p>
+        <p><strong>Tamaño total de carpeta:</strong> ${
+          serverData.totalFolderSize || "No disponible"
+        }</p>
+      `
+    }
+    <h3 style="margin-top: 20px;">${last10LinesTitle || "No disponible"}</h3>
     <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
-       ${(serverData.groupControlInfo || serverData.oraErrorMessage || "No disponible")}
+       ${
+         serverData.groupControlInfo ||
+         serverData.oraErrorMessage ||
+         "No disponible"
+       }
     </pre>
   `;
 
@@ -919,7 +1008,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showCustomAlert("Servidor eliminado correctamente.");
                 window.location.reload(); // Recargar la página para reflejar los cambios
               } else {
-                showCustomAlert("Error al eliminar el servidor: " + result.error);
+                showCustomAlert(
+                  "Error al eliminar el servidor: " + result.error
+                );
               }
             }
           }
@@ -1069,11 +1160,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         ipSelect.innerHTML = "";
 
         // Filtra los servidores según el sistema operativo seleccionado
-        const filteredServers = servers.filter(server => server.os === selectedOS);
+        const filteredServers = servers.filter(
+          (server) => server.os === selectedOS
+        );
 
         if (filteredServers.length > 0) {
           // Si hay servidores que coinciden, agrégalos al select de IP
-          filteredServers.forEach(server => {
+          filteredServers.forEach((server) => {
             const option = document.createElement("option");
             option.value = server.ip;
             option.textContent = server.display;
@@ -1085,7 +1178,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           ipSelect.value = ipSelect.options[0].value;
           updateBackupRoutes(); // Actualiza las rutas de backup
           await updateFormFields(ipSelect.value);
-
         } else {
           // Si no hay servidores que coincidan, deshabilita el selector de IP y muestra un mensaje
           const option = document.createElement("option");
@@ -1093,9 +1185,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           option.disabled = true;
           ipSelect.appendChild(option);
           ipSelect.disabled = true;
-          console.log("No hay servidores disponibles para este sistema operativo.");
+          console.log(
+            "No hay servidores disponibles para este sistema operativo."
+          );
         }
-
       } catch (error) {
         console.error("Error al actualizar las opciones de IP:", error);
       }
@@ -1170,7 +1263,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Llamamos a la función que escucha el evento 'start-processing'
   window.electron.startProcessingIfScheduled(() => {
     console.log("Ejecutando proceso automático");
-    const processAllServersBtn = document.getElementById("process-all-servers-btn");
+    const processAllServersBtn = document.getElementById(
+      "process-all-servers-btn"
+    );
     if (processAllServersBtn) {
       console.log("Iniciando procesamiento automático...");
       processAllServersBtn.click();
@@ -1188,23 +1283,31 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else {
     console.error("Botón process-all-servers-btn no encontrado");
   }
-  function showLogDetailsModal(logData) {
+  async function showLogDetailsModal(logData) {
     console.log("Entrando en showLogDetailsModal con datos:", logData);
     const successStatus = logData.status === "Fallo" ? "Fallo" : "Éxito";
-    const statusClass = logData.status === "Fallo" ? "status-failure" : "status-success";
+    const statusClass =
+      logData.status === "Fallo" ? "status-failure" : "status-success";
     // Verificar si el servidor es WebContent o Contratacion Digital
-    const isSpecialServer = logData.serverName === "WebContent" || logData.serverName === "Contratacion digital" && logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI";
+    const isSpecialServer =
+      logData.serverName === "WebContent" ||
+      (logData.serverName === "Contratacion digital" &&
+        logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI");
 
     // Determinar si se deben mostrar las últimas 10 líneas del log
-    let last10LinesContent = '';
-    let last10LinesTitle = '';
+    let last10LinesContent = "";
+    let last10LinesTitle = "";
 
     if (!isSpecialServer) {
       // Solo pedir last10Lines si no es WebContent o Contratacion Digital
-      const logIncludesJob = (logData.last10Lines || []).some(line => line.includes("Job"));
-      last10LinesTitle = logIncludesJob ? "Ver última línea del log" : "Advertencia:";
+      const logIncludesJob = (logData.last10Lines || []).some((line) =>
+        line.includes("Job")
+      );
+      last10LinesTitle = logIncludesJob
+        ? "Ver última línea del log"
+        : "Advertencia:";
       last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
-      ${(logData.last10Lines || []).join('\n') || 'No disponible'}
+      ${(logData.last10Lines || []).join("\n") || "No disponible"}
     </pre>`;
     } else {
       // Si es WebContent o Contratacion Digital, solo mostrar otros datos relevantes
@@ -1213,38 +1316,67 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
-    const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_MD_ALL_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
+    const subcarpetas = [
+      "ESQ_USRREPBI",
+      "BK_ANTES2",
+      "APP_ESQUEMAS",
+      "BK_MD_ANTES",
+      "BK_MD_ALL_ANTES",
+      "BK_JAQL546_FPAE71",
+      "BK_ANTES",
+      "RENIEC",
+    ];
     const isBantotal = logData.serverName === "Bantotal"; // Asegurarse que el servidor sea "Bantotal"
-    let subcarpeta = '';
+    let subcarpeta = "";
 
     if (isBantotal) {
       // Buscar si alguna subcarpeta está en la ruta de backup
-      subcarpeta = subcarpetas.find(sub => logData.backupPath.includes(sub)) || '';
+      subcarpeta =
+        subcarpetas.find((sub) => logData.backupPath.includes(sub)) || "";
     }
 
     // Crear contenido del modal
     const modalContent = `
-      <h2 style="text-align: center; font-size: 20px;">Detalles del Log para ${logData.serverName}</h2>
-      ${subcarpeta ? `<h3 style="text-align: center; font-size: 18px; color: #555;">Subcarpeta: ${subcarpeta}</h3>` : ''}
+      <h2 style="text-align: center; font-size: 20px;">Detalles del Log para ${
+        logData.serverName
+      }</h2>
+      ${
+        subcarpeta
+          ? `<h3 style="text-align: center; font-size: 18px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`
+          : ""
+      }
       <p><strong>IP:</strong> ${logData.ip}
-      <p><strong>Archivo de Log:</strong> ${logData.logFileName || 'No disponible'}</p>
-      <p><strong>Hora de Inicio:</strong> ${logData.startTime || 'No disponible'}</p>
-      <p><strong>Hora de Fin:</strong> ${logData.endTime || 'No disponible'}</p>
-      <p><strong>Duración:</strong> ${logData.duration || 'No disponible'}</p>
-      <p><strong>Estado de Backup:</strong> ${logData.backupStatus || 'No disponible'}</p>
-      ${!isSpecialServer
-        ? `
-        <p><strong>Peso total de archivo .dmp:</strong> ${logData.totalDmpSize || 'No disponible'}</p>
-        <p><strong>Tamaño Total Carpeta:</strong> ${logData.totalFolderSize || 'No disponible'}</p>
+      <p><strong>Archivo de Log:</strong> ${
+        logData.logFileName || "No disponible"
+      }</p>
+      <p><strong>Hora de Inicio:</strong> ${
+        logData.startTime || "No disponible"
+      }</p>
+      <p><strong>Hora de Fin:</strong> ${logData.endTime || "No disponible"}</p>
+      <p><strong>Duración:</strong> ${logData.duration || "No disponible"}</p>
+      <p><strong>Estado de Backup:</strong> ${
+        logData.backupStatus || "No disponible"
+      }</p>
+      ${
+        !isSpecialServer
+          ? `
+        <p><strong>Peso total de archivo .dmp:</strong> ${
+          logData.totalDmpSize || "No disponible"
+        }</p>
+        <p><strong>Tamaño Total Carpeta:</strong> ${
+          logData.totalFolderSize || "No disponible"
+        }</p>
         `
-        : ''
+          : ""
       }
       <p><strong>Exitoso:</strong> 
       <span id="success-status" class="${statusClass}" style="cursor: pointer;">
         ${successStatus}
       </span>
     </p>
-      <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;"><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}
+      <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;"><strong>Ruta del backup:</strong> ${
+        logData.backupPath || "N/A"
+      }
       <h3 style="margin-top: 20px;">${last10LinesTitle}</h3>
 ${last10LinesContent}
     `;
@@ -1270,6 +1402,8 @@ ${last10LinesContent}
     modalBox.style.maxWidth = "600px";
     modalBox.style.width = "90%";
     modalBox.style.boxShadow = "0 5px 15px rgba(0, 0, 0, 0.3)";
+    modalBox.style.position = 'fixed';
+    modalBox.style.visibility = 'visible';
     modalBox.innerHTML = modalContent;
 
     // Botón para cerrar el modal
@@ -1292,6 +1426,8 @@ ${last10LinesContent}
 
     // Añadir el modal al documento
     document.body.appendChild(modal);
+    await new Promise(resolve => setTimeout(resolve, 500));
+
 
     // Cerrar el modal al hacer clic fuera del contenido
     modal.addEventListener("click", (event) => {
@@ -1306,7 +1442,7 @@ ${last10LinesContent}
       successStatusElement.addEventListener("click", (event) => {
         // Crear el tooltip
         const tooltip = document.createElement("div");
-        tooltip.textContent = logData.oraError;  // Aquí se pasa el contenido de oraError al tooltip
+        tooltip.textContent = logData.oraError; // Aquí se pasa el contenido de oraError al tooltip
         tooltip.style.position = "fixed";
         tooltip.style.top = `${event.clientY + 10}px`;
         tooltip.style.left = `${event.clientX + 10}px`;
@@ -1333,6 +1469,125 @@ ${last10LinesContent}
       });
     }
   }
+  async function sendServerDetails(gridApi) {
+    let rowData = [];
+    gridApi.forEachNode(node => {
+        if (node.data) rowData.push(node.data);
+    });
+
+    // Ordenar el rowData: primero los que tienen error
+    rowData.sort((a, b) => {
+        const aHasError = a.status === "Fallo" ? 1 : 0;
+        const bHasError = b.status === "Fallo" ? 1 : 0;
+        return bHasError - aHasError; // Orden descendente para que los errores aparezcan primero
+    });
+
+    // Crear resumen de errores al inicio
+    const failedServers = rowData.filter(data => data.status === "Fallo");
+    const successServers = rowData.filter(data => data.status !== "Fallo");
+    
+    let summaryContent = '';
+    if (failedServers.length > 0) {
+        summaryContent = `
+            <div style="background-color: #fff3cd; color: #856404; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #ffeeba;">
+                <h3 style="margin-top: 0;">Resumen de Errores</h3>
+                <p>Se encontraron ${failedServers.length} servidor(es) con errores de un total de ${rowData.length} servidores.</p>
+                <ul style="margin-bottom: 0;">
+                    ${failedServers.map(server => `
+                        <li>${server.serverName} - ${server.backupPath}</li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    const emailContent = rowData.map(data => {
+        const successStatus = data.status === "Fallo" ? "Fallo" : "Éxito";
+        const statusStyle = data.status === "Fallo" ? 
+            'background-color: #f8d7da; color: #721c24; padding: 5px;' : 
+            'background-color: #d4edda; color: #155724; padding: 5px;';
+
+        const isSpecialServer = data.serverName === "WebContent" ||
+            (data.serverName === "Contratacion digital" &&
+            data.backupPath === "/disco3/BK_RMAN_CONTRADIGI");
+
+        let logContent = '';
+        if (!isSpecialServer) {
+            logContent = `
+                <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
+                    <strong>${data.last10Lines ? "Últimas líneas del log:" : "Advertencia:"}</strong><br>
+                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0;">
+                        ${Array.isArray(data.last10Lines) ? data.last10Lines.join('\n') : (data.last10Lines || 'No disponible')}
+                    </pre>
+                </div>`;
+        }
+
+        const errorContent = (data.status === "Fallo" && data.oraError) ? `
+            <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
+                <strong>Error detectado:</strong><br>
+                <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0;">
+                    ${data.oraError}
+                </pre>
+            </div>
+        ` : '';
+
+        // El contenedor principal tiene un borde rojo si hay error
+        const containerStyle = data.status === "Fallo" ? 
+            'border: 2px solid #dc3545;' : 
+            'border: 1px solid #ddd;';
+
+        return `
+        <div style="${containerStyle} padding: 20px; margin-bottom: 30px; border-radius: 8px;">
+            <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                ${data.serverName}
+            </h2>
+            
+            <div style="margin: 15px 0;">
+                <p><strong>IP:</strong> ${data.ip}</p>
+                <p><strong>Archivo de Log:</strong> ${data.logFileName || "No disponible"}</p>
+                <p><strong>Hora de Inicio:</strong> ${data.startTime || "No disponible"}</p>
+                <p><strong>Hora de Fin:</strong> ${data.endTime || "No disponible"}</p>
+                <p><strong>Duración:</strong> ${data.duration || "No disponible"}</p>
+                <p><strong>Estado de Backup:</strong> ${data.backupStatus || "No disponible"}</p>
+                ${!isSpecialServer ? `
+                    <p><strong>Peso total de archivo .dmp:</strong> ${data.totalDmpSize || "No disponible"}</p>
+                    <p><strong>Tamaño Total Carpeta:</strong> ${data.totalFolderSize || "No disponible"}</p>
+                ` : ''}
+                <p>
+                    <strong>Estado:</strong> 
+                    <span style="${statusStyle}; border-radius: 4px;">
+                        ${successStatus}
+                    </span>
+                </p>
+                <p style="word-break: break-all;"><strong>Ruta del backup:</strong> ${data.backupPath || "N/A"}</p>
+            </div>
+            
+            ${errorContent}
+            ${logContent}
+        </div>`;
+    }).join('');
+
+    const emailData = {
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
+                <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
+                    Reporte Detallado de Estado de Backups
+                </h1>
+                ${summaryContent}
+                ${emailContent}
+            </div>
+        `,
+        date: new Date().toLocaleDateString()
+    };
+
+    try {
+        await window.electron.sendEmailWithImages(emailData);
+        console.log('Email enviado exitosamente');
+    } catch (error) {
+        console.error('Error enviando email:', error);
+        throw error;
+    }
+}
   function initGrid(gridDiv) {
     const gridOptions = {
       columnDefs: [
@@ -1516,6 +1771,7 @@ ${last10LinesContent}
           initGrid(gridDiv);
         }
         displayAllServersResults(result.results);
+        await sendServerDetails(gridApi);
       } else {
         console.error("Error al procesar los servidores:", result.error);
         showErrorMessage("Error al procesar los servidores: " + result.error);
@@ -1575,7 +1831,9 @@ ${last10LinesContent}
               "Ruta de Backup No Existente",
               `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
             );
-          } else if (serverResult.error.includes("Archivo log no válido o incompatible")) {
+          } else if (
+            serverResult.error.includes("Archivo log no válido o incompatible")
+          ) {
             showErrorModal(
               serverResult.error,
               serverResult.ip,
@@ -1583,7 +1841,9 @@ ${last10LinesContent}
             );
           } else {
             showErrorModal(
-              `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
+              `No se realizó la conexión con el servidor: ${
+                serverResult.serverName || "Desconocido"
+              }`,
               serverResult.ip || "IP desconocida"
             );
           }
@@ -1612,7 +1872,8 @@ ${last10LinesContent}
 
           if (!logDetail || !logDetail.logFileName) {
             showErrorModal(
-              `No se encontró archivo de log para el servidor: ${serverResult.serverName || "Desconocido"
+              `No se encontró archivo de log para el servidor: ${
+                serverResult.serverName || "Desconocido"
               }`,
               serverResult.ip || "IP desconocida"
             );
@@ -1621,20 +1882,20 @@ ${last10LinesContent}
           const status = serverResult.error
             ? "Error"
             : logDetail.logDetails?.success
-              ? "Éxito"
-              : "Fallo";
+            ? "Éxito"
+            : "Fallo";
           const statusClass =
             status === "Fallo"
               ? "status-failure"
               : status === "Éxito"
-                ? "status-success"
-                : "status-error";
+              ? "status-success"
+              : "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
           const totalDmpSize = Array.isArray(logDetail.dumpFileInfo)
             ? logDetail.dumpFileInfo.reduce(
-              (sum, file) => sum + (file.fileSize || 0),
-              0
-            )
+                (sum, file) => sum + (file.fileSize || 0),
+                0
+              )
             : 0;
           const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
           const formattedFolderSize = logDetail.totalFolderSize
@@ -1648,9 +1909,17 @@ ${last10LinesContent}
             ? "Ver grupos de control (Advertencia)"
             : "Ver última línea del log";
           // Datos específicos para WebContent
-          if (serverResult.serverName === 'WebContent' || (serverResult.serverName === 'Contratacion digital' && logDetail.backupPath.trim() === '/disco3/BK_RMAN_CONTRADIGI')) {
-
-            console.log('Procesando servidor:', serverResult.serverName, 'con ruta:', logDetail.backupPath);
+          if (
+            serverResult.serverName === "WebContent" ||
+            (serverResult.serverName === "Contratacion digital" &&
+              logDetail.backupPath.trim() === "/disco3/BK_RMAN_CONTRADIGI")
+          ) {
+            console.log(
+              "Procesando servidor:",
+              serverResult.serverName,
+              "con ruta:",
+              logDetail.backupPath
+            );
             return {
               serverName: serverResult.serverName || "N/A",
               ip: serverResult.ip || "N/A",
@@ -1661,10 +1930,16 @@ ${last10LinesContent}
               duration: logDetail.logDetails?.duracion || "N/A",
               totalDmpSize: "N/A", // No aplica para WebContent
               totalFolderSize: "N/A", // No aplica para WebContent
-              backupStatus: logDetail.logDetails?.estadoBackup === "Éxito" ? "Completado" : "Fallo",
+              backupStatus:
+                logDetail.logDetails?.estadoBackup === "Éxito"
+                  ? "Completado"
+                  : "Fallo",
               backupPath: logDetail.backupPath || "N/A",
-              last10Lines: logDetail.logDetails?.errorMessage || "No hay errores",
-              groupControlInfo: logDetail.logDetails?.errorMessage ? "Ver error" : "Sin errores"
+              last10Lines:
+                logDetail.logDetails?.errorMessage || "No hay errores",
+              groupControlInfo: logDetail.logDetails?.errorMessage
+                ? "Ver error"
+                : "Sin errores",
             };
           }
           return {
@@ -1698,7 +1973,8 @@ ${last10LinesContent}
           return processed ? [processed] : [];
         } else {
           showErrorModal(
-            `No se encontraron rutas para el servidor: ${serverResult.serverName || "Desconocido"
+            `No se encontraron rutas para el servidor: ${
+              serverResult.serverName || "Desconocido"
             }`,
             serverResult.ip || "IP desconocida"
           );
@@ -1828,8 +2104,19 @@ ${last10LinesContent}
       //console.log("Datos del log:", logData); // Para depuración
       // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
       // Caso específico para WebContent
-      if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && logData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')) {
-        const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage } = logData.logDetails;
+      if (
+        serverName === "WebContent" ||
+        (serverName === "Contratacion digital" &&
+          logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI")
+      ) {
+        const {
+          fechaInicio,
+          fechaFin,
+          duracion,
+          estadoBackup,
+          rutaBackup,
+          errorMessage,
+        } = logData.logDetails;
 
         entryDiv.innerHTML = `
           <p><strong>IP:</strong> ${logData.ip}</p>
@@ -1838,25 +2125,40 @@ ${last10LinesContent}
           <p><strong>Fecha de fin:</strong> ${fechaFin || "N/A"}</p>
           <p><strong>Duración:</strong> ${duracion || "N/A"}</p>
           <p><strong>Estado del backup:</strong> ${estadoBackup}</p>
-          <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}</p>
-          <p><strong>Nombre del archivo .log:</strong> ${logData.logFileName || "N/A"}</p>
-          <p><strong>Mensaje de error:</strong> ${errorMessage || "Sin errores detectados"}</p>
+          <p><strong>Ruta del backup:</strong> ${
+            logData.backupPath || "N/A"
+          }</p>
+          <p><strong>Nombre del archivo .log:</strong> ${
+            logData.logFileName || "N/A"
+          }</p>
+          <p><strong>Mensaje de error:</strong> ${
+            errorMessage || "Sin errores detectados"
+          }</p>
       `;
       } else {
         const successClass = logData.logDetails?.success ? "" : "error-box";
         console.log("Contenido de dumpFileInfo:", logData.dumpFileInfo); // Verifica qué archivos se están pasando
         // Subcarpetas que queremos verificar en la ruta de backup
-        const subcarpetas = ["ESQ_USRREPBI", "BK_ANTES2", "APP_ESQUEMAS", "BK_MD_ANTES", "BK_JAQL546_FPAE71", "BK_ANTES", "RENIEC"];
-        let subcarpeta = '';
+        const subcarpetas = [
+          "ESQ_USRREPBI",
+          "BK_ANTES2",
+          "APP_ESQUEMAS",
+          "BK_MD_ANTES",
+          "BK_JAQL546_FPAE71",
+          "BK_ANTES",
+          "RENIEC",
+        ];
+        let subcarpeta = "";
 
         // Verificar si el servidor es Bantotal y si la ruta de backup contiene alguna subcarpeta de las definidas
         if (logData.serverName === "Bantotal" && logData.backupPath) {
           // Verificar si alguna subcarpeta está en la ruta de backup
-          subcarpeta = subcarpetas.find(sub => logData.backupPath.includes(sub)) || '';
+          subcarpeta =
+            subcarpetas.find((sub) => logData.backupPath.includes(sub)) || "";
         }
 
         // Si se encuentra una subcarpeta, la mostramos debajo del título
-        let subcarpetaContent = '';
+        let subcarpetaContent = "";
         if (subcarpeta) {
           subcarpetaContent = `<h3 style="font-size: 16px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`;
         }
@@ -1877,28 +2179,37 @@ ${last10LinesContent}
         // Añadir el estado del backup
         const backupStatus = logData.logDetails.backupStatus || "N/A";
         entryDiv.innerHTML = `
-            <p><strong>IP:</strong> ${logData.ip
-          }<strong> Nombre del servidor:</strong> ${serverName}</p>
+            <p><strong>IP:</strong> ${
+              logData.ip
+            }<strong> Nombre del servidor:</strong> ${serverName}</p>
         ${subcarpetaContent}
-            <p><strong>Tiempo de inicio:</strong> ${logData.logDetails.startTime || "N/A"
-          }</p>
-            <p><strong>Tiempo de fin:</strong> ${logData.logDetails.endTime || "N/A"
-          }</p>
+            <p><strong>Tiempo de inicio:</strong> ${
+              logData.logDetails.startTime || "N/A"
+            }</p>
+            <p><strong>Tiempo de fin:</strong> ${
+              logData.logDetails.endTime || "N/A"
+            }</p>
             <p><strong>Estado del backup:</strong> ${backupStatus}</p>
-            <p><strong>Duración:</strong> ${logData.logDetails.duration || "N/A"
-          }</p>
+            <p><strong>Duración:</strong> ${
+              logData.logDetails.duration || "N/A"
+            }</p>
             <!-- Aplica la clase 'error' al párrafo si success es No -->
-            <p class="${successClass}"><strong>Exitoso?:</strong> ${logData.logDetails.success ? "Yes" : "No"
-          }</p>
+            <p class="${successClass}"><strong>Exitoso?:</strong> ${
+          logData.logDetails.success ? "Yes" : "No"
+        }</p>
             <p><strong>Peso total de archivo .dmp:</strong> ${formattedDmpSize}</p> <!-- Aquí -->
-            <p><strong>Nombre del archivo .log:</strong> ${logData.logFileName || "N/A"
-          }</p>
-            <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"
-          } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
+            <p><strong>Nombre del archivo .log:</strong> ${
+              logData.logFileName || "N/A"
+            }</p>
+            <p><strong>Ruta del backup:</strong> ${
+              logData.backupPath || "N/A"
+            } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
         `;
 
         if (logData.logDetails.oraError) {
-          entryDiv.dataset.oraError = JSON.stringify(logData.logDetails.oraError);
+          entryDiv.dataset.oraError = JSON.stringify(
+            logData.logDetails.oraError
+          );
         }
         const showLogButton = document.createElement("button");
         showLogButton.textContent = logData.logDetails.hasWarning
@@ -1955,7 +2266,8 @@ ${last10LinesContent}
                     <p>${oraError.nextLine}</p>
                 `;
         } else {
-          tooltipError.textContent = "No se encontraron detalles específicos del error.";
+          tooltipError.textContent =
+            "No se encontraron detalles específicos del error.";
         }
 
         const rect = event.target.getBoundingClientRect();
@@ -2063,10 +2375,11 @@ ${last10LinesContent}
     modal.innerHTML = `
       <div class="modal-content">
         <span class="close">&times;</span>
-        <h2>${hasWarning
-        ? "Grupos de control (Advertencia)"
-        : "Última línea del log"
-      }</h2>
+        <h2>${
+          hasWarning
+            ? "Grupos de control (Advertencia)"
+            : "Última línea del log"
+        }</h2>
         <pre>${Array.isArray(lines) ? lines.join("\n") : lines}</pre>
       </div>
     `;
@@ -2306,10 +2619,12 @@ ${last10LinesContent}
 
           const ctx = canvasElement.getContext("2d");
 
-          const sortedData = serverData.data.map((d) => ({
-            ...d,
-            duracion: convertDurationToMinutes(d.duracion), // Convertir duración a minutos
-          })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+          const sortedData = serverData.data
+            .map((d) => ({
+              ...d,
+              duracion: convertDurationToMinutes(d.duracion), // Convertir duración a minutos
+            }))
+            .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
           new Chart(ctx, {
             type: "line",
@@ -2324,7 +2639,7 @@ ${last10LinesContent}
                   fill: false,
                   borderColor: getRandomColor(),
                   tension: 0.1,
-                  yAxisID: 'y1'
+                  yAxisID: "y1",
                 },
                 {
                   label: `${serverData.identifier} - Duración`,
@@ -2335,8 +2650,8 @@ ${last10LinesContent}
                   fill: false,
                   borderColor: getRandomColor(),
                   tension: 0.1,
-                  yAxisID: 'y2'
-                }
+                  yAxisID: "y2",
+                },
               ],
             },
             options: {
@@ -2408,18 +2723,18 @@ ${last10LinesContent}
                   },
                 },
                 y2: {
-                  type: 'linear',
+                  type: "linear",
                   display: true,
-                  position: 'right',
+                  position: "right",
                   title: {
                     display: true,
-                    text: 'Duración (min)',
+                    text: "Duración (min)",
                   },
                   grid: {
                     drawOnChartArea: false,
-                  }
+                  },
                 },
-              }
+              },
             },
           });
         });
@@ -2608,7 +2923,9 @@ ${last10LinesContent}
         addRouteModal.style.display = "none";
         addRouteForm.reset();
       } else {
-        showCustomAlert("Error al agregar la ruta. Por favor, intenta de nuevo.");
+        showCustomAlert(
+          "Error al agregar la ruta. Por favor, intenta de nuevo."
+        );
       }
     } catch (error) {
       console.error("Error al agregar la ruta:", error);
@@ -2687,7 +3004,9 @@ ${last10LinesContent}
         editRouteModal.style.display = "none";
         editRouteForm.reset();
       } else {
-        showCustomAlert("Error al actualizar la ruta. Por favor, intenta de nuevo.");
+        showCustomAlert(
+          "Error al actualizar la ruta. Por favor, intenta de nuevo."
+        );
       }
     } catch (error) {
       console.error("Error al actualizar la ruta:", error);
@@ -2699,22 +3018,30 @@ ${last10LinesContent}
 
   // Manejar el clic en el botón de eliminar ruta
   deleteRouteBtn.addEventListener("click", async () => {
-    const selectedOption = backupRoutesSelect.options[backupRoutesSelect.selectedIndex];
+    const selectedOption =
+      backupRoutesSelect.options[backupRoutesSelect.selectedIndex];
     const selectedIP = document.getElementById("ip").value;
 
     if (selectedOption) {
       // Mostrar alerta de confirmación
-      const confirmDelete = await showConfirmDeleteModal(`¿Estás seguro de que deseas eliminar la ruta "${selectedOption.value}"?`);
+      const confirmDelete = await showConfirmDeleteModal(
+        `¿Estás seguro de que deseas eliminar la ruta "${selectedOption.value}"?`
+      );
       if (confirmDelete) {
         try {
           // Llamada al backend para eliminar la ruta
-          const response = await window.electron.deleteBackupRoute(selectedIP, selectedOption.value);
+          const response = await window.electron.deleteBackupRoute(
+            selectedIP,
+            selectedOption.value
+          );
           if (response.success) {
             // Eliminar la opción de la lista si la eliminación fue exitosa
             selectedOption.remove();
             showCustomAlert("Ruta eliminada correctamente");
           } else {
-            showCustomAlert("Error al eliminar la ruta. Por favor, intenta de nuevo.");
+            showCustomAlert(
+              "Error al eliminar la ruta. Por favor, intenta de nuevo."
+            );
           }
         } catch (error) {
           console.error("Error al eliminar la ruta:", error);
@@ -2722,9 +3049,11 @@ ${last10LinesContent}
         }
       }
     } else {
-      showCustomAlert("Por favor, selecciona una ruta de backup para eliminar.");
+      showCustomAlert(
+        "Por favor, selecciona una ruta de backup para eliminar."
+      );
       setTimeout(() => {
-        const firstInput = document.querySelector('input'); // Selecciona el primer campo input
+        const firstInput = document.querySelector("input"); // Selecciona el primer campo input
         if (firstInput) {
           firstInput.focus(); // Mueve el foco al primer campo input
         }
@@ -2738,18 +3067,24 @@ ${last10LinesContent}
       const servers = await window.electron.getServers();
 
       // Buscar el servidor que tiene la IP seleccionada
-      const selectedServer = servers.find(server => server.ip === selectedIp);
+      const selectedServer = servers.find((server) => server.ip === selectedIp);
 
       if (selectedServer && selectedServer.id) {
-        const serverDetails = await window.electron.getServerDetails(selectedServer.id);
+        const serverDetails = await window.electron.getServerDetails(
+          selectedServer.id
+        );
         console.log("Detalles del servidor obtenidos:", serverDetails);
 
         if (serverDetails) {
           // Rellenar los campos del formulario con los detalles del servidor
-          document.getElementById("username").value = serverDetails.username || '';
-          document.getElementById("password").value = serverDetails.password || '';
+          document.getElementById("username").value =
+            serverDetails.username || "";
+          document.getElementById("password").value =
+            serverDetails.password || "";
         } else {
-          console.warn("No se encontraron detalles para el servidor seleccionado.");
+          console.warn(
+            "No se encontraron detalles para el servidor seleccionado."
+          );
         }
       } else {
         console.warn("No se encontró ningún servidor con la IP seleccionada.");
@@ -2795,7 +3130,7 @@ ${last10LinesContent}
     "BK_MD_ANTES",
     "BK_JAQL546_FPAE71",
     "BK_ANTES",
-    "RENIEC"
+    "RENIEC",
   ];
   const form = document.getElementById("server-form");
   if (form) {
@@ -2849,7 +3184,10 @@ ${last10LinesContent}
         console.log("Servers:", servers); // Para ver qué estás obteniendo
 
         if (!Array.isArray(servers)) {
-          console.error("Los servidores no se obtuvieron como un array:", servers);
+          console.error(
+            "Los servidores no se obtuvieron como un array:",
+            servers
+          );
           return; // O maneja el error de otra manera
         }
 
@@ -2868,7 +3206,7 @@ ${last10LinesContent}
         );
         console.log("logDetailsArray:", logDetailsArray);
         // Verificar si se devolvió un error sobre la ruta
-      
+
         if (logDetailsArray?.error) {
           showErrorModal(
             logDetailsArray.error,
@@ -2879,11 +3217,14 @@ ${last10LinesContent}
           return;
         }
         if (logDetailsArray === null) {
-          console.log(`Ruta ${directoryPath} excluida del procesamiento.`); 
+          console.log(`Ruta ${directoryPath} excluida del procesamiento.`);
           return; // Ignorar rutas excluidas
         }
-        
-        if (!logDetailsArray || (Array.isArray(logDetailsArray) && logDetailsArray.length === 0)) {
+
+        if (
+          !logDetailsArray ||
+          (Array.isArray(logDetailsArray) && logDetailsArray.length === 0)
+        ) {
           const warningMessage = `Archivo log no válido o incompatible para la ruta: ${directoryPath}, en el servidor: ${serverName}`;
           showErrorModal(warningMessage, ip);
           return; // Mostrar modal solo si no hay datos válidos reales
@@ -2895,30 +3236,37 @@ ${last10LinesContent}
         if (Array.isArray(logDetailsArray)) {
           for (const logData of logDetailsArray) {
             const serverName = logData.serverName;
-            if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && logData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')) {
+            if (
+              serverName === "WebContent" ||
+              (serverName === "Contratacion digital" &&
+                logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI")
+            ) {
               // Para WebContent, solo agregamos la entrada del log
               addLogEntry({ ...logData, ip });
             } else {
               //console.log("Adding log entry:", logData);
-              if (serverName === "Bantotal" && logData.backupIncomplete && !hasShownBackupIncompleteError) {
+              if (
+                serverName === "Bantotal" &&
+                logData.backupIncomplete &&
+                !hasShownBackupIncompleteError
+              ) {
                 // Encuentra las subcarpetas existentes en `directories`
-                const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta, puedes adaptarlo a cómo se obtienen tus subcarpetas.
+                const existingSubfolders = directoryPath.split("/").pop(); // Obtener solo el nombre de la carpeta, puedes adaptarlo a cómo se obtienen tus subcarpetas.
 
                 // Filtrar las subcarpetas requeridas que no están presentes
-                const missingSubfolders = requiredSubfolders.filter(required =>
-                  !existingSubfolders.includes(required) // Comparación exacta
+                const missingSubfolders = requiredSubfolders.filter(
+                  (required) => !existingSubfolders.includes(required) // Comparación exacta
                 );
 
                 // Mensaje para el modal
                 let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logData.foundFolders}.`;
                 if (missingSubfolders.length > 0) {
-                  warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
+                  warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(
+                    ", "
+                  )}.`;
                 }
                 console.log("Mostrando modal de error por backup incompleto");
-                showErrorModal(
-                  warningMessage,
-                  ip
-                );
+                showErrorModal(warningMessage, ip);
                 hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
               }
               // Verificación para mostrar modal si se detecta carpeta vacía
@@ -2931,7 +3279,9 @@ ${last10LinesContent}
                 );
               }
               addLogEntry({ ...logData, ip });
-              const formattedTotalFolderSize = convertToGB(logData.totalFolderSize);
+              const formattedTotalFolderSize = convertToGB(
+                logData.totalFolderSize
+              );
               if (
                 logData.logDetails &&
                 Object.keys(logData.logDetails).length > 0
@@ -2950,26 +3300,33 @@ ${last10LinesContent}
           }
         } else if (logDetailsArray && typeof logDetailsArray === "object") {
           const serverName = logDetailsArray.serverName;
-          if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && logData.backupPath === '/disco3/BK_RMAN_CONTRADIGI')) {
+          if (
+            serverName === "WebContent" ||
+            (serverName === "Contratacion digital" &&
+              logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI")
+          ) {
             // Para WebContent, solo agregamos la entrada del log
             addLogEntry({ ...logDetailsArray, ip });
           } else {
-            if (serverName === "Bantotal" && logDetailsArray.backupIncomplete && !hasShownBackupIncompleteError) {
-              const existingSubfolders = directoryPath.split('/').pop(); // Obtener solo el nombre de la carpeta
+            if (
+              serverName === "Bantotal" &&
+              logDetailsArray.backupIncomplete &&
+              !hasShownBackupIncompleteError
+            ) {
+              const existingSubfolders = directoryPath.split("/").pop(); // Obtener solo el nombre de la carpeta
 
-              const missingSubfolders = requiredSubfolders.filter(required =>
-                !existingSubfolders.includes(required) // Comparación exacta
+              const missingSubfolders = requiredSubfolders.filter(
+                (required) => !existingSubfolders.includes(required) // Comparación exacta
               );
 
               let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logDetailsArray.foundFolders}.`;
               if (missingSubfolders.length > 0) {
-                warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(", ")}.`;
+                warningMessage += ` Faltan las siguientes carpetas: ${missingSubfolders.join(
+                  ", "
+                )}.`;
               }
               console.log("Mostrando modal de error por backup incompleto");
-              showErrorModal(
-                warningMessage,
-                ip
-              );
+              showErrorModal(warningMessage, ip);
               hasShownBackupIncompleteError = true; // Marcamos que ya se mostró el modal
             }
             // Verificación para mostrar modal si se detecta carpeta vacía
@@ -3006,7 +3363,7 @@ ${last10LinesContent}
         console.log("Connection error", error);
         showAuthErrorModal(
           error.message ||
-          "Error de conexión. Por favor, verifique sus credenciales."
+            "Error de conexión. Por favor, verifique sus credenciales."
         );
       } finally {
         hideLoading(); // Ocultar loading overlay

@@ -637,7 +637,7 @@ app.whenReady().then(() => {
               });
 
               let totalDmpSize = 0;
-              console.log("Archivos DMP encontrados:", dumpFiles); // Verificación de archivos DMP
+              //console.log("Archivos DMP encontrados:", dumpFiles); // Verificación de archivos DMP
 
               for (const dumpFile of dumpFiles) {
                 const dumpFilePath = joinPath(
@@ -759,7 +759,7 @@ app.whenReady().then(() => {
             });
 
             let totalDmpSize = 0;
-            console.log("Archivos DMP encontrados:", dumpFiles); // Verificación de archivos DMP
+            //console.log("Archivos DMP encontrados:", dumpFiles); // Verificación de archivos DMP
 
             for (const dumpFile of dumpFiles) {
               const dumpFilePath = joinPath(
@@ -1585,6 +1585,30 @@ app.whenReady().then(() => {
       return { success: false, error: error.message };
     }
   });
+  ipcMain.handle('send-email-with-images', async (event, data) => {
+    const transporter = nodemailer.createTransport({
+        host: '10.0.200.68',
+        port: 25,
+        secure: false,
+        tls: { rejectUnauthorized: false }
+    });
+
+    const mailOptions = {
+        from: 'igs_llupacca@cajaarequipa.pe',
+        to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe, mblas@cajaarequipa.pe',
+        subject: `Reporte de Backups - ${data.date}`,
+        html: data.html // Usar directamente el HTML generado
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Correo enviado exitosamente');
+        return { success: true };
+    } catch (error) {
+        console.error('Error al enviar correo:', error);
+        return { success: false, error: error.message };
+    }
+});
   async function getFolderSize(conn, directoryPath, os, sftp) {
     if (os === "solaris" || os === "linux") {
       // Comando `du` para obtener el tamaño total en lugar de cada subcarpeta
@@ -2215,7 +2239,7 @@ async function sendCombinedAlerts() {
 
     const mailOptions = {
       from: 'igs_llupacca@cajaarequipa.pe',
-      to: 'igs_llupacca@cajaarequipa.pe',
+      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe, mblas@cajaarequipa.pe',
       subject: `Alertas de espacio en servidores (${pendingAlerts.length} alertas)`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
