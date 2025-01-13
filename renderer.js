@@ -1560,13 +1560,15 @@ ${last10LinesContent}
                     </span>
                 </p>
                 <p style="word-break: break-all;"><strong>Ruta del backup:</strong> ${data.backupPath || "N/A"}</p>
+                <p><strong>Máximo Grupo:</strong> ${
+  data.groupNumber || "N/A"
+}</p>
             </div>
             
             ${errorContent}
             ${logContent}
         </div>`;
     }).join('');
-
     const emailData = {
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
@@ -1710,6 +1712,15 @@ ${last10LinesContent}
           sortable: true,
           filter: true,
           minWidth: 150,
+        },{
+          headerName: "Grupo Maximo", // Nombre de la columna
+          field: "groupNumber", // Nombre del campo en los datos
+          sortable: true, // Permitir ordenar
+          filter: true, // Permitir filtrar
+          minWidth: 100, // Ancho mínimo de la columna
+          cellRenderer: (params) => {
+            return `<span>${params.value || "N/A"}</span>`; // Mostrar el valor o 'N/A' si está vacío
+          },
         },
         {
           headerName: "Grupo de control",
@@ -1962,6 +1973,7 @@ ${last10LinesContent}
             last10Lines: displayedLines || "N/A",
             groupControlInfo: groupControlInfo || "N/A",
             hasWarning: logInfo.hasWarning || "N/A",
+            groupNumber: logDetail.logDetails?.groupNumber || "N/A" // Agregar esta línea
           };
         };
         if (Array.isArray(serverResult.logDetails)) {

@@ -359,6 +359,7 @@ app.whenReady().then(() => {
                   expectedFolders: 7,
                   foundFolders: directories.length,
                   backupVoid: true, // Indica que este subdirectorio está vacío
+                  groupNumber: logDetails && logDetails.groupNumber,
                 });
                 continue; // Salta al siguiente subdirectorio
               }
@@ -506,6 +507,7 @@ app.whenReady().then(() => {
                       expectedFolders: targetOS === "solaris" ? 7 : null, // Solo para Solaris
                       foundFolders: targetOS === "solaris" ? directories.length : null, // Solo para Solaris
                       backupVoid: false,
+                      groupNumber: logDetails && logDetails.groupNumber,
                     });
                   })
                 );
@@ -690,7 +692,8 @@ app.whenReady().then(() => {
                 hasWarning: logInfo.hasWarning,
                 warningNumber: logInfo.warningNumber,
                 lastLine: lastLine, // Añadimos la última línea aquí
-                backupVoid: false
+                backupVoid: false,
+                groupNumber: logDetails && logDetails.groupNumber,
               });
             }
           }
@@ -1973,6 +1976,13 @@ function parseLogLine(logContent, serverName) {
         .padStart(2, "0")}:${secondsDiff.toString().padStart(2, "0")}`;
     }
   }
+  let groupNumber = null;
+  const linesforgroupNumber = logContent.trim().split("\n");
+  if (linesforgroupNumber.length >= 2) {
+    const penultimateLine = linesforgroupNumber[linesforgroupNumber.length - 2];
+    const groupMatch = penultimateLine.match(/_(\d+)\.dmp/);
+    groupNumber = groupMatch ? groupMatch[1] : null;
+  }
   //console.log("Last line of log:", lastLine);
   //console.log("Parsed backup status:", backupStatus);
   return {
@@ -1985,7 +1995,8 @@ function parseLogLine(logContent, serverName) {
     last10Lines: logInfo.relevantLines, // Añadimos las últimas 11 líneas
     hasWarning: logInfo.hasWarning,
     warningNumber: logInfo.warningNumber,
-    lastLine: lastLine  // Añade esta línea
+    lastLine: lastLine,  // Añade esta línea
+    groupNumber: groupNumber
   };
 }
 function formatFileSize(sizeInMB) {
