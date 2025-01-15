@@ -754,26 +754,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Crear contenido del modal
     const modalContent = `
-    <h2 style="text-align: center; font-size: 20px;">Detalles del Servidor ${
-      serverData.serverName
-    }</h2>
-    ${
-      subcarpeta
+    <h2 style="text-align: center; font-size: 20px;">Detalles del Servidor ${serverData.serverName
+      }</h2>
+    ${subcarpeta
         ? `<h3 style="text-align: center; font-size: 18px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`
         : ""
-    }
+      }
     <p><strong>IP:</strong> ${serverData.ip}</p>
-    <p><strong>Archivo Log:</strong> ${
-      serverData.logFileName || "No disponible"
-    }</p>
-    <p><strong>Hora de Inicio:</strong> ${
-      formattedHoraINI || "No disponible"
-    }</p>
+    <p><strong>Archivo Log:</strong> ${serverData.logFileName || "No disponible"
+      }</p>
+    <p><strong>Hora de Inicio:</strong> ${formattedHoraINI || "No disponible"
+      }</p>
     <p><strong>Hora de Fin:</strong> ${formattedHoraFIN || "No disponible"}</p>
     <p><strong>Duración:</strong> ${serverData.duration || "No disponible"}</p>
-    <p><strong>Estado de Backup:</strong> ${
-      serverData.backupStatus || "No disponible"
-    }</p>
+    <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"
+      }</p>
     <p><strong>Exitoso?:</strong> 
       <span id="success-status" class="${statusClass}" style="cursor: pointer;">
         ${successStatus || "No disponible"}
@@ -782,27 +777,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;">
     <strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}
     </p>
-    ${
-      serverData.serverName === "WebContent" ||
-      (serverData.serverName === "Contratacion digital" &&
-        serverData.backupPath === "/disco3/BK_RMAN_CONTRADIGI")
+    ${serverData.serverName === "WebContent" ||
+        (serverData.serverName === "Contratacion digital" &&
+          serverData.backupPath === "/disco3/BK_RMAN_CONTRADIGI")
         ? ""
         : `
-        <p><strong>Peso total del archivo .dmp:</strong> ${
-          serverData.dumpFileSize || "No disponible"
+        <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || "No disponible"
         }</p>
-        <p><strong>Tamaño total de carpeta:</strong> ${
-          serverData.totalFolderSize || "No disponible"
+        <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || "No disponible"
         }</p>
       `
-    }
+      }
     <h3 style="margin-top: 20px;">${last10LinesTitle || "No disponible"}</h3>
     <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
-       ${
-         serverData.groupControlInfo ||
-         serverData.oraErrorMessage ||
-         "No disponible"
-       }
+       ${serverData.groupControlInfo ||
+      serverData.oraErrorMessage ||
+      "No disponible"
+      }
     </pre>
   `;
 
@@ -1337,45 +1328,36 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Crear contenido del modal
     const modalContent = `
-      <h2 style="text-align: center; font-size: 20px;">Detalles del Log para ${
-        logData.serverName
+      <h2 style="text-align: center; font-size: 20px;">Detalles del Log para ${logData.serverName
       }</h2>
-      ${
-        subcarpeta
-          ? `<h3 style="text-align: center; font-size: 18px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`
-          : ""
+      ${subcarpeta
+        ? `<h3 style="text-align: center; font-size: 18px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`
+        : ""
       }
       <p><strong>IP:</strong> ${logData.ip}
-      <p><strong>Archivo de Log:</strong> ${
-        logData.logFileName || "No disponible"
+      <p><strong>Archivo de Log:</strong> ${logData.logFileName || "No disponible"
       }</p>
-      <p><strong>Hora de Inicio:</strong> ${
-        logData.startTime || "No disponible"
+      <p><strong>Hora de Inicio:</strong> ${logData.startTime || "No disponible"
       }</p>
       <p><strong>Hora de Fin:</strong> ${logData.endTime || "No disponible"}</p>
       <p><strong>Duración:</strong> ${logData.duration || "No disponible"}</p>
-      <p><strong>Estado de Backup:</strong> ${
-        logData.backupStatus || "No disponible"
+      <p><strong>Estado de Backup:</strong> ${logData.backupStatus || "No disponible"
       }</p>
-      ${
-        !isSpecialServer
-          ? `
-        <p><strong>Peso total de archivo .dmp:</strong> ${
-          logData.totalDmpSize || "No disponible"
+      ${!isSpecialServer
+        ? `
+        <p><strong>Peso total de archivo .dmp:</strong> ${logData.totalDmpSize || "No disponible"
         }</p>
-        <p><strong>Tamaño Total Carpeta:</strong> ${
-          logData.totalFolderSize || "No disponible"
+        <p><strong>Tamaño Total Carpeta:</strong> ${logData.totalFolderSize || "No disponible"
         }</p>
         `
-          : ""
+        : ""
       }
       <p><strong>Exitoso:</strong> 
       <span id="success-status" class="${statusClass}" style="cursor: pointer;">
         ${successStatus}
       </span>
     </p>
-      <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;"><strong>Ruta del backup:</strong> ${
-        logData.backupPath || "N/A"
+      <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;"><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"
       }
       <h3 style="margin-top: 20px;">${last10LinesTitle}</h3>
 ${last10LinesContent}
@@ -1472,26 +1454,26 @@ ${last10LinesContent}
   async function sendServerDetails(gridApi) {
     let rowData = [];
     gridApi.forEachNode(node => {
-        if (node.data) rowData.push(node.data);
+      if (node.data) rowData.push(node.data);
     });
 
     // Ordenar el rowData: primero los que tienen error
     rowData.sort((a, b) => {
-        const aHasError = a.status === "Fallo" ? 1 : 0;
-        const bHasError = b.status === "Fallo" ? 1 : 0;
-        return bHasError - aHasError; // Orden descendente para que los errores aparezcan primero
+      const aHasError = a.status === "Fallo" ? 1 : 0;
+      const bHasError = b.status === "Fallo" ? 1 : 0;
+      return bHasError - aHasError; // Orden descendente para que los errores aparezcan primero
     });
 
     // Crear resumen de errores al inicio
     const failedServers = rowData.filter(data => data.status === "Fallo");
     const successServers = rowData.filter(data => data.status !== "Fallo");
-    
+
     let summaryContent = '';
     if (failedServers.length > 0) {
-        summaryContent = `
+      summaryContent = `
             <div style="background-color: #fff3cd; color: #856404; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #ffeeba;">
                 <h3 style="margin-top: 0;">Resumen de Errores</h3>
-                <p>Se encontraron ${failedServers.length} servidor(es) con errores de un total de ${rowData.length} servidores.</p>
+                <p>Se encontraron ${failedServers.length} servidor(es) con errores de un total de ${rowData.length} backups.</p>
                 <ul style="margin-bottom: 0;">
                     ${failedServers.map(server => `
                         <li>${server.serverName} - ${server.backupPath}</li>
@@ -1502,41 +1484,46 @@ ${last10LinesContent}
     }
 
     const emailContent = rowData.map(data => {
-        const successStatus = data.status === "Fallo" ? "Fallo" : "Éxito";
-        const statusStyle = data.status === "Fallo" ? 
-            'background-color: #f8d7da; color: #721c24; padding: 5px;' : 
-            'background-color: #d4edda; color: #155724; padding: 5px;';
+      const successStatus = data.status === "Fallo" ? "Fallo" : "Éxito";
+      const statusStyle = data.status === "Fallo" ?
+        'background-color: #f8d7da; color: #721c24; padding: 5px;' :
+        'background-color: #d4edda; color: #155724; padding: 5px;';
 
-        const isSpecialServer = data.serverName === "WebContent" ||
-            (data.serverName === "Contratacion digital" &&
-            data.backupPath === "/disco3/BK_RMAN_CONTRADIGI");
+      const isSpecialServer = data.serverName === "WebContent" ||
+        (data.serverName === "Contratacion digital" &&
+          data.backupPath === "/disco3/BK_RMAN_CONTRADIGI");
 
-        let logContent = '';
-        if (!isSpecialServer) {
-            logContent = `
-                <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
-                    <strong>${data.last10Lines ? "Últimas líneas del log:" : "Advertencia:"}</strong><br>
-                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0;">
-                        ${Array.isArray(data.last10Lines) ? data.last10Lines.join('\n') : (data.last10Lines || 'No disponible')}
-                    </pre>
-                </div>`;
-        }
+      let logContent = '';
+      if (!isSpecialServer) {
+        logContent = `
+    <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
+        <strong>${data.last10Lines ? "Últimas líneas del log:" : "Advertencia:"}</strong><br>
+        <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; padding: 0;">${
+            Array.isArray(data.last10Lines) ? 
+                data.last10Lines.map(line => line.trim()).join('<br>') : 
+                (data.last10Lines?.trim() || 'No disponible')
+        }</pre>
+    </div>`;
+      }
 
-        const errorContent = (data.status === "Fallo" && data.oraError) ? `
-            <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
-                <strong>Error detectado:</strong><br>
-                <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0;">
-                    ${data.oraError}
-                </pre>
-            </div>
-        ` : '';
+      const errorContent = (data.status === "Fallo" && data.oraError) ? `
+    <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
+        <strong>Error detectado:</strong><br>
+        <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${
+            data.oraError.split('\\n')
+                .map(line => line.trim()) // Eliminar espacios al inicio y final de cada línea
+                .filter(line => line) // Eliminar líneas vacías
+                .join('<br>')
+        }</pre>
+    </div>
+` : '';
 
-        // El contenedor principal tiene un borde rojo si hay error
-        const containerStyle = data.status === "Fallo" ? 
-            'border: 2px solid #dc3545;' : 
-            'border: 1px solid #ddd;';
+      // El contenedor principal tiene un borde rojo si hay error
+      const containerStyle = data.status === "Fallo" ?
+        'border: 2px solid #dc3545;' :
+        'border: 1px solid #ddd;';
 
-        return `
+      return `
         <div style="${containerStyle} padding: 20px; margin-bottom: 30px; border-radius: 8px;">
             <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
                 ${data.serverName}
@@ -1560,9 +1547,8 @@ ${last10LinesContent}
                     </span>
                 </p>
                 <p style="word-break: break-all;"><strong>Ruta del backup:</strong> ${data.backupPath || "N/A"}</p>
-                <p><strong>Máximo Grupo:</strong> ${
-  data.groupNumber || "N/A"
-}</p>
+                <p><strong>Máximo Grupo:</strong> ${data.groupNumber || "N/A"
+        }</p>
             </div>
             
             ${errorContent}
@@ -1570,7 +1556,7 @@ ${last10LinesContent}
         </div>`;
     }).join('');
     const emailData = {
-        html: `
+      html: `
             <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
                 <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
                     Reporte Detallado de Estado de Backups
@@ -1579,17 +1565,17 @@ ${last10LinesContent}
                 ${emailContent}
             </div>
         `,
-        date: new Date().toLocaleDateString()
+      date: new Date().toLocaleDateString()
     };
 
     try {
-        await window.electron.sendEmailWithImages(emailData);
-        console.log('Email enviado exitosamente');
+      await window.electron.sendEmailWithImages(emailData);
+      console.log('Email enviado exitosamente');
     } catch (error) {
-        console.error('Error enviando email:', error);
-        throw error;
+      console.error('Error enviando email:', error);
+      throw error;
     }
-}
+  }
   function initGrid(gridDiv) {
     const gridOptions = {
       columnDefs: [
@@ -1712,7 +1698,7 @@ ${last10LinesContent}
           sortable: true,
           filter: true,
           minWidth: 150,
-        },{
+        }, {
           headerName: "Grupo Maximo", // Nombre de la columna
           field: "groupNumber", // Nombre del campo en los datos
           sortable: true, // Permitir ordenar
@@ -1852,8 +1838,7 @@ ${last10LinesContent}
             );
           } else {
             showErrorModal(
-              `No se realizó la conexión con el servidor: ${
-                serverResult.serverName || "Desconocido"
+              `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"
               }`,
               serverResult.ip || "IP desconocida"
             );
@@ -1883,8 +1868,7 @@ ${last10LinesContent}
 
           if (!logDetail || !logDetail.logFileName) {
             showErrorModal(
-              `No se encontró archivo de log para el servidor: ${
-                serverResult.serverName || "Desconocido"
+              `No se encontró archivo de log para el servidor: ${serverResult.serverName || "Desconocido"
               }`,
               serverResult.ip || "IP desconocida"
             );
@@ -1893,20 +1877,20 @@ ${last10LinesContent}
           const status = serverResult.error
             ? "Error"
             : logDetail.logDetails?.success
-            ? "Éxito"
-            : "Fallo";
+              ? "Éxito"
+              : "Fallo";
           const statusClass =
             status === "Fallo"
               ? "status-failure"
               : status === "Éxito"
-              ? "status-success"
-              : "status-error";
+                ? "status-success"
+                : "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
           const totalDmpSize = Array.isArray(logDetail.dumpFileInfo)
             ? logDetail.dumpFileInfo.reduce(
-                (sum, file) => sum + (file.fileSize || 0),
-                0
-              )
+              (sum, file) => sum + (file.fileSize || 0),
+              0
+            )
             : 0;
           const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
           const formattedFolderSize = logDetail.totalFolderSize
@@ -1985,8 +1969,7 @@ ${last10LinesContent}
           return processed ? [processed] : [];
         } else {
           showErrorModal(
-            `No se encontraron rutas para el servidor: ${
-              serverResult.serverName || "Desconocido"
+            `No se encontraron rutas para el servidor: ${serverResult.serverName || "Desconocido"
             }`,
             serverResult.ip || "IP desconocida"
           );
@@ -2137,14 +2120,11 @@ ${last10LinesContent}
           <p><strong>Fecha de fin:</strong> ${fechaFin || "N/A"}</p>
           <p><strong>Duración:</strong> ${duracion || "N/A"}</p>
           <p><strong>Estado del backup:</strong> ${estadoBackup}</p>
-          <p><strong>Ruta del backup:</strong> ${
-            logData.backupPath || "N/A"
+          <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"
           }</p>
-          <p><strong>Nombre del archivo .log:</strong> ${
-            logData.logFileName || "N/A"
+          <p><strong>Nombre del archivo .log:</strong> ${logData.logFileName || "N/A"
           }</p>
-          <p><strong>Mensaje de error:</strong> ${
-            errorMessage || "Sin errores detectados"
+          <p><strong>Mensaje de error:</strong> ${errorMessage || "Sin errores detectados"
           }</p>
       `;
       } else {
@@ -2191,31 +2171,24 @@ ${last10LinesContent}
         // Añadir el estado del backup
         const backupStatus = logData.logDetails.backupStatus || "N/A";
         entryDiv.innerHTML = `
-            <p><strong>IP:</strong> ${
-              logData.ip
-            }<strong> Nombre del servidor:</strong> ${serverName}</p>
+            <p><strong>IP:</strong> ${logData.ip
+          }<strong> Nombre del servidor:</strong> ${serverName}</p>
         ${subcarpetaContent}
-            <p><strong>Tiempo de inicio:</strong> ${
-              logData.logDetails.startTime || "N/A"
-            }</p>
-            <p><strong>Tiempo de fin:</strong> ${
-              logData.logDetails.endTime || "N/A"
-            }</p>
+            <p><strong>Tiempo de inicio:</strong> ${logData.logDetails.startTime || "N/A"
+          }</p>
+            <p><strong>Tiempo de fin:</strong> ${logData.logDetails.endTime || "N/A"
+          }</p>
             <p><strong>Estado del backup:</strong> ${backupStatus}</p>
-            <p><strong>Duración:</strong> ${
-              logData.logDetails.duration || "N/A"
-            }</p>
+            <p><strong>Duración:</strong> ${logData.logDetails.duration || "N/A"
+          }</p>
             <!-- Aplica la clase 'error' al párrafo si success es No -->
-            <p class="${successClass}"><strong>Exitoso?:</strong> ${
-          logData.logDetails.success ? "Yes" : "No"
-        }</p>
+            <p class="${successClass}"><strong>Exitoso?:</strong> ${logData.logDetails.success ? "Yes" : "No"
+          }</p>
             <p><strong>Peso total de archivo .dmp:</strong> ${formattedDmpSize}</p> <!-- Aquí -->
-            <p><strong>Nombre del archivo .log:</strong> ${
-              logData.logFileName || "N/A"
-            }</p>
-            <p><strong>Ruta del backup:</strong> ${
-              logData.backupPath || "N/A"
-            } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
+            <p><strong>Nombre del archivo .log:</strong> ${logData.logFileName || "N/A"
+          }</p>
+            <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"
+          } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
         `;
 
         if (logData.logDetails.oraError) {
@@ -2387,11 +2360,10 @@ ${last10LinesContent}
     modal.innerHTML = `
       <div class="modal-content">
         <span class="close">&times;</span>
-        <h2>${
-          hasWarning
-            ? "Grupos de control (Advertencia)"
-            : "Última línea del log"
-        }</h2>
+        <h2>${hasWarning
+        ? "Grupos de control (Advertencia)"
+        : "Última línea del log"
+      }</h2>
         <pre>${Array.isArray(lines) ? lines.join("\n") : lines}</pre>
       </div>
     `;
@@ -3375,7 +3347,7 @@ ${last10LinesContent}
         console.log("Connection error", error);
         showAuthErrorModal(
           error.message ||
-            "Error de conexión. Por favor, verifique sus credenciales."
+          "Error de conexión. Por favor, verifique sus credenciales."
         );
       } finally {
         hideLoading(); // Ocultar loading overlay
