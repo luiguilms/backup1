@@ -1498,22 +1498,20 @@ ${last10LinesContent}
         logContent = `
     <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
         <strong>${data.last10Lines ? "Últimas líneas del log:" : "Advertencia:"}</strong><br>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; padding: 0;">${
-            Array.isArray(data.last10Lines) ? 
-                data.last10Lines.map(line => line.trim()).join('<br>') : 
-                (data.last10Lines?.trim() || 'No disponible')
-        }</pre>
+        <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; padding: 0;">${Array.isArray(data.last10Lines) ?
+            data.last10Lines.map(line => line.trim()).join('<br>') :
+            (data.last10Lines?.trim() || 'No disponible')
+          }</pre>
     </div>`;
       }
 
       const errorContent = (data.status === "Fallo" && data.oraError) ? `
     <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
         <strong>Error detectado:</strong><br>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${
-            data.oraError.split('\\n')
-                .map(line => line.trim()) // Eliminar espacios al inicio y final de cada línea
-                .filter(line => line) // Eliminar líneas vacías
-                .join('<br>')
+        <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${data.oraError.split('\\n')
+          .map(line => line.trim()) // Eliminar espacios al inicio y final de cada línea
+          .filter(line => line) // Eliminar líneas vacías
+          .join('<br>')
         }</pre>
     </div>
 ` : '';
@@ -1547,8 +1545,11 @@ ${last10LinesContent}
                     </span>
                 </p>
                 <p style="word-break: break-all;"><strong>Ruta del backup:</strong> ${data.backupPath || "N/A"}</p>
-                <p><strong>Máximo Grupo:</strong> ${data.groupNumber || "N/A"
-        }</p>
+                <p>
+ <strong style="background-color:rgb(255, 192, 213); padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
+   Máximo Grupo: <span style="color: #880e4f;">${data.groupNumber || "N/A"}</span>
+ </strong>
+</p>
             </div>
             
             ${errorContent}
