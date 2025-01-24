@@ -1,6 +1,6 @@
 node_modules
 .vscode
-repopack-output.txt
+repomix-output.txt
 dist
 pruebas
 insertServerInfo.js

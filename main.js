@@ -2579,16 +2579,15 @@ function formatOracleDate(date) {
 function extractRmanLogDetails(logContent) {
   const logDetails = {
     fechaInicio: null,
-    fechaFin: null,
+    fechaFin: null, 
     duracion: "00:00:00",
-    estadoBackup: 'Éxito',  // Suponemos éxito hasta que se encuentre un error
+    estadoBackup: 'Éxito',
     rutaBackup: null,
     errorMessage: null,
   };
 
   const startDateRegex = /Recovery Manager: Release.*on (\w{3}) (\w{3}) (\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})/;
-  const elapsedRegex = /elapsed time: ([\d:]+)/g;
-  const pathRegex = /piece handle=([\S]+)/;
+  const tagTimeRegex = /tag=TAG(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/;
   const errorRegex = /(ORA-\d+|RMAN-\d+)/;
 
   const lines = logContent.split('\n').filter(line => line.trim() !== "");
@@ -2598,18 +2597,15 @@ function extractRmanLogDetails(logContent) {
   if (startMatch) {
     const [, , month, day, hours, minutes, seconds, year] = startMatch;
 
-    // Mapping of month abbreviations
     const months = {
       Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
       Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
     };
 
-    // Create a date string in a format that new Date() can parse
     const formattedDateString = `${year}-${months[month]}-${day.padStart(2, '0')}T${hours}:${minutes}:${seconds}`;
 
     const startDate = new Date(formattedDateString);
 
-    // Verify the date is valid
     if (isNaN(startDate.getTime())) {
       console.error("Fecha de inicio no válida:", formattedDateString);
       throw new Error("La fecha proporcionada no es válida");
@@ -2618,40 +2614,23 @@ function extractRmanLogDetails(logContent) {
     logDetails.fechaInicio = formatOracleDate(startDate);
   }
 
-  // Calcular la duración total sumando todos los `elapsed time`
-  let totalDuration = [0, 0, 0];  // [horas, minutos, segundos]
-  let elapsedMatch;
-  while ((elapsedMatch = elapsedRegex.exec(logContent)) !== null) {
-    const [hours, minutes, seconds] = elapsedMatch[1].split(":").map(Number);
-    totalDuration[0] += hours;
-    totalDuration[1] += minutes;
-    totalDuration[2] += seconds;
-  }
+  const tagMatches = logContent.match(new RegExp(tagTimeRegex, 'g'));
+  if (tagMatches && tagMatches.length > 0) {
+    const lastTagMatch = tagMatches[tagMatches.length - 1];
+    const [, year, month, day, hours, minutes, seconds] = lastTagMatch.match(tagTimeRegex);
+    const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    const endDate = new Date(formattedDate);
+    logDetails.fechaFin = formatOracleDate(endDate);
 
-  // Normalizar el tiempo total en formato hh:mm:ss
-  totalDuration[1] += Math.floor(totalDuration[2] / 60);
-  totalDuration[2] %= 60;
-  totalDuration[0] += Math.floor(totalDuration[1] / 60);
-  totalDuration[1] %= 60;
-  logDetails.duracion = totalDuration.map(unit => String(unit).padStart(2, '0')).join(":");
-
-  // Captura de la ruta del backup
-  const pathMatch = logContent.match(pathRegex);
-  if (pathMatch) logDetails.rutaBackup = pathMatch[1];
-  // Calcular la fecha de fin sumando la duración al inicio
-  if (logDetails.fechaInicio && logDetails.duracion !== "00:00:00") {
     const startDate = new Date(logDetails.fechaInicio);
-    const durationParts = logDetails.duracion.split(":").map(Number);
-    // Sumamos la duración a la fecha de inicio
-    startDate.setHours(startDate.getHours() + durationParts[0]);
-    startDate.setMinutes(startDate.getMinutes() + durationParts[1]);
-    startDate.setSeconds(startDate.getSeconds() + durationParts[2]);
-
-    // La fecha de fin es la fecha de inicio más la duración
-    logDetails.fechaFin = formatOracleDate(startDate);
+    const durationMs = endDate - startDate;
+    const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+    const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    const durationSeconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+    
+    logDetails.duracion = `${String(durationHours).padStart(2, '0')}:${String(durationMinutes).padStart(2, '0')}:${String(durationSeconds).padStart(2, '0')}`;
   }
 
-  // Verificar si existen errores en el log
   const errorMatch = logContent.match(errorRegex);
   if (errorMatch) {
     logDetails.estadoBackup = 'Fallo';
