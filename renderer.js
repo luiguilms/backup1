@@ -1546,8 +1546,8 @@ ${last10LinesContent}
                 </p>
                 <p style="word-break: break-all;"><strong>Ruta del backup:</strong> ${data.backupPath || "N/A"}</p>
                 <p>
- <strong style="background-color:rgb(255, 192, 213); padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
-   Máximo Grupo: <span style="color: #880e4f;">${data.groupNumber || "N/A"}</span>
+ <strong style="background-color:rgb(192, 255, 206); padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
+   Máximo Grupo: <span style="color:rgb(4, 102, 48);">${data.groupNumber || "N/A"}</span>
  </strong>
 </p>
             </div>
