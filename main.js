@@ -2585,35 +2585,35 @@ function extractRmanLogDetails(logContent) {
     rutaBackup: null,
     errorMessage: null,
   };
-
+ 
   const startDateRegex = /Recovery Manager: Release.*on (\w{3}) (\w{3}) (\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})/;
   const tagTimeRegex = /tag=TAG(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/;
-  const errorRegex = /(ORA-\d+|RMAN-\d+)/;
-
-  const lines = logContent.split('\n').filter(line => line.trim() !== "");
+  const errorRegex = /(ORA-\d+|RMAN-\d+)/g;
+ 
+  const lines = logContent.split('\n').map(line => line.trim()).filter(line => line !== "");
   const cleanedLogContent = lines.join('\n');
-
+ 
   const startMatch = cleanedLogContent.match(startDateRegex);
   if (startMatch) {
     const [, , month, day, hours, minutes, seconds, year] = startMatch;
-
+ 
     const months = {
       Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
       Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
     };
-
+ 
     const formattedDateString = `${year}-${months[month]}-${day.padStart(2, '0')}T${hours}:${minutes}:${seconds}`;
-
+ 
     const startDate = new Date(formattedDateString);
-
+ 
     if (isNaN(startDate.getTime())) {
       console.error("Fecha de inicio no válida:", formattedDateString);
       throw new Error("La fecha proporcionada no es válida");
     }
-
+ 
     logDetails.fechaInicio = formatOracleDate(startDate);
   }
-
+ 
   const tagMatches = logContent.match(new RegExp(tagTimeRegex, 'g'));
   if (tagMatches && tagMatches.length > 0) {
     const lastTagMatch = tagMatches[tagMatches.length - 1];
@@ -2621,7 +2621,7 @@ function extractRmanLogDetails(logContent) {
     const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
     const endDate = new Date(formattedDate);
     logDetails.fechaFin = formatOracleDate(endDate);
-
+ 
     const startDate = new Date(logDetails.fechaInicio);
     const durationMs = endDate - startDate;
     const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
@@ -2630,15 +2630,44 @@ function extractRmanLogDetails(logContent) {
     
     logDetails.duracion = `${String(durationHours).padStart(2, '0')}:${String(durationMinutes).padStart(2, '0')}:${String(durationSeconds).padStart(2, '0')}`;
   }
-
-  const errorMatch = logContent.match(errorRegex);
-  if (errorMatch) {
+ 
+  const errors = [];
+  let firstErrorLineIndex = -1;
+  let lastErrorLineIndex = -1;
+ 
+  // Encontrar todas las líneas que contienen errores
+  lines.forEach((line, index) => {
+    if (line.match(errorRegex)) {
+      errors.push(line);
+      if (firstErrorLineIndex === -1) firstErrorLineIndex = index;
+      lastErrorLineIndex = index;
+    }
+  });
+ 
+  if (errors.length > 0) {
     logDetails.estadoBackup = 'Fallo';
-    logDetails.errorMessage = errorMatch[0];
+    
+    // Construir el mensaje de error con contexto
+    const errorContext = [];
+    
+    // Agregar línea anterior al primer error
+    if (firstErrorLineIndex > 0) {
+      errorContext.push(lines[firstErrorLineIndex - 1]);
+    }
+    
+    // Agregar todas las líneas con errores
+    errorContext.push(...errors);
+    
+    // Agregar línea siguiente al último error
+    if (lastErrorLineIndex < lines.length - 1) {
+      errorContext.push(lines[lastErrorLineIndex + 1]);
+    }
+ 
+    logDetails.errorMessage = errorContext.join('\n');
   }
-
+ 
   return logDetails;
-}
+ }
 async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
   const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage, logFileName } = rmanLogDetails;
 

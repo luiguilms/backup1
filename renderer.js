@@ -1456,18 +1456,16 @@ ${last10LinesContent}
     gridApi.forEachNode(node => {
       if (node.data) rowData.push(node.data);
     });
-
-    // Ordenar el rowData: primero los que tienen error
+ 
     rowData.sort((a, b) => {
       const aHasError = a.status === "Fallo" ? 1 : 0;
       const bHasError = b.status === "Fallo" ? 1 : 0;
-      return bHasError - aHasError; // Orden descendente para que los errores aparezcan primero
+      return bHasError - aHasError;
     });
-
-    // Crear resumen de errores al inicio
+ 
     const failedServers = rowData.filter(data => data.status === "Fallo");
     const successServers = rowData.filter(data => data.status !== "Fallo");
-
+ 
     let summaryContent = '';
     if (failedServers.length > 0) {
       summaryContent = `
@@ -1482,19 +1480,34 @@ ${last10LinesContent}
             </div>
         `;
     }
-
+ 
     const emailContent = rowData.map(data => {
       const successStatus = data.status === "Fallo" ? "Fallo" : "Éxito";
       const statusStyle = data.status === "Fallo" ?
         'background-color: #f8d7da; color: #721c24; padding: 5px;' :
         'background-color: #d4edda; color: #155724; padding: 5px;';
-
+ 
       const isSpecialServer = data.serverName === "WebContent" ||
         (data.serverName === "Contratacion digital" &&
           data.backupPath === "/disco3/BK_RMAN_CONTRADIGI");
-
+ 
       let logContent = '';
-      if (!isSpecialServer) {
+      let errorContent = '';
+ 
+      if (isSpecialServer) {
+        // Para servidores especiales (WebContent y Contratacion digital)
+        if (data.status === "Fallo" || data.status === "Éxito") {
+          errorContent = `
+          <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
+              <strong>Error RMAN:</strong><br>
+              <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; padding: 0;">${data.status === "Fallo" ? 
+                (data.oraErrorMessage || data.errorMessage || "Error no especificado").trim() : 
+                "Sin errores"}</pre>
+          </div>`;
+        }
+      }
+       else {
+        // Para servidores normales
         logContent = `
     <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
         <strong>${data.last10Lines ? "Últimas líneas del log:" : "Advertencia:"}</strong><br>
@@ -1503,24 +1516,24 @@ ${last10LinesContent}
             (data.last10Lines?.trim() || 'No disponible')
           }</pre>
     </div>`;
-      }
-
-      const errorContent = (data.status === "Fallo" && data.oraError) ? `
+ 
+        if (data.status === "Fallo" && data.oraError) {
+          errorContent = `
     <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
         <strong>Error detectado:</strong><br>
         <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${data.oraError.split('\\n')
-          .map(line => line.trim()) // Eliminar espacios al inicio y final de cada línea
-          .filter(line => line) // Eliminar líneas vacías
-          .join('<br>')
-        }</pre>
-    </div>
-` : '';
-
-      // El contenedor principal tiene un borde rojo si hay error
+            .map(line => line.trim())
+            .filter(line => line)
+            .join('<br>')
+          }</pre>
+    </div>`;
+        }
+      }
+ 
       const containerStyle = data.status === "Fallo" ?
         'border: 2px solid #dc3545;' :
         'border: 1px solid #ddd;';
-
+ 
       return `
         <div style="${containerStyle} padding: 20px; margin-bottom: 30px; border-radius: 8px;">
             <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
@@ -1549,13 +1562,14 @@ ${last10LinesContent}
  <strong style="background-color:rgb(192, 255, 206); padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
    Máximo Grupo: <span style="color:rgb(4, 102, 48);">${data.groupNumber || "N/A"}</span>
  </strong>
-</p>
+ </p>
             </div>
             
             ${errorContent}
             ${logContent}
         </div>`;
     }).join('');
+ 
     const emailData = {
       html: `
             <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
@@ -1568,7 +1582,7 @@ ${last10LinesContent}
         `,
       date: new Date().toLocaleDateString()
     };
-
+ 
     try {
       await window.electron.sendEmailWithImages(emailData);
       console.log('Email enviado exitosamente');
@@ -1576,7 +1590,7 @@ ${last10LinesContent}
       console.error('Error enviando email:', error);
       throw error;
     }
-  }
+ }
   function initGrid(gridDiv) {
     const gridOptions = {
       columnDefs: [
