@@ -310,7 +310,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     modal.style.justifyContent = "center";
     modal.style.alignItems = "center";
     modal.style.zIndex = "1001";
-
+  
     const content = document.createElement("div");
     content.style.position = "relative";
     content.style.backgroundColor = "#fff";
@@ -319,11 +319,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     content.style.width = "90%";
     content.style.height = "90%";
     content.style.overflowY = "auto";
-
+  
     const title = document.createElement("h2");
     title.textContent = "Historial de Verificaciones";
     content.appendChild(title);
-
+  
     const closeXButton = document.createElement("button");
     closeXButton.textContent = "✕";
     closeXButton.style.position = "absolute";
@@ -335,37 +335,63 @@ document.addEventListener("DOMContentLoaded", async () => {
     closeXButton.style.cursor = "pointer";
     closeXButton.onclick = () => document.body.removeChild(modal);
     content.appendChild(closeXButton);
-
+  
+    // Crear un wrapper para el datepicker personalizado
+    const dateWrapper = document.createElement("div");
+    dateWrapper.style.position = "relative";
+    dateWrapper.style.marginBottom = "10px";
+  
     const dateInput = document.createElement("input");
-    dateInput.type = "date";
-    dateInput.value = new Date().toISOString().split("T")[0];
-    dateInput.style.marginBottom = "10px";
-    content.appendChild(dateInput);
-
+    dateInput.type = "text"; // Cambiado a texto para formato personalizado
+    dateInput.readOnly = true; // Prevenir entrada manual
+    
+    const today = new Date();
+    const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+    dateInput.value = formattedDate;
+    
+    // Configurar Flatpickr con localización en español
+    flatpickr(dateInput, {
+      dateFormat: "d/m/Y",
+      locale: "es",
+      defaultDate: today,
+      onChange: async (selectedDates) => {
+        const selected = selectedDates[0];
+        const formattedForAPI = selected.toISOString().split('T')[0];
+        await loadHistoryData(formattedForAPI, resultsContainer);
+      }
+    });
+  
+    dateWrapper.appendChild(dateInput);
+    content.appendChild(dateWrapper);
+  
     const filterButton = document.createElement("button");
     filterButton.textContent = "Filtrar por Fecha de ejecución";
+    filterButton.style.marginLeft = "10px";
     filterButton.onclick = async () => {
-      const selectedDate = dateInput.value;
-      await loadHistoryData(selectedDate, resultsContainer);
+      const selected = dateInput._flatpickr.selectedDates[0];
+      const formattedForAPI = selected.toISOString().split('T')[0];
+      await loadHistoryData(formattedForAPI, resultsContainer);
     };
     content.appendChild(filterButton);
-
+  
     const resultsContainer = document.createElement("div");
     resultsContainer.style.marginTop = "20px";
     resultsContainer.style.width = "100%";
-    resultsContainer.style.height = "75vh"; // Aumenta la altura para ocupar el espacio del modal
-    resultsContainer.style.overflowY = "auto"; // Habilita el scroll solo en el contenedor de resultados
+    resultsContainer.style.height = "75vh";
+    resultsContainer.style.overflowY = "auto";
     content.appendChild(resultsContainer);
-
+  
     const closeButton = document.createElement("button");
     closeButton.textContent = "Cerrar";
     closeButton.onclick = () => document.body.removeChild(modal);
     content.appendChild(closeButton);
-
+  
     modal.appendChild(content);
     document.body.appendChild(modal);
-
-    await loadHistoryData(dateInput.value, resultsContainer);
+  
+    // Cargar datos iniciales
+    const formattedForAPI = today.toISOString().split('T')[0];
+    await loadHistoryData(formattedForAPI, resultsContainer);
   }
 
   async function loadHistoryData(date, container) {
