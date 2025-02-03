@@ -1598,7 +1598,7 @@ app.whenReady().then(() => {
 
     const mailOptions = {
         from: 'igs_llupacca@cajaarequipa.pe',
-        to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe, mblas@cajaarequipa.pe',
+        to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
         subject: `Reporte de Backups - ${data.date}`,
         html: data.html // Usar directamente el HTML generado
     };
@@ -2250,7 +2250,7 @@ async function sendCombinedAlerts() {
 
     const mailOptions = {
       from: 'igs_llupacca@cajaarequipa.pe',
-      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe, mblas@cajaarequipa.pe',
+      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
       subject: `Alertas de espacio en servidores (${pendingAlerts.length} alertas)`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
@@ -2472,7 +2472,7 @@ ipcMain.handle("get-verification-history", async (event, date) => {
     connection = await oracledb.getConnection(dbConfig);
 
     const result = await connection.execute(`
-      SELECT 
+      SELECT DISTINCT
         lb.id, 
         lb.executionDate, 
         lb.horaINI, 
@@ -2480,8 +2480,13 @@ ipcMain.handle("get-verification-history", async (event, date) => {
         lb.duration, 
         lb.success, 
         lb.dumpFileSize, 
-        si.ServerName, -- Nombre del servidor desde ServerInfo
-        lb.serverName AS osType, -- SO desde LogBackup
+        COALESCE(
+          si.ServerName, 
+          si2.ServerName, 
+          REGEXP_SUBSTR(DBMS_LOB.SUBSTR(ta.old_values, 4000, 1), 'ServerName: ([^,]+)', 1, 1, NULL, 1), 
+          'Desconocido'
+        ) AS ServerName, 
+        lb.serverName AS osType, 
         lb.logFileName, 
         lb.ip, 
         lb.backupPath, 
@@ -2491,13 +2496,19 @@ ipcMain.handle("get-verification-history", async (event, date) => {
         DBMS_LOB.SUBSTR(lb.oraErrorMessage, 4000, 1) AS oraErrorMessage
       FROM 
         LogBackup lb
-      JOIN 
+      LEFT JOIN 
         ServerInfo si ON lb.ip = si.IP
+      LEFT JOIN 
+        TableAudit ta ON ta.table_name = 'ServerInfo' 
+                       AND ta.operation_type = 'UPDATE' 
+                       AND DBMS_LOB.SUBSTR(ta.new_values, 4000, 1) LIKE '%' || lb.ip || '%'
+      LEFT JOIN 
+        ServerInfo si2 ON DBMS_LOB.SUBSTR(ta.old_values, 4000, 1) LIKE '%' || si2.IP || '%'
       WHERE 
         TRUNC(lb.executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
-      
+
       UNION ALL
-      
+
       SELECT 
         rbl.rmanID AS id,
         rbl.executionDate,
@@ -2519,16 +2530,16 @@ ipcMain.handle("get-verification-history", async (event, date) => {
         rman_backup_logs rbl
       WHERE 
         TRUNC(rbl.executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
-      
+
       ORDER BY 
         executionDate DESC
-    `, { selectedDate: date 
-      },
+    `, { selectedDate: date },
       {
         fetchInfo: {
           groupControlInfo: { type: oracledb.STRING },
           oraErrorMessage: { type: oracledb.STRING }
-        }}
+        }
+      }
     );
 
     return result.rows.map((row) => ({
@@ -2562,6 +2573,7 @@ ipcMain.handle("get-verification-history", async (event, date) => {
     }
   }
 });
+
 function formatOracleDate(date) {
   if (!date || isNaN(date.getTime())) {
     throw new Error("La fecha proporcionada no es válida");
