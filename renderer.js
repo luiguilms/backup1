@@ -1527,16 +1527,17 @@ ${last10LinesContent}
 
       if (isSpecialServer) {
         errorContent = `
-          <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
+          <div style="${data.status === "Fallo" ? 
+            'background-color: #f8d7da; color: #721c24;' : 
+            'background-color: #f5f5f5; color: #333333;'} 
+            padding: 10px; margin: 10px 0; border-radius: 4px;">
             <strong>Error RMAN:</strong><br>
-            <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${
-              data.status === "Fallo" ? 
+            <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${(data.status === "Fallo" ? 
               (data.oraError ? 
                 JSON.parse(data.oraError).errorLine : 
                 data.last10Lines)?.trim() || 
               "Error no especificado" : 
-              "Sin errores"
-            }</pre>
+              "Sin errores").trim()}</pre>
           </div>`;
       }
       else {
