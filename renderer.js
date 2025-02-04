@@ -310,7 +310,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     modal.style.justifyContent = "center";
     modal.style.alignItems = "center";
     modal.style.zIndex = "1001";
-  
+
     const content = document.createElement("div");
     content.style.position = "relative";
     content.style.backgroundColor = "#fff";
@@ -319,11 +319,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     content.style.width = "90%";
     content.style.height = "90%";
     content.style.overflowY = "auto";
-  
+
     const title = document.createElement("h2");
     title.textContent = "Historial de Verificaciones";
     content.appendChild(title);
-  
+
     const closeXButton = document.createElement("button");
     closeXButton.textContent = "✕";
     closeXButton.style.position = "absolute";
@@ -335,20 +335,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     closeXButton.style.cursor = "pointer";
     closeXButton.onclick = () => document.body.removeChild(modal);
     content.appendChild(closeXButton);
-  
+
     // Crear un wrapper para el datepicker personalizado
     const dateWrapper = document.createElement("div");
     dateWrapper.style.position = "relative";
     dateWrapper.style.marginBottom = "10px";
-  
+
     const dateInput = document.createElement("input");
     dateInput.type = "text"; // Cambiado a texto para formato personalizado
     dateInput.readOnly = true; // Prevenir entrada manual
-    
+
     const today = new Date();
     const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
     dateInput.value = formattedDate;
-    
+
     // Configurar Flatpickr con localización en español
     flatpickr(dateInput, {
       dateFormat: "d/m/Y",
@@ -360,10 +360,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         await loadHistoryData(formattedForAPI, resultsContainer);
       }
     });
-  
+
     dateWrapper.appendChild(dateInput);
     content.appendChild(dateWrapper);
-  
+
     const filterButton = document.createElement("button");
     filterButton.textContent = "Filtrar por Fecha de ejecución";
     filterButton.style.marginLeft = "10px";
@@ -373,22 +373,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       await loadHistoryData(formattedForAPI, resultsContainer);
     };
     content.appendChild(filterButton);
-  
+
     const resultsContainer = document.createElement("div");
     resultsContainer.style.marginTop = "20px";
     resultsContainer.style.width = "100%";
     resultsContainer.style.height = "75vh";
     resultsContainer.style.overflowY = "auto";
     content.appendChild(resultsContainer);
-  
+
     const closeButton = document.createElement("button");
     closeButton.textContent = "Cerrar";
     closeButton.onclick = () => document.body.removeChild(modal);
     content.appendChild(closeButton);
-  
+
     modal.appendChild(content);
     document.body.appendChild(modal);
-  
+
     // Cargar datos iniciales
     const formattedForAPI = today.toISOString().split('T')[0];
     await loadHistoryData(formattedForAPI, resultsContainer);
@@ -1326,11 +1326,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
       ${(logData.last10Lines || []).join("\n") || "No disponible"}
     </pre>`;
-    } else {
-      // Si es WebContent o Contratacion Digital, solo mostrar otros datos relevantes
-      last10LinesTitle = "Errores RMAN?";
-      last10LinesContent = logData.groupControlInfo;
-    }
+  } else {
+    last10LinesTitle = "Error RMAN";
+    last10LinesContent = logData.oraError ? 
+      `<pre style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
+        ${JSON.parse(logData.oraError).errorLine || logData.last10Lines || "No se encontraron detalles del error"}
+      </pre>` : 
+      `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
+        ${logData.last10Lines || "No disponible"}
+      </pre>`;
+  }
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
     const subcarpetas = [
@@ -1482,16 +1487,16 @@ ${last10LinesContent}
     gridApi.forEachNode(node => {
       if (node.data) rowData.push(node.data);
     });
- 
+
     rowData.sort((a, b) => {
       const aHasError = a.status === "Fallo" ? 1 : 0;
       const bHasError = b.status === "Fallo" ? 1 : 0;
       return bHasError - aHasError;
     });
- 
+
     const failedServers = rowData.filter(data => data.status === "Fallo");
     const successServers = rowData.filter(data => data.status !== "Fallo");
- 
+
     let summaryContent = '';
     if (failedServers.length > 0) {
       summaryContent = `
@@ -1506,33 +1511,35 @@ ${last10LinesContent}
             </div>
         `;
     }
- 
+
     const emailContent = rowData.map(data => {
       const successStatus = data.status === "Fallo" ? "Fallo" : "Éxito";
       const statusStyle = data.status === "Fallo" ?
         'background-color: #f8d7da; color: #721c24; padding: 5px;' :
         'background-color: #d4edda; color: #155724; padding: 5px;';
- 
+
       const isSpecialServer = data.serverName === "WebContent" ||
         (data.serverName === "Contratacion digital" &&
           data.backupPath === "/disco3/BK_RMAN_CONTRADIGI");
- 
+
       let logContent = '';
       let errorContent = '';
- 
+
       if (isSpecialServer) {
-        // Para servidores especiales (WebContent y Contratacion digital)
-        if (data.status === "Fallo" || data.status === "Éxito") {
-          errorContent = `
-          <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
-              <strong>Error RMAN:</strong><br>
-              <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; padding: 0;">${data.status === "Fallo" ? 
-                (data.oraErrorMessage || data.errorMessage || "Error no especificado").trim() : 
-                "Sin errores"}</pre>
+        errorContent = `
+          <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
+            <strong>Error RMAN:</strong><br>
+            <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${
+              data.status === "Fallo" ? 
+              (data.oraError ? 
+                JSON.parse(data.oraError).errorLine : 
+                data.last10Lines)?.trim() || 
+              "Error no especificado" : 
+              "Sin errores"
+            }</pre>
           </div>`;
-        }
       }
-       else {
+      else {
         // Para servidores normales
         logContent = `
     <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
@@ -1542,24 +1549,22 @@ ${last10LinesContent}
             (data.last10Lines?.trim() || 'No disponible')
           }</pre>
     </div>`;
- 
-        if (data.status === "Fallo" && data.oraError) {
-          errorContent = `
-    <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
-        <strong>Error detectado:</strong><br>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${data.oraError.split('\\n')
-            .map(line => line.trim())
-            .filter(line => line)
-            .join('<br>')
-          }</pre>
-    </div>`;
-        }
-      }
- 
+    if (data.status === "Fallo" && data.oraError) {
+      const errorObj = JSON.parse(data.oraError);
+      errorContent = `
+        <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
+          <strong>Error detectado:</strong>
+          <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">
+    <strong>Línea anterior:</strong> ${errorObj.previousLine.trim()}
+    <strong>Error:</strong> ${errorObj.errorLine.trim()}
+    <strong>Línea siguiente:</strong> ${errorObj.nextLine.trim()}
+          </pre>
+        </div>`;
+    }
+  }    
       const containerStyle = data.status === "Fallo" ?
         'border: 2px solid #dc3545;' :
         'border: 1px solid #ddd;';
- 
       return `
         <div style="${containerStyle} padding: 20px; margin-bottom: 30px; border-radius: 8px;">
             <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
@@ -1595,7 +1600,7 @@ ${last10LinesContent}
             ${logContent}
         </div>`;
     }).join('');
- 
+
     const emailData = {
       html: `
             <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
@@ -1608,7 +1613,7 @@ ${last10LinesContent}
         `,
       date: new Date().toLocaleDateString()
     };
- 
+
     try {
       await window.electron.sendEmailWithImages(emailData);
       console.log('Email enviado exitosamente');
@@ -1616,7 +1621,7 @@ ${last10LinesContent}
       console.error('Error enviando email:', error);
       throw error;
     }
- }
+  }
   function initGrid(gridDiv) {
     const gridOptions = {
       columnDefs: [
@@ -1966,10 +1971,11 @@ ${last10LinesContent}
               duration: logDetail.logDetails?.duracion || "N/A",
               totalDmpSize: "N/A", // No aplica para WebContent
               totalFolderSize: "N/A", // No aplica para WebContent
-              backupStatus:
-                logDetail.logDetails?.estadoBackup === "Éxito"
-                  ? "Completado"
-                  : "Fallo",
+              statusClass: logDetail.logDetails?.estadoBackup === "Éxito" ?
+                "status-success" : "status-failure",
+              oraError: logDetail.logDetails?.errorMessage ?
+                JSON.stringify({ errorLine: logDetail.logDetails.errorMessage }) :
+                null,
               backupPath: logDetail.backupPath || "N/A",
               last10Lines:
                 logDetail.logDetails?.errorMessage || "No hay errores",
@@ -2022,36 +2028,36 @@ ${last10LinesContent}
       let tooltipVisible = false;
       // Configurar el evento de clic en celda para mostrar el tooltip de error
       gridApi.addEventListener("cellClicked", (params) => {
-        if (
-          params.column.colId === "status" &&
-          params.data.status !== "Éxito"
-        ) {
-          const tooltipError =
-            document.getElementById("tooltipError") ||
-            (() => {
-              const div = document.createElement("div");
-              div.id = "tooltipError";
-              div.classList.add("tooltip-error");
-              document.body.appendChild(div);
-              return div;
-            })();
+        if (params.column.colId === "status" && params.data.status !== "Éxito") {
+          const tooltipError = document.getElementById("tooltipError") || (() => {
+            const div = document.createElement("div");
+            div.id = "tooltipError";
+            div.classList.add("tooltip-error");
+            document.body.appendChild(div);
+            return div;
+          })();
+      
           if (tooltipVisible) {
             tooltipError.style.display = "none";
             tooltipVisible = false;
             return;
           }
+      
           if (params.data.oraError) {
             const oraError = JSON.parse(params.data.oraError);
             tooltipError.innerHTML = `
-                            <p><strong>Error ORA encontrado:</strong></p>
-                            <p>${oraError.previousLine}</p>
-                            <p><strong>${oraError.errorLine}</strong></p>
-                            <p>${oraError.nextLine}</p>
-                        `;
+              <div style="padding: 10px;">
+                <p><strong>Error ORA encontrado:</strong></p>
+                <pre style="margin: 5px 0; white-space: pre-wrap;">${oraError.errorLine || params.data.last10Lines}</pre>
+              </div>`;
           } else {
-            tooltipError.textContent =
-              "No se encontraron detalles específicos del error.";
+            tooltipError.innerHTML = `
+              <div style="padding: 10px;">
+                <p><strong>Error encontrado:</strong></p>
+                <pre style="margin: 5px 0; white-space: pre-wrap;">${params.data.last10Lines}</pre>
+              </div>`;
           }
+      
           const rect = params.event.target.getBoundingClientRect();
           tooltipError.style.top = `${rect.top + window.scrollY}px`;
           tooltipError.style.left = `${rect.right + 10}px`;
