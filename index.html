@@ -1,43 +1,45 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Conexión al Servidor</title>
-    <link rel="stylesheet" href="css/stylesIndex.css" />
-    <link rel="stylesheet" href="css/ag-grid.css" />
-    <link rel="stylesheet" href="css/ag-theme-alpine.css" />
-    <link rel="stylesheet" href="css/all.min.css" />
-    <link rel="stylesheet" href="css/flatpickr.min.css" />
-  </head>
-  <body>
-    <div class="container">
-      <div class="card">
-        <h1>Conexión al Servidor</h1>
-        <form id="server-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="os">Sistema Operativo:</label>
-              <select id="os" name="os">
-                <option value="windows">Windows</option>
-                <option value="linux">Linux</option>
-                <option value="solaris">Solaris</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="ip">Dirección IP:</label>
-              <select id="ip" name="ip">
-                <!-- Las opciones de IP se llenarán dinámicamente -->
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="port">Puerto:</label>
-              <input type="text" id="port" name="port" value="22" />
-            </div>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conexión al Servidor</title>
+  <link rel="stylesheet" href="css/stylesIndex.css" />
+  <link rel="stylesheet" href="css/ag-grid.css" />
+  <link rel="stylesheet" href="css/ag-theme-alpine.css" />
+  <link rel="stylesheet" href="css/all.min.css" />
+  <link rel="stylesheet" href="css/flatpickr.min.css" />
+</head>
+
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Conexión al Servidor</h1>
+      <form id="server-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="os">Sistema Operativo:</label>
+            <select id="os" name="os">
+              <option value="windows">Windows</option>
+              <option value="linux">Linux</option>
+              <option value="solaris">Solaris</option>
+            </select>
           </div>
           <div class="form-group">
-            <label for="backup-routes">Rutas de Backup:</label>
-            <div class="backup-route-container">
+            <label for="ip">Dirección IP:</label>
+            <select id="ip" name="ip">
+              <!-- Las opciones de IP se llenarán dinámicamente -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="port">Puerto:</label>
+            <input type="text" id="port" name="port" value="22" readonly />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="backup-routes">Rutas de Backup:</label>
+          <div class="backup-route-container">
             <select id="backup-routes" name="backup-routes">
               <!-- Las rutas de backup se llenarán dinámicamente -->
             </select>
@@ -51,86 +53,84 @@
               <i class="fas fa-trash"></i>
             </button>
           </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="username">Usuario:</label>
+            <input type="text" id="username" name="username" required readonly />
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="username">Usuario:</label>
-              <input type="text" id="username" name="username" required />
+          <div class="form-group">
+            <label for="password">Contraseña:</label>
+            <div class="password-container">
+              <input type="password" id="password" name="password" required readonly />
+              <i class="far fa-eye toggle-password" id="togglePassword"></i>
             </div>
-            <div class="form-group">
-              <label for="password">Contraseña:</label>
-              <div class="password-container">
-                <input type="password" id="password" name="password" required />
-                <i class="far fa-eye toggle-password" id="togglePassword"></i>
-              </div>
-            </div>
-          </div>
-          <button id="verify-connection-btn" type="button">Test Conexion</button>
-          <button type="submit">Realizar monitoreo Backup</button>
-        </form>
-      </div>
-      <div class="card process-button-card">
-        <button id="process-all-servers-btn">
-          Procesar Todos los Servidores
-        </button>
-      </div>
-        <div class="grid-wrapper">
-          <div id="gridContainer" style="display: none">
-            <div id="myGrid" class="ag-theme-alpine"></div>
-            <button id="exportExcel">Exportar a Excel</button>
           </div>
         </div>
+        <button id="verify-connection-btn" type="button">Test Conexion</button>
+        <button type="submit">Realizar monitoreo Backup</button>
+      </form>
+    </div>
+    <div class="card process-button-card">
+      <button id="process-all-servers-btn">
+        Procesar Todos los Servidores
+      </button>
+    </div>
+    <div class="grid-wrapper">
+      <div id="gridContainer" style="display: none">
+        <div id="myGrid" class="ag-theme-alpine"></div>
+        <button id="exportExcel">Exportar a Excel</button>
       </div>
     </div>
-    <!-- Botón flotante con ícono de agregar servidor -->
-    <button id="add-server-btn">
-      <i class="fas fa-plus"></i>
-      <span>Añadir</span>
-    </button>
-    <!-- Botón flotante con ícono de editar servidor -->
-    <button id="edit-server-btn">
-      <i class="fas fa-edit"></i>
-      <span>Editar</span>
-    </button>
-    <div id="authErrorModal" class="modal">
-      <div class="modal-content">
-        <span id="closeModal" class="close">&times;</span>
-        <p id="errorMessage">
-          Error de autenticación. Por favor, inténtelo de nuevo.
-        </p>
-        <button id="retryButton">Retry</button>
-      </div>
+  </div>
+  </div>
+  <!-- Botón flotante con ícono de agregar servidor -->
+  <button id="add-server-btn">
+    <i class="fas fa-plus"></i>
+    <span>Añadir</span>
+  </button>
+  <!-- Botón flotante con ícono de editar servidor -->
+  <button id="edit-server-btn">
+    <i class="fas fa-edit"></i>
+    <span>Editar</span>
+  </button>
+  <div id="authErrorModal" class="modal">
+    <div class="modal-content">
+      <span id="closeModal" class="close">&times;</span>
+      <p id="errorMessage">
+        Error de autenticación. Por favor, inténtelo de nuevo.
+      </p>
+      <button id="retryButton">Retry</button>
     </div>
-    <div id="loading-overlay" style="display: none">
-      <div class="loader"></div>
-      <p>Cargando...</p>
-    </div>
-    <div id="result" style="overflow-y: auto; max-height: 500px; position: relative;">
-      <button id="close-result" class="close">&times;</button>
-      <h2>Resultados de la verificación:</h2>
-      <div id="log-entries"></div>
-    </div>
-    <script src="js/chart.js"></script>
-    <script src="js/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <script src="renderer.js"></script>
-    <script src="js/ag-grid-community.min.noStyle.js"></script>
-    <script src="js/html2canvas.min.js"></script>
-    <script src="js/flatpickr.js"></script>
-    <script src="js/es.js"></script>
-    <script>
-      // Código para alternar la visibilidad de la contraseña
-      const togglePassword = document.getElementById("togglePassword");
-      const passwordField = document.getElementById("password");
-      togglePassword.addEventListener("click", function (e) {
-        // Cambiar el tipo de la entrada de contraseña
-        const type =
-          passwordField.getAttribute("type") === "password"
-            ? "text"
-            : "password";
-        passwordField.setAttribute("type", type);
-        // Cambiar el ícono al hacer clic
-        this.classList.toggle("fa-eye-slash");
-      });
-    </script>
-  </body>
+  </div>
+  <div id="loading-overlay" style="display: none">
+    <div class="loader"></div>
+    <p>Cargando...</p>
+  </div>
+  <div id="result" style="overflow-y: auto; max-height: 500px; position: relative;">
+    <button id="close-result" class="close">&times;</button>
+    <h2>Resultados de la verificación:</h2>
+    <div id="log-entries"></div>
+  </div>
+  <script src="js/chart.js"></script>
+  <script src="js/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="renderer.js"></script>
+  <script src="js/ag-grid-community.min.noStyle.js"></script>
+  <script src="js/html2canvas.min.js"></script>
+  <script src="js/flatpickr.js"></script>
+  <script src="js/es.js"></script>
+  <script>
+    const togglePassword = document.getElementById("togglePassword");
+    const passwordField = document.getElementById("password");
+
+    togglePassword.addEventListener("click", function (e) {
+      const type = passwordField.getAttribute("type") === "password" ? "text" : "password";
+      passwordField.setAttribute("type", type);
+
+      togglePassword.classList.toggle("fa-eye");
+      togglePassword.classList.toggle("fa-eye-slash");
+    });
+  </script>
+</body>
+
 </html>
