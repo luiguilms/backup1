@@ -536,6 +536,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 tooltipError.style.opacity = "1";
                 tooltipError.style.maxWidth = "300px";
                 tooltipError.style.wordWrap = "break-word";
+                tooltipError.style.maxHeight = "350px";  // Set a maximum height
+                tooltipError.style.overflowY = "auto";
+        
 
                 console.log(
                   "Estilos aplicados al tooltip:",
@@ -815,12 +818,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       `
       }
     <h3 style="margin-top: 20px;">${last10LinesTitle || "No disponible"}</h3>
-    <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
-       ${serverData.groupControlInfo ||
-      serverData.oraErrorMessage ||
-      "No disponible"
-      }
-    </pre>
+<pre style="
+    background-color: #f0f0f0; 
+    padding: 10px; 
+    border-radius: 5px; 
+    max-height: 200px; 
+    white-space: pre-wrap; 
+    word-wrap: break-word;
+    overflow-y: auto;  /* This adds a vertical scrollbar when content overflows */
+">
+    ${serverData.groupControlInfo || serverData.oraErrorMessage || "No disponible"}
+</pre>
+
   `;
 
     // Crear el contenedor del modal
@@ -900,8 +909,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         tooltipError.style.zIndex = "10000";
         tooltipError.style.display = "block";
         tooltipError.style.opacity = "1";
-        tooltipError.style.maxWidth = "400px";
+        tooltipError.style.maxWidth = "400";
         tooltipError.style.wordWrap = "break-word";
+        tooltipError.style.maxHeight = "350px";  // Set a maximum height
+        tooltipError.style.overflowY = "auto";
 
         // Cerrar el tooltip al hacer clic fuera
         const closeTooltip = (e) => {
@@ -1326,16 +1337,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
       ${(logData.last10Lines || []).join("\n") || "No disponible"}
     </pre>`;
-  } else {
-    last10LinesTitle = "Error RMAN";
-    last10LinesContent = logData.oraError ? 
-      `<pre style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
+    } else {
+      last10LinesTitle = "Error RMAN";
+      last10LinesContent = logData.oraError ?
+        `<pre style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
         ${JSON.parse(logData.oraError).errorLine || logData.last10Lines || "No se encontraron detalles del error"}
-      </pre>` : 
-      `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
+      </pre>` :
+        `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
         ${logData.last10Lines || "No disponible"}
       </pre>`;
-  }
+    }
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
     const subcarpetas = [
@@ -1527,17 +1538,17 @@ ${last10LinesContent}
 
       if (isSpecialServer) {
         errorContent = `
-          <div style="${data.status === "Fallo" ? 
-            'background-color: #f8d7da; color: #721c24;' : 
+          <div style="${data.status === "Fallo" ?
+            'background-color: #f8d7da; color: #721c24;' :
             'background-color: #f5f5f5; color: #333333;'} 
             padding: 10px; margin: 10px 0; border-radius: 4px;">
             <strong>Error RMAN:</strong><br>
-            <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${(data.status === "Fallo" ? 
-              (data.oraError ? 
-                JSON.parse(data.oraError).errorLine : 
-                data.last10Lines)?.trim() || 
-              "Error no especificado" : 
-              "Sin errores").trim()}</pre>
+            <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${(data.status === "Fallo" ?
+            (data.oraError ?
+              JSON.parse(data.oraError).errorLine :
+              data.last10Lines)?.trim() ||
+            "Error no especificado" :
+            "Sin errores").trim()}</pre>
           </div>`;
       }
       else {
@@ -1550,9 +1561,9 @@ ${last10LinesContent}
             (data.last10Lines?.trim() || 'No disponible')
           }</pre>
     </div>`;
-    if (data.status === "Fallo" && data.oraError) {
-      const errorObj = JSON.parse(data.oraError);
-      errorContent = `
+        if (data.status === "Fallo" && data.oraError) {
+          const errorObj = JSON.parse(data.oraError);
+          errorContent = `
         <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
           <strong>Error detectado:</strong>
           <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">
@@ -1561,8 +1572,8 @@ ${last10LinesContent}
     <strong>Línea siguiente:</strong> ${errorObj.nextLine.trim()}
           </pre>
         </div>`;
-    }
-  }    
+        }
+      }
       const containerStyle = data.status === "Fallo" ?
         'border: 2px solid #dc3545;' :
         'border: 1px solid #ddd;';
@@ -2037,13 +2048,13 @@ ${last10LinesContent}
             document.body.appendChild(div);
             return div;
           })();
-      
+
           if (tooltipVisible) {
             tooltipError.style.display = "none";
             tooltipVisible = false;
             return;
           }
-      
+
           if (params.data.oraError) {
             const oraError = JSON.parse(params.data.oraError);
             tooltipError.innerHTML = `
@@ -2058,7 +2069,7 @@ ${last10LinesContent}
                 <pre style="margin: 5px 0; white-space: pre-wrap;">${params.data.last10Lines}</pre>
               </div>`;
           }
-      
+
           const rect = params.event.target.getBoundingClientRect();
           tooltipError.style.top = `${rect.top + window.scrollY}px`;
           tooltipError.style.left = `${rect.right + 10}px`;
