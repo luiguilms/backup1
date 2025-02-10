@@ -1507,7 +1507,23 @@ ${last10LinesContent}
 
     const failedServers = rowData.filter(data => data.status === "Fallo");
     const successServers = rowData.filter(data => data.status !== "Fallo");
+    const pendingServers = rowData.filter(data => !data.backupPath || data.backupPath.trim() === "");
 
+    let pendingContent = "";
+    if (pendingBackups.length > 0) {
+      pendingContent = `
+        <div style="background-color: #eaf2ff; color: #003366; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #b3d4fc;">
+            <h3 style="margin-top: 0;">Servidores Pendientes de Backup</h3>
+            <p>Se encontraron ${pendingBackups.length} servidor(es) con backup incompleto.</p>
+            <ul style="margin-bottom: 0;">
+                ${pendingBackups.map(server => `
+                    <li><strong>${server.serverName}</strong> - ${server.error}</li>
+                `).join('')}
+            </ul>
+        </div>
+      `;
+    }
+    
     let summaryContent = '';
     if (failedServers.length > 0) {
       summaryContent = `
@@ -1620,6 +1636,7 @@ ${last10LinesContent}
                     Reporte Detallado de Estado de Backups
                 </h1>
                 ${summaryContent}
+                ${pendingContent}
                 ${emailContent}
             </div>
         `,
@@ -1873,7 +1890,7 @@ ${last10LinesContent}
 
     document.body.appendChild(modal);
   }
-
+  let pendingBackups = [];
   function displayAllServersResults(results) {
     //console.log("Mostrando resultados de servidores:", results);
     if (gridApi && typeof gridApi.setRowData === "function") {
@@ -1901,6 +1918,12 @@ ${last10LinesContent}
               serverResult.ip || "IP desconocida"
             );
           }
+          pendingBackups.push({
+            serverName: serverResult.serverName || "Desconocido",
+            ip: serverResult.ip || "IP desconocida",
+            backupPath: serverResult.backupPath || "Ruta desconocida",
+            error: serverResult.error || "Error desconocido"
+          });
           return []; // No añadir nada al grid
         }
         if (serverResult.warning) {
@@ -1910,6 +1933,12 @@ ${last10LinesContent}
             serverResult.serverName,
             serverResult.ip
           );
+          pendingBackups.push({
+            serverName: serverResult.serverName || "Desconocido",
+            ip: serverResult.ip || "IP desconocida",
+            backupPath: serverResult.backupPath || "Ruta desconocida",
+            error: serverResult.warning || "Advertencia desconocida"
+          });
           return []; // No añadir nada al grid
         }
         const processLogDetail = (logDetail) => {

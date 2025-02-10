@@ -518,8 +518,8 @@ app.whenReady().then(() => {
             }
           }
         }
-        console.log("Detalles completos de log (incluyendo vacíos):", allLogDetails);
-        console.log("lastLine en getLogDetailsLogic antes de retornar:", allLogDetails.map(detail => detail.lastLine));
+        //console.log("Detalles completos de log (incluyendo vacíos):", allLogDetails);
+        //console.log("lastLine en getLogDetailsLogic antes de retornar:", allLogDetails.map(detail => detail.lastLine));
         return allLogDetails;
       } else {
         if (typeof folderSizes !== "number") {
@@ -2071,8 +2071,8 @@ async function saveLogToDatabase(
       : String(logDetails.oraError))
     : null;
 
-  console.log("Contenido de logDetails:", logDetails);
-  console.log("last10Lines:", logDetails.last10Lines);
+  //console.log("Contenido de logDetails:", logDetails);
+  //console.log("last10Lines:", logDetails.last10Lines);
   let finalGroupControlInfo;
   // Revisamos el objeto completo para debugging
 
