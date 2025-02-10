@@ -1588,9 +1588,9 @@ ${last10LinesContent}
                 <p><strong>Archivo de Log:</strong> ${data.logFileName || "No disponible"}</p>
                 <p><strong>Hora de Inicio:</strong> ${data.startTime || "No disponible"}</p>
                 <p><strong>Hora de Fin:</strong> ${data.endTime || "No disponible"}</p>
-                <p><strong>Duración:</strong> ${data.duration || "No disponible"}</p>
-                <p><strong>Estado de Backup:</strong> ${data.backupStatus || "No disponible"}</p>
+                <p><strong>Duración:</strong> ${data.duration || "No disponible"}</p>                
                 ${!isSpecialServer ? `
+                    <p><strong>Estado de Backup:</strong> ${data.backupStatus || "No disponible"}</p>
                     <p><strong>Peso total de archivo .dmp:</strong> ${data.totalDmpSize || "No disponible"}</p>
                     <p><strong>Tamaño Total Carpeta:</strong> ${data.totalFolderSize || "No disponible"}</p>
                 ` : ''}
