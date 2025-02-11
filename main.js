@@ -1598,7 +1598,7 @@ app.whenReady().then(() => {
 
     const mailOptions = {
         from: 'igs_llupacca@cajaarequipa.pe',
-        to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipe.pe',
+        to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
         subject: `Reporte de Backups - ${new Date(data.date).toISOString().split('T')[0]}`,
         html: data.html // Usar directamente el HTML generado
     };
@@ -2250,7 +2250,7 @@ async function sendCombinedAlerts() {
 
     const mailOptions = {
       from: 'igs_llupacca@cajaarequipa.pe',
-      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipe.pe',
+      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
       subject: `Alertas de espacio en servidores (${pendingAlerts.length} alertas)`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
