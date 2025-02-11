@@ -1904,7 +1904,7 @@ ${last10LinesContent}
               `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
             );
           } else if (
-            serverResult.error.includes("Archivo log no válido o incompatible")
+            serverResult.error.includes("/Backup incompleto")
           ) {
             showErrorModal(
               serverResult.error,

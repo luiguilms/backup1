@@ -1388,7 +1388,7 @@ app.whenReady().then(() => {
                   serverName,
                   ip,
                   backupPath,
-                  error: `Archivo log no válido o incompatible para la carpeta: ${backupPath}, en el servidor: ${serverName}, IP: ${ip}`,
+                  error: `/Backup incompleto para la carpeta: ${backupPath}, en el servidor: ${serverName}, IP: ${ip}`,
                   logDetails: null,
                 });
                 continue; // Continuar con la siguiente ruta
@@ -1598,7 +1598,7 @@ app.whenReady().then(() => {
 
     const mailOptions = {
         from: 'igs_llupacca@cajaarequipa.pe',
-        to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
+        to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipe.pe',
         subject: `Reporte de Backups - ${new Date(data.date).toISOString().split('T')[0]}`,
         html: data.html // Usar directamente el HTML generado
     };
@@ -2250,7 +2250,7 @@ async function sendCombinedAlerts() {
 
     const mailOptions = {
       from: 'igs_llupacca@cajaarequipa.pe',
-      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
+      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipe.pe',
       subject: `Alertas de espacio en servidores (${pendingAlerts.length} alertas)`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
