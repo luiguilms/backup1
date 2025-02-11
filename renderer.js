@@ -336,32 +336,58 @@ document.addEventListener("DOMContentLoaded", async () => {
     closeXButton.onclick = () => document.body.removeChild(modal);
     content.appendChild(closeXButton);
 
-    // Crear un wrapper para el datepicker personalizado
+    // Contenedor del DatePicker y botones de navegación
     const dateWrapper = document.createElement("div");
-    dateWrapper.style.position = "relative";
+    dateWrapper.style.display = "flex";
+    dateWrapper.style.alignItems = "center";
     dateWrapper.style.marginBottom = "10px";
+    dateWrapper.style.gap = "5px";
 
     const dateInput = document.createElement("input");
-    dateInput.type = "text"; // Cambiado a texto para formato personalizado
-    dateInput.readOnly = true; // Prevenir entrada manual
+    dateInput.type = "text";
+    dateInput.readOnly = true;
 
-    const today = new Date();
-    const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-    dateInput.value = formattedDate;
+    let selectedDate = new Date();
+    const updateDateInput = () => {
+        dateInput.value = selectedDate.toLocaleDateString("es-ES");
+    };
 
-    // Configurar Flatpickr con localización en español
+    updateDateInput(); // Inicializar con la fecha actual
+
     flatpickr(dateInput, {
-      dateFormat: "d/m/Y",
-      locale: "es",
-      defaultDate: today,
-      onChange: async (selectedDates) => {
-        const selected = selectedDates[0];
-        const formattedForAPI = selected.toISOString().split('T')[0];
-        await loadHistoryData(formattedForAPI, resultsContainer);
-      }
+        dateFormat: "d/m/Y",
+        locale: "es",
+        defaultDate: selectedDate,
+        onChange: async (selectedDates) => {
+            selectedDate = selectedDates[0];
+            updateDateInput();
+            await loadHistoryData(selectedDate.toISOString().split('T')[0], resultsContainer);
+        }
     });
 
+    // Botón para ir al día anterior
+    const prevButton = document.createElement("button");
+    prevButton.textContent = "◀";
+    prevButton.onclick = async () => {
+        selectedDate.setDate(selectedDate.getDate() - 1);
+        updateDateInput();
+        dateInput._flatpickr.setDate(selectedDate, true);
+        await loadHistoryData(selectedDate.toISOString().split('T')[0], resultsContainer);
+    };
+
+    // Botón para ir al día siguiente
+    const nextButton = document.createElement("button");
+    nextButton.textContent = "▶";
+    nextButton.onclick = async () => {
+        selectedDate.setDate(selectedDate.getDate() + 1);
+        updateDateInput();
+        dateInput._flatpickr.setDate(selectedDate, true);
+        await loadHistoryData(selectedDate.toISOString().split('T')[0], resultsContainer);
+    };
+
+    dateWrapper.appendChild(prevButton);
     dateWrapper.appendChild(dateInput);
+    dateWrapper.appendChild(nextButton);
     content.appendChild(dateWrapper);
 
     const filterButton = document.createElement("button");
@@ -390,8 +416,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.body.appendChild(modal);
 
     // Cargar datos iniciales
-    const formattedForAPI = today.toISOString().split('T')[0];
+    const formattedForAPI = selectedDate.toISOString().split('T')[0];
     await loadHistoryData(formattedForAPI, resultsContainer);
+
   }
 
   async function loadHistoryData(date, container) {
