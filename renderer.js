@@ -2511,8 +2511,7 @@ ${last10LinesContent}
                       <p>Total de backups: <span id="totalBackups"></span></p>
                       <p>Backups exitosos: <span id="successfulBackups"></span></p>
                       <p>Duración promedio: <span id="avgDuration"></span> minutos</p>
-                      <p>Servidores únicos: <span id="uniqueServers"></span></p>
-                      <p>IPs únicas: <span id="uniqueIPs"></span></p>
+                      <p>Servidores: <span id="uniqueIPs"></span></p>
                       <p>Fecha del último backup: <span id="lastBackupDate"></span></p>
                   </div>
                   <div>
@@ -2838,7 +2837,6 @@ ${last10LinesContent}
           });
         });
       };
-
       const populateSelectors = (result) => {
         const serverSelector = document.getElementById("serverSelector");
         const routeSelector = document.getElementById("routeSelector");

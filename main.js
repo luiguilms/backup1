@@ -2293,37 +2293,54 @@ async function getDmpSizeData(days = 30) {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Obtener todos los servidores y rutas
-    const allServersAndRoutesResult = await connection.execute(`
-      SELECT DISTINCT serverName, ip, backupPath
-      FROM LogBackup
+     // Obtener todos los servidores y rutas con posible ajuste por cambio de IP
+     const allServersAndRoutesResult = await connection.execute(`
+      SELECT DISTINCT 
+        COALESCE(
+          si.ServerName, 
+          si2.ServerName, 
+          REGEXP_SUBSTR(DBMS_LOB.SUBSTR(ta.old_values, 4000, 1), 'ServerName: ([^,]+)', 1, 1, NULL, 1), 
+          'Desconocido'
+        ) AS serverName,
+        lb.ip, 
+        lb.backupPath
+      FROM LogBackup lb
+      LEFT JOIN ServerInfo si ON lb.ip = si.IP
+      LEFT JOIN TableAudit ta ON ta.table_name = 'ServerInfo' 
+                               AND ta.operation_type = 'UPDATE' 
+                               AND DBMS_LOB.SUBSTR(ta.new_values, 4000, 1) LIKE '%' || lb.ip || '%'
+      LEFT JOIN ServerInfo si2 ON DBMS_LOB.SUBSTR(ta.old_values, 4000, 1) LIKE '%' || si2.IP || '%'
     `);
 
     // Obtener los datos de backup
     const dataResult = await connection.execute(
       `
-      SELECT 
-        l.serverName,
-        l.ip,
-        l.backupPath,
-        l.horaFIN as fecha,
-        l.dumpFileSize,
-        l.duration
-      FROM LogBackup l
-      WHERE l.horaFIN >= SYSDATE - :days
-      ORDER BY l.serverName, l.ip, l.backupPath, l.horaFIN
+      SELECT
+        COALESCE(
+          si.ServerName, 
+          si2.ServerName, 
+          REGEXP_SUBSTR(DBMS_LOB.SUBSTR(ta.old_values, 4000, 1), 'ServerName: ([^,]+)', 1, 1, NULL, 1), 
+          'Desconocido'
+        ) AS serverName,
+        lb.ip,
+        lb.backupPath,
+        lb.horaFIN as fecha,
+        lb.dumpFileSize,
+        lb.duration
+      FROM LogBackup lb
+      LEFT JOIN ServerInfo si ON lb.ip = si.IP
+      LEFT JOIN TableAudit ta ON ta.table_name = 'ServerInfo' 
+                               AND ta.operation_type = 'UPDATE' 
+                               AND DBMS_LOB.SUBSTR(ta.new_values, 4000, 1) LIKE '%' || lb.ip || '%'
+      LEFT JOIN ServerInfo si2 ON DBMS_LOB.SUBSTR(ta.old_values, 4000, 1) LIKE '%' || si2.IP || '%'
+      WHERE lb.horaFIN >= SYSDATE - :days
+      ORDER BY serverName, lb.ip, lb.backupPath, lb.horaFIN
     `,
       { days: days }
     );
 
-    console.log(
-      "Todos los servidores y rutas:",
-      allServersAndRoutesResult.rows
-    );
-    console.log(
-      "Datos obtenidos para el período seleccionado:",
-      dataResult.rows
-    );
+    console.log("Todos los servidores y rutas:", allServersAndRoutesResult.rows);
+    console.log("Datos obtenidos para el período seleccionado:", dataResult.rows);
 
     // Función para convertir el tamaño a GB
     const convertToGB = (size) => {
