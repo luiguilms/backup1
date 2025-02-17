@@ -1893,7 +1893,7 @@ function parseLogLine(logContent, serverName) {
   const hasSuccessMessage = successPattern.test(logContent);
   isSuccess = hasOraSpecificError || hasSuccessMessage;
   //console.log("Last line of log after handling empty lines:", lastLine); // Depuración
-  let backupStatus = "EN PROGRESO";
+  let backupStatus = "INCOMPLETO O ABORTADO";
   if (lastLine.toLowerCase().includes("completed")) {
     if (isSuccess) {
       backupStatus = "COMPLETADO";
