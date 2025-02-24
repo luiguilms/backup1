@@ -1534,7 +1534,81 @@ ${last10LinesContent}
 
     const failedServers = rowData.filter(data => data.status === "Fallo");
     const successServers = rowData.filter(data => data.status !== "Fallo");
-    const pendingServers = rowData.filter(data => !data.backupPath || data.backupPath.trim() === "");
+    // *** NUEVO CÓDIGO: Detectar backups antiguos ***
+  const outdatedBackups = [];
+  const currentDate = new Date();
+  
+  console.log("Verificando antigüedad de backups...");
+  
+  rowData.forEach(data => {
+    // Verificar que startTime exista y sea una cadena de texto
+    if (data.startTime && typeof data.startTime === 'string') {
+      console.log(`Analizando fecha de backup: ${data.serverName}, Fecha: ${data.startTime}`);
+      
+      // Intentar crear fecha a partir del formato YYYY-MM-DD HH:MM:SS
+      try {
+        // Dividir la cadena en componentes de fecha y hora
+        const [datePart, timePart] = data.startTime.split(' ');
+        if (!datePart || !timePart) {
+          console.log(`Formato de fecha inválido para ${data.serverName}: ${data.startTime}`);
+          return;
+        }
+        
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes, seconds] = timePart.split(':').map(Number);
+        
+        // JavaScript usa meses de 0-11, así que restamos 1 al mes
+        const backupDate = new Date(year, month - 1, day, hours, minutes, seconds);
+        
+        if (isNaN(backupDate.getTime())) {
+          console.log(`Fecha inválida para ${data.serverName}: ${data.startTime}`);
+          return;
+        }
+        
+        console.log(`Fecha parseada: ${backupDate.toISOString()}`);
+        
+        // Calcular diferencia en días
+        const diffTime = currentDate.getTime() - backupDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        console.log(`Diferencia en días: ${diffDays}`);
+        
+        if (diffDays > 1) {
+          // El backup es de hace más de 1 día (2 días o más)
+          data.isOutdated = true;
+          data.outdatedDays = diffDays;
+          outdatedBackups.push({
+            serverName: data.serverName,
+            backupPath: data.backupPath,
+            startTime: data.startTime,
+            outdatedDays: diffDays
+          });
+          console.log(`Backup antiguo detectado: ${data.serverName}, ${diffDays} días`);
+        }
+      } catch (error) {
+        console.error(`Error al procesar la fecha para ${data.serverName}:`, error);
+      }
+    } else {
+      console.log(`No hay fecha de inicio para ${data.serverName}`);
+    }
+  });
+  
+  // Crear la sección de advertencia para backups antiguos
+  let outdatedContent = "";
+  if (outdatedBackups.length > 0) {
+    outdatedContent = `
+      <div style="background-color: #fff3cd; color: #856404; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #ffeeba;">
+        <h3 style="margin-top: 0; color: #e67e22;">⚠️ Advertencia: Backups Desactualizados</h3>
+        <p>Se detectaron ${outdatedBackups.length} backup(s) con fechas antiguas:</p>
+        <ul style="margin-bottom: 0;">
+          ${outdatedBackups.map(backup => `
+            <li><strong>${backup.serverName}</strong> - ${backup.backupPath}
+              <br><span style="color: #d35400">Fecha de inicio: ${backup.startTime} (hace ${backup.outdatedDays} días)</span>
+            </li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
 
     let pendingContent = "";
     if (pendingBackups.length > 0) {
@@ -1664,6 +1738,7 @@ ${last10LinesContent}
                 </h1>
                 ${summaryContent}
                 ${pendingContent}
+                ${outdatedContent}
                 ${emailContent}
             </div>
         `,
