@@ -852,11 +852,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     max-height: 200px; 
     white-space: pre-wrap; 
     word-wrap: break-word;
-    overflow-y: auto;  /* This adds a vertical scrollbar when content overflows */
-">
-    ${serverData.groupControlInfo || serverData.oraErrorMessage || "No disponible"}
-</pre>
-
+    overflow-y: auto;">${serverData.groupControlInfo || serverData.oraErrorMessage || "No disponible"}</pre>
   `;
 
     // Crear el contenedor del modal
@@ -910,44 +906,76 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
     // Mostrar el tooltip cuando el estado es "Fallo"
-    const successStatusElement = modalBox.querySelector("#success-status");
-    if (serverData.success === 0 && serverData.oraErrorMessage) {
-      successStatusElement.addEventListener("click", (event) => {
-        // Crear el tooltip
-        const tooltipError = document.createElement("div");
-        tooltipError.classList.add("tooltip-error");
+const successStatusElement = modalBox.querySelector("#success-status");
+if (serverData.success === 0 && serverData.oraErrorMessage) {
+  successStatusElement.addEventListener("click", (event) => {
+    // Crear el tooltip
+    const tooltipError = document.createElement("div");
+    tooltipError.classList.add("tooltip-error");
 
-        // Mostrar el contenido completo de oraErrorMessage
+    // Verificar si es un string JSON
+    if (typeof serverData.oraErrorMessage === 'string' && serverData.oraErrorMessage.startsWith('{')) {
+      try {
+        // Intentar parsear como JSON
+        const errorObj = JSON.parse(serverData.oraErrorMessage);
+        
+        // Usar HTML para formatear mejor el error
+        tooltipError.innerHTML = '';
+        
+        if (errorObj.previousLine) {
+          const prevLine = document.createElement("div");
+          prevLine.innerHTML = '<strong style="color:#855;">Línea anterior:</strong> <div style="margin-bottom:8px; padding-left:10px;">' + errorObj.previousLine + '</div>';
+          tooltipError.appendChild(prevLine);
+        }
+        
+        if (errorObj.errorLine) {
+          const errorLine = document.createElement("div");
+          errorLine.innerHTML = '<strong style="color:#a22;">Error:</strong> <div style="margin-bottom:8px; padding-left:10px; color:#a22; font-weight:bold;">' + errorObj.errorLine + '</div>';
+          tooltipError.appendChild(errorLine);
+        }
+        
+        if (errorObj.nextLine) {
+          const nextLine = document.createElement("div");
+          nextLine.innerHTML = '<strong style="color:#855;">Línea siguiente:</strong> <div style="padding-left:10px;">' + errorObj.nextLine + '</div>';
+          tooltipError.appendChild(nextLine);
+        }
+      } catch (e) {
+        // Si falla el parseo, mostrar el texto original
         tooltipError.textContent = serverData.oraErrorMessage;
+      }
+    } else {
+      tooltipError.textContent = serverData.oraErrorMessage;
+    }
 
-        // Añadir el tooltip al documento
-        document.body.appendChild(tooltipError);
+    // Añadir el tooltip al documento
+    document.body.appendChild(tooltipError);
+    
+    // Aplicar estilos al tooltip
+    tooltipError.style.position = "fixed";
+    tooltipError.style.top = `${event.clientY + 10}px`;
+    tooltipError.style.left = `${event.clientX + 10}px`;
+    tooltipError.style.backgroundColor = "#f8d7da";
+    tooltipError.style.color = "#721c24";
+    tooltipError.style.padding = "15px";
+    tooltipError.style.border = "1px solid #f5c6cb";
+    tooltipError.style.borderRadius = "5px";
+    tooltipError.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
+    tooltipError.style.zIndex = "10000";
+    tooltipError.style.display = "block";
+    tooltipError.style.opacity = "1";
+    tooltipError.style.maxWidth = "500px";
+    tooltipError.style.wordWrap = "break-word";
+    tooltipError.style.maxHeight = "350px";
+    tooltipError.style.overflowY = "auto";
+    tooltipError.style.lineHeight = "1.5";
 
-        // Aplicar estilos al tooltip
-        tooltipError.style.position = "fixed";
-        tooltipError.style.top = `${event.clientY + 10}px`;
-        tooltipError.style.left = `${event.clientX + 10}px`;
-        tooltipError.style.backgroundColor = "#f8d7da";
-        tooltipError.style.color = "#721c24";
-        tooltipError.style.padding = "10px";
-        tooltipError.style.border = "1px solid #f5c6cb";
-        tooltipError.style.borderRadius = "5px";
-        tooltipError.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
-        tooltipError.style.zIndex = "10000";
-        tooltipError.style.display = "block";
-        tooltipError.style.opacity = "1";
-        tooltipError.style.maxWidth = "400";
-        tooltipError.style.wordWrap = "break-word";
-        tooltipError.style.maxHeight = "350px";  // Set a maximum height
-        tooltipError.style.overflowY = "auto";
-
-        // Cerrar el tooltip al hacer clic fuera
-        const closeTooltip = (e) => {
-          if (!tooltipError.contains(e.target)) {
-            tooltipError.remove();
-            document.removeEventListener("click", closeTooltip);
-          }
-        };
+    // Cerrar el tooltip al hacer clic fuera
+    const closeTooltip = (e) => {
+      if (!tooltipError.contains(e.target)) {
+        tooltipError.remove();
+        document.removeEventListener("click", closeTooltip);
+      }
+    };
 
         // Escuchar clics fuera del tooltip para cerrarlo
         setTimeout(() => {
