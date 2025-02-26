@@ -349,40 +349,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let selectedDate = new Date();
     const updateDateInput = () => {
-        dateInput.value = selectedDate.toLocaleDateString("es-ES");
+      dateInput.value = selectedDate.toLocaleDateString("es-ES");
     };
 
     updateDateInput(); // Inicializar con la fecha actual
 
     flatpickr(dateInput, {
-        dateFormat: "d/m/Y",
-        locale: "es",
-        defaultDate: selectedDate,
-        onChange: async (selectedDates) => {
-            selectedDate = selectedDates[0];
-            updateDateInput();
-            await loadHistoryData(selectedDate.toISOString().split('T')[0], resultsContainer);
-        }
+      dateFormat: "d/m/Y",
+      locale: "es",
+      defaultDate: selectedDate,
+      onChange: async (selectedDates) => {
+        selectedDate = selectedDates[0];
+        updateDateInput();
+        await loadHistoryData(selectedDate.toISOString().split('T')[0], resultsContainer);
+      }
     });
 
     // Botón para ir al día anterior
     const prevButton = document.createElement("button");
     prevButton.textContent = "◀";
     prevButton.onclick = async () => {
-        selectedDate.setDate(selectedDate.getDate() - 1);
-        updateDateInput();
-        dateInput._flatpickr.setDate(selectedDate, true);
-        await loadHistoryData(selectedDate.toISOString().split('T')[0], resultsContainer);
+      selectedDate.setDate(selectedDate.getDate() - 1);
+      updateDateInput();
+      dateInput._flatpickr.setDate(selectedDate, true);
+      await loadHistoryData(selectedDate.toISOString().split('T')[0], resultsContainer);
     };
 
     // Botón para ir al día siguiente
     const nextButton = document.createElement("button");
     nextButton.textContent = "▶";
     nextButton.onclick = async () => {
-        selectedDate.setDate(selectedDate.getDate() + 1);
-        updateDateInput();
-        dateInput._flatpickr.setDate(selectedDate, true);
-        await loadHistoryData(selectedDate.toISOString().split('T')[0], resultsContainer);
+      selectedDate.setDate(selectedDate.getDate() + 1);
+      updateDateInput();
+      dateInput._flatpickr.setDate(selectedDate, true);
+      await loadHistoryData(selectedDate.toISOString().split('T')[0], resultsContainer);
     };
 
     dateWrapper.appendChild(prevButton);
@@ -541,8 +541,39 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const tooltipError = document.createElement("div");
                 tooltipError.classList.add("tooltip-error");
 
-                // Mostrar el contenido completo de oraErrorMessage
-                tooltipError.textContent = oraErrorMessage;
+                // Verificar si es un string JSON
+                if (typeof oraErrorMessage === 'string' && oraErrorMessage.startsWith('{')) {
+                  try {
+                    // Intentar parsear como JSON
+                    const errorObj = JSON.parse(oraErrorMessage);
+
+                    // Usar HTML para formatear mejor el error
+                    tooltipError.innerHTML = '';
+
+                    if (errorObj.previousLine) {
+                      const prevLine = document.createElement("div");
+                      prevLine.innerHTML = '<strong style="color:#855;">Línea anterior:</strong> <div style="margin-bottom:8px; padding-left:10px;">' + errorObj.previousLine + '</div>';
+                      tooltipError.appendChild(prevLine);
+                    }
+
+                    if (errorObj.errorLine) {
+                      const errorLine = document.createElement("div");
+                      errorLine.innerHTML = '<strong style="color:#a22;">Error:</strong> <div style="margin-bottom:8px; padding-left:10px; color:#a22; font-weight:bold;">' + errorObj.errorLine + '</div>';
+                      tooltipError.appendChild(errorLine);
+                    }
+
+                    if (errorObj.nextLine) {
+                      const nextLine = document.createElement("div");
+                      nextLine.innerHTML = '<strong style="color:#855;">Línea siguiente:</strong> <div style="padding-left:10px;">' + errorObj.nextLine + '</div>';
+                      tooltipError.appendChild(nextLine);
+                    }
+                  } catch (e) {
+                    // Si falla el parseo, mostrar el texto original
+                    tooltipError.textContent = oraErrorMessage;
+                  }
+                } else {
+                  tooltipError.textContent = oraErrorMessage;
+                }
 
                 // Añadir el tooltip al documento
                 document.body.appendChild(tooltipError);
@@ -554,18 +585,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 tooltipError.style.left = `${event.clientX + 10}px`;
                 tooltipError.style.backgroundColor = "#f8d7da";
                 tooltipError.style.color = "#721c24";
-                tooltipError.style.padding = "10px";
+                tooltipError.style.padding = "15px";
                 tooltipError.style.border = "1px solid #f5c6cb";
                 tooltipError.style.borderRadius = "5px";
                 tooltipError.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
                 tooltipError.style.zIndex = "10000";
                 tooltipError.style.display = "block";
                 tooltipError.style.opacity = "1";
-                tooltipError.style.maxWidth = "300px";
+                tooltipError.style.maxWidth = "500px"; // Aumentado para mensajes largos
                 tooltipError.style.wordWrap = "break-word";
-                tooltipError.style.maxHeight = "350px";  // Set a maximum height
+                tooltipError.style.maxHeight = "350px";
                 tooltipError.style.overflowY = "auto";
-        
+                tooltipError.style.lineHeight = "1.5";
+
 
                 console.log(
                   "Estilos aplicados al tooltip:",
@@ -906,76 +938,76 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
     // Mostrar el tooltip cuando el estado es "Fallo"
-const successStatusElement = modalBox.querySelector("#success-status");
-if (serverData.success === 0 && serverData.oraErrorMessage) {
-  successStatusElement.addEventListener("click", (event) => {
-    // Crear el tooltip
-    const tooltipError = document.createElement("div");
-    tooltipError.classList.add("tooltip-error");
+    const successStatusElement = modalBox.querySelector("#success-status");
+    if (serverData.success === 0 && serverData.oraErrorMessage) {
+      successStatusElement.addEventListener("click", (event) => {
+        // Crear el tooltip
+        const tooltipError = document.createElement("div");
+        tooltipError.classList.add("tooltip-error");
 
-    // Verificar si es un string JSON
-    if (typeof serverData.oraErrorMessage === 'string' && serverData.oraErrorMessage.startsWith('{')) {
-      try {
-        // Intentar parsear como JSON
-        const errorObj = JSON.parse(serverData.oraErrorMessage);
-        
-        // Usar HTML para formatear mejor el error
-        tooltipError.innerHTML = '';
-        
-        if (errorObj.previousLine) {
-          const prevLine = document.createElement("div");
-          prevLine.innerHTML = '<strong style="color:#855;">Línea anterior:</strong> <div style="margin-bottom:8px; padding-left:10px;">' + errorObj.previousLine + '</div>';
-          tooltipError.appendChild(prevLine);
-        }
-        
-        if (errorObj.errorLine) {
-          const errorLine = document.createElement("div");
-          errorLine.innerHTML = '<strong style="color:#a22;">Error:</strong> <div style="margin-bottom:8px; padding-left:10px; color:#a22; font-weight:bold;">' + errorObj.errorLine + '</div>';
-          tooltipError.appendChild(errorLine);
-        }
-        
-        if (errorObj.nextLine) {
-          const nextLine = document.createElement("div");
-          nextLine.innerHTML = '<strong style="color:#855;">Línea siguiente:</strong> <div style="padding-left:10px;">' + errorObj.nextLine + '</div>';
-          tooltipError.appendChild(nextLine);
-        }
-      } catch (e) {
-        // Si falla el parseo, mostrar el texto original
-        tooltipError.textContent = serverData.oraErrorMessage;
-      }
-    } else {
-      tooltipError.textContent = serverData.oraErrorMessage;
-    }
+        // Verificar si es un string JSON
+        if (typeof serverData.oraErrorMessage === 'string' && serverData.oraErrorMessage.startsWith('{')) {
+          try {
+            // Intentar parsear como JSON
+            const errorObj = JSON.parse(serverData.oraErrorMessage);
 
-    // Añadir el tooltip al documento
-    document.body.appendChild(tooltipError);
-    
-    // Aplicar estilos al tooltip
-    tooltipError.style.position = "fixed";
-    tooltipError.style.top = `${event.clientY + 10}px`;
-    tooltipError.style.left = `${event.clientX + 10}px`;
-    tooltipError.style.backgroundColor = "#f8d7da";
-    tooltipError.style.color = "#721c24";
-    tooltipError.style.padding = "15px";
-    tooltipError.style.border = "1px solid #f5c6cb";
-    tooltipError.style.borderRadius = "5px";
-    tooltipError.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
-    tooltipError.style.zIndex = "10000";
-    tooltipError.style.display = "block";
-    tooltipError.style.opacity = "1";
-    tooltipError.style.maxWidth = "500px";
-    tooltipError.style.wordWrap = "break-word";
-    tooltipError.style.maxHeight = "350px";
-    tooltipError.style.overflowY = "auto";
-    tooltipError.style.lineHeight = "1.5";
+            // Usar HTML para formatear mejor el error
+            tooltipError.innerHTML = '';
 
-    // Cerrar el tooltip al hacer clic fuera
-    const closeTooltip = (e) => {
-      if (!tooltipError.contains(e.target)) {
-        tooltipError.remove();
-        document.removeEventListener("click", closeTooltip);
-      }
-    };
+            if (errorObj.previousLine) {
+              const prevLine = document.createElement("div");
+              prevLine.innerHTML = '<strong style="color:#855;">Línea anterior:</strong> <div style="margin-bottom:8px; padding-left:10px;">' + errorObj.previousLine + '</div>';
+              tooltipError.appendChild(prevLine);
+            }
+
+            if (errorObj.errorLine) {
+              const errorLine = document.createElement("div");
+              errorLine.innerHTML = '<strong style="color:#a22;">Error:</strong> <div style="margin-bottom:8px; padding-left:10px; color:#a22; font-weight:bold;">' + errorObj.errorLine + '</div>';
+              tooltipError.appendChild(errorLine);
+            }
+
+            if (errorObj.nextLine) {
+              const nextLine = document.createElement("div");
+              nextLine.innerHTML = '<strong style="color:#855;">Línea siguiente:</strong> <div style="padding-left:10px;">' + errorObj.nextLine + '</div>';
+              tooltipError.appendChild(nextLine);
+            }
+          } catch (e) {
+            // Si falla el parseo, mostrar el texto original
+            tooltipError.textContent = serverData.oraErrorMessage;
+          }
+        } else {
+          tooltipError.textContent = serverData.oraErrorMessage;
+        }
+
+        // Añadir el tooltip al documento
+        document.body.appendChild(tooltipError);
+
+        // Aplicar estilos al tooltip
+        tooltipError.style.position = "fixed";
+        tooltipError.style.top = `${event.clientY + 10}px`;
+        tooltipError.style.left = `${event.clientX + 10}px`;
+        tooltipError.style.backgroundColor = "#f8d7da";
+        tooltipError.style.color = "#721c24";
+        tooltipError.style.padding = "15px";
+        tooltipError.style.border = "1px solid #f5c6cb";
+        tooltipError.style.borderRadius = "5px";
+        tooltipError.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.2)";
+        tooltipError.style.zIndex = "10000";
+        tooltipError.style.display = "block";
+        tooltipError.style.opacity = "1";
+        tooltipError.style.maxWidth = "500px";
+        tooltipError.style.wordWrap = "break-word";
+        tooltipError.style.maxHeight = "350px";
+        tooltipError.style.overflowY = "auto";
+        tooltipError.style.lineHeight = "1.5";
+
+        // Cerrar el tooltip al hacer clic fuera
+        const closeTooltip = (e) => {
+          if (!tooltipError.contains(e.target)) {
+            tooltipError.remove();
+            document.removeEventListener("click", closeTooltip);
+          }
+        };
 
         // Escuchar clics fuera del tooltip para cerrarlo
         setTimeout(() => {
@@ -1563,68 +1595,68 @@ ${last10LinesContent}
     const failedServers = rowData.filter(data => data.status === "Fallo");
     const successServers = rowData.filter(data => data.status !== "Fallo");
     // *** NUEVO CÓDIGO: Detectar backups antiguos ***
-  const outdatedBackups = [];
-  const currentDate = new Date();
-  
-  console.log("Verificando antigüedad de backups...");
-  
-  rowData.forEach(data => {
-    // Verificar que startTime exista y sea una cadena de texto
-    if (data.startTime && typeof data.startTime === 'string') {
-      console.log(`Analizando fecha de backup: ${data.serverName}, Fecha: ${data.startTime}`);
-      
-      // Intentar crear fecha a partir del formato YYYY-MM-DD HH:MM:SS
-      try {
-        // Dividir la cadena en componentes de fecha y hora
-        const [datePart, timePart] = data.startTime.split(' ');
-        if (!datePart || !timePart) {
-          console.log(`Formato de fecha inválido para ${data.serverName}: ${data.startTime}`);
-          return;
+    const outdatedBackups = [];
+    const currentDate = new Date();
+
+    console.log("Verificando antigüedad de backups...");
+
+    rowData.forEach(data => {
+      // Verificar que startTime exista y sea una cadena de texto
+      if (data.startTime && typeof data.startTime === 'string') {
+        console.log(`Analizando fecha de backup: ${data.serverName}, Fecha: ${data.startTime}`);
+
+        // Intentar crear fecha a partir del formato YYYY-MM-DD HH:MM:SS
+        try {
+          // Dividir la cadena en componentes de fecha y hora
+          const [datePart, timePart] = data.startTime.split(' ');
+          if (!datePart || !timePart) {
+            console.log(`Formato de fecha inválido para ${data.serverName}: ${data.startTime}`);
+            return;
+          }
+
+          const [year, month, day] = datePart.split('-').map(Number);
+          const [hours, minutes, seconds] = timePart.split(':').map(Number);
+
+          // JavaScript usa meses de 0-11, así que restamos 1 al mes
+          const backupDate = new Date(year, month - 1, day, hours, minutes, seconds);
+
+          if (isNaN(backupDate.getTime())) {
+            console.log(`Fecha inválida para ${data.serverName}: ${data.startTime}`);
+            return;
+          }
+
+          console.log(`Fecha parseada: ${backupDate.toISOString()}`);
+
+          // Calcular diferencia en días
+          const diffTime = currentDate.getTime() - backupDate.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+          console.log(`Diferencia en días: ${diffDays}`);
+
+          if (diffDays > 1) {
+            // El backup es de hace más de 1 día (2 días o más)
+            data.isOutdated = true;
+            data.outdatedDays = diffDays;
+            outdatedBackups.push({
+              serverName: data.serverName,
+              backupPath: data.backupPath,
+              startTime: data.startTime,
+              outdatedDays: diffDays
+            });
+            console.log(`Backup antiguo detectado: ${data.serverName}, ${diffDays} días`);
+          }
+        } catch (error) {
+          console.error(`Error al procesar la fecha para ${data.serverName}:`, error);
         }
-        
-        const [year, month, day] = datePart.split('-').map(Number);
-        const [hours, minutes, seconds] = timePart.split(':').map(Number);
-        
-        // JavaScript usa meses de 0-11, así que restamos 1 al mes
-        const backupDate = new Date(year, month - 1, day, hours, minutes, seconds);
-        
-        if (isNaN(backupDate.getTime())) {
-          console.log(`Fecha inválida para ${data.serverName}: ${data.startTime}`);
-          return;
-        }
-        
-        console.log(`Fecha parseada: ${backupDate.toISOString()}`);
-        
-        // Calcular diferencia en días
-        const diffTime = currentDate.getTime() - backupDate.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        console.log(`Diferencia en días: ${diffDays}`);
-        
-        if (diffDays > 1) {
-          // El backup es de hace más de 1 día (2 días o más)
-          data.isOutdated = true;
-          data.outdatedDays = diffDays;
-          outdatedBackups.push({
-            serverName: data.serverName,
-            backupPath: data.backupPath,
-            startTime: data.startTime,
-            outdatedDays: diffDays
-          });
-          console.log(`Backup antiguo detectado: ${data.serverName}, ${diffDays} días`);
-        }
-      } catch (error) {
-        console.error(`Error al procesar la fecha para ${data.serverName}:`, error);
+      } else {
+        console.log(`No hay fecha de inicio para ${data.serverName}`);
       }
-    } else {
-      console.log(`No hay fecha de inicio para ${data.serverName}`);
-    }
-  });
-  
-  // Crear la sección de advertencia para backups antiguos
-  let outdatedContent = "";
-  if (outdatedBackups.length > 0) {
-    outdatedContent = `
+    });
+
+    // Crear la sección de advertencia para backups antiguos
+    let outdatedContent = "";
+    if (outdatedBackups.length > 0) {
+      outdatedContent = `
       <div style="background-color: #fff3cd; color: #856404; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #ffeeba;">
         <h3 style="margin-top: 0; color: #e67e22;">⚠️ Advertencia: Backups Desactualizados</h3>
         <p>Se detectaron ${outdatedBackups.length} backup(s) con fechas antiguas:</p>
@@ -1636,7 +1668,7 @@ ${last10LinesContent}
         </ul>
       </div>
     `;
-  }
+    }
 
     let pendingContent = "";
     if (pendingBackups.length > 0) {
@@ -1652,7 +1684,7 @@ ${last10LinesContent}
         </div>
       `;
     }
-    
+
     let summaryContent = '';
     if (failedServers.length > 0) {
       summaryContent = `
