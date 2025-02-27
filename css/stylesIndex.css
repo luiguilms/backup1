@@ -206,6 +206,7 @@ button:hover {
   padding: 20px;
   border: 1px solid #888;
   width: 80%;
+  border-radius: 10px;
 }
 .close {
   color: #aaa;
@@ -363,4 +364,37 @@ button:hover {
 /* Efecto de desenfoque específico para modales de rutas */
 #add-route-modal, #edit-route-modal {
   backdrop-filter: blur(5px);
+}
+.backup-route-container {
+  display: flex;
+  align-items: center;
+}
+
+.backup-route-container select {
+  flex-grow: 1;
+  margin-right: 10px;
+}
+
+.route-action-buttons {
+  display: flex;
+  gap: 5px;
+}
+
+.route-action-buttons .icon-button {
+  background: none;
+  border: none;
+  color: #666;
+  padding: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.route-action-buttons .icon-button:hover {
+  color: #333;
+}
+
+.route-action-buttons .icon-button i {
+  font-size: 18px;
 }

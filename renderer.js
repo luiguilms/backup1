@@ -2989,7 +2989,7 @@ ${last10LinesContent}
           window.lastSelectedDays = selectedDays;
         }
 
-        console.log("Datos de tamaño DMP recibidos:", globalDmpSizeData);
+        //console.log("Datos de tamaño DMP recibidos:", globalDmpSizeData);
 
         if (globalDmpSizeData.length === 0) {
           console.warn("No hay datos de tamaño DMP para mostrar");
@@ -3009,7 +3009,7 @@ ${last10LinesContent}
         chartContainer.innerHTML = ""; // Limpiar gráficos existentes
 
         filteredData.forEach((serverData) => {
-          console.log("Datos para el gráfico:", serverData);
+          //console.log("Datos para el gráfico:", serverData);
           const canvasId = `chart-${serverData.identifier}`.replace(
             /[^a-zA-Z0-9]/g,
             "_"
@@ -3150,11 +3150,11 @@ ${last10LinesContent}
         routeSelector.innerHTML =
           '<option value="all">Todas las rutas</option>';
 
-        console.log(
-          "Todos los servidores y rutas:",
-          result.allServersAndRoutes
-        );
-        console.log("Datos procesados:", result.data);
+        //console.log(
+          //"Todos los servidores y rutas:",
+          //result.allServersAndRoutes
+        //);
+        //console.log("Datos procesados:", result.data);
 
         // Crear un conjunto de servidores únicos
         const uniqueServers = new Set();
@@ -3222,10 +3222,10 @@ ${last10LinesContent}
 
       // Inicializar el gráfico y los selectores con 30 días por defecto
       const initialResult = await window.electron.getDmpSizeData(30);
-      console.log(
-        "Estructura completa de initialResult:",
-        JSON.stringify(initialResult, null, 2)
-      );
+      //console.log(
+       // "Estructura completa de initialResult:",
+       // JSON.stringify(initialResult, null, 2)
+      //);
       populateSelectors(initialResult);
       await updateCharts(30, "all", "all");
 
