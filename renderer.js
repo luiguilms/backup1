@@ -406,6 +406,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     resultsContainer.style.height = "75vh";
     resultsContainer.style.overflowY = "auto";
     content.appendChild(resultsContainer);
+    // Crear botón de exportación a Excel
+    const exportButton = document.createElement("button");
+    exportButton.id = "exportHistoryExcel";
+    exportButton.textContent = "Exportar a Excel";
+    exportButton.style.marginTop = "15px";
+    exportButton.style.padding = "10px";
+    exportButton.style.backgroundColor = "#3498db";
+    exportButton.style.color = "white";
+    exportButton.style.border = "none";
+    exportButton.style.borderRadius = "5px";
+    exportButton.style.cursor = "pointer";
+    exportButton.style.fontWeight = "600";
+    exportButton.style.fontSize = "16px";
+
+    exportButton.addEventListener("click", () => {
+      // Buscar la API del grid de múltiples formas
+      const gridApiToUse =
+        resultsContainer.querySelector('.ag-theme-alpine')?.gridApi ||
+        resultsContainer.gridApi ||
+        Array.from(resultsContainer.children)
+          .find(child => child.classList.contains('ag-theme-alpine'))?.gridApi;
+
+      if (gridApiToUse) {
+        exportHistoryToExcel(gridApiToUse, selectedDate);
+      } else {
+        console.error("Grid API no disponible para exportación");
+        alert("No se puede exportar en este momento. Inténtelo de nuevo.");
+      }
+    });
+
+    // Añadir el botón al contenedor
+    content.appendChild(exportButton);
 
     const closeButton = document.createElement("button");
     closeButton.textContent = "Cerrar";
@@ -414,6 +446,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     modal.appendChild(content);
     document.body.appendChild(modal);
+
 
     // Cargar datos iniciales
     const formattedForAPI = selectedDate.toISOString().split('T')[0];
@@ -771,6 +804,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         },
         onGridReady: (params) => {
           params.api.sizeColumnsToFit();
+          container.gridApi = params.api;
+          gridDiv.gridApi = params.api;
         },
         onFirstDataRendered: (params) => {
           params.api.sizeColumnsToFit(); // Ajusta las columnas al tamaño del contenedor al renderizar los datos
@@ -787,6 +822,86 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (error) {
       console.error("Error al cargar el historial de verificaciones:", error);
       container.innerHTML = "<p>Error al cargar el historial.</p>";
+    }
+  }
+  // Función para exportar a Excel
+  function exportHistoryToExcel(gridApi, selectedDate) {
+    if (!gridApi) {
+      console.error("Grid API no disponible");
+      return;
+    }
+
+    // Mostrar indicador de carga
+    const loadingDiv = document.createElement("div");
+    loadingDiv.id = "loadingIndicator";
+    loadingDiv.textContent = "Exportando...";
+    loadingDiv.style.position = "fixed";
+    loadingDiv.style.top = "50%";
+    loadingDiv.style.left = "50%";
+    loadingDiv.style.transform = "translate(-50%, -50%)";
+    loadingDiv.style.padding = "20px";
+    loadingDiv.style.background = "rgba(0,0,0,0.7)";
+    loadingDiv.style.color = "white";
+    loadingDiv.style.borderRadius = "5px";
+    loadingDiv.style.zIndex = "10001";
+    document.body.appendChild(loadingDiv);
+
+    try {
+      // Obtener las columnas visibles, excluyendo 'last10Lines'
+      const columns = gridApi
+        .getColumns()
+        .filter(
+          (column) => column.isVisible() && column.getColId() !== "last10Lines"
+        )
+        .map((column) => ({
+          headerName: column.getColDef().headerName,
+          field: column.getColId(),
+        }));
+
+      // Obtener los datos de las filas
+      const rowData = [];
+      gridApi.forEachNodeAfterFilterAndSort(function (node) {
+        const rowDataFiltered = {};
+        columns.forEach((col) => {
+          rowDataFiltered[col.field] = node.data[col.field];
+        });
+        rowData.push(rowDataFiltered);
+      });
+
+      const data = {
+        columns: columns.map((col) => col.headerName),
+        rows: rowData.map((row) => columns.map((col) => row[col.field])),
+      };
+
+      // Usar la fecha seleccionada para el nombre del archivo
+      const fileDate = selectedDate
+        ? selectedDate.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+      // Exportar usando la función del main process
+      window.electron.exportToExcel(data)
+        .then(excelBuffer => {
+          const blob = new Blob([excelBuffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          // Usar la fecha seleccionada para el nombre del archivo
+          link.download = `historial_verificaciones_${fileDate}.xlsx`;
+          link.click();
+          URL.revokeObjectURL(link.href);
+
+          // Eliminar indicador de carga
+          document.body.removeChild(loadingDiv);
+        })
+        .catch(error => {
+          console.error("Error al exportar:", error);
+          document.body.removeChild(loadingDiv);
+          alert("Error al exportar: " + (error.message || "Error desconocido"));
+        });
+    } catch (error) {
+      console.error("Error al preparar datos para exportación:", error);
+      document.body.removeChild(loadingDiv);
     }
   }
   // Función para crear el modal con los detalles del servidor
