@@ -10,9 +10,11 @@ body {
   position: relative;
   box-sizing: border-box;
 }
+
 .container {
   display: flex;
-  justify-content: space-between; /* Separa el formulario y los resultados */
+  justify-content: space-between;
+  /* Separa el formulario y los resultados */
   flex-direction: column;
   gap: 20px;
   max-width: 100%;
@@ -20,6 +22,7 @@ body {
   position: relative;
   align-items: flex-start;
 }
+
 .card {
   background-color: white;
   border-radius: 12px;
@@ -28,31 +31,37 @@ body {
   width: 100%;
   box-sizing: border-box;
 }
+
 h1 {
   text-align: center;
   color: #2c3e50;
   margin-bottom: 30px;
   font-size: 28px;
 }
+
 form {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
+
 .form-row {
   display: flex;
   gap: 15px;
   margin-bottom: 15px;
 }
+
 .form-group {
   flex: 1;
 }
+
 label {
   display: block;
   margin-bottom: 8px;
   color: #34495e;
   font-weight: 600;
 }
+
 select,
 select,
 input {
@@ -65,11 +74,13 @@ input {
   transition: border-color 0.3s ease;
   margin-bottom: 10px;
 }
+
 select:focus,
 input:focus {
   outline: none;
   border-color: #3498db;
 }
+
 button {
   background-color: #3498db;
   color: white;
@@ -81,9 +92,11 @@ button {
   font-weight: 600;
   transition: background-color 0.3s ease;
 }
+
 button:hover {
   background-color: #2980b9;
 }
+
 #loading-overlay {
   position: fixed;
   top: 0;
@@ -92,12 +105,16 @@ button:hover {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center; /* Centrado horizontal */
-  align-items: center; /* Centrado vertical */
+  justify-content: center;
+  /* Centrado horizontal */
+  align-items: center;
+  /* Centrado vertical */
   z-index: 9999;
-  flex-direction: column; /* Para que el loader y el texto se coloquen uno debajo del otro */
+  flex-direction: column;
+  /* Para que el loader y el texto se coloquen uno debajo del otro */
   transition: opacity 0.3s ease;
 }
+
 .loader {
   border: 5px solid #f3f3f3;
   border-top: 5px solid #3498db;
@@ -106,19 +123,23 @@ button:hover {
   height: 50px;
   animation: spin 1s linear infinite;
 }
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
 }
+
 #loading-overlay p {
   color: white;
   margin-top: 10px;
   font-size: 18px;
 }
+
 /* Estilos para los botones flotantes */
 #add-server-btn,
 #edit-server-btn {
@@ -138,56 +159,69 @@ button:hover {
   z-index: 1000;
   text-align: center;
 }
+
 #add-server-btn {
   bottom: 20px;
   right: 20px;
   background-color: #9ae7f5;
   color: rgb(95, 86, 86);
 }
+
 #add-server-btn:hover {
   background-color: #49d8fc;
 }
+
 #edit-server-btn {
   bottom: 100px;
   right: 20px;
   background-color: #f5b342;
   color: #fff;
 }
+
 #edit-server-btn:hover {
   background-color: #e5942a;
 }
+
 #add-server-btn i,
 #edit-server-btn i {
   font-size: 24px;
   margin-bottom: 5px;
 }
+
 #log-entries {
   display: block;
 }
+
 #result {
   background: #f9f9f9;
   border: 1px solid #dcdcdc;
-  border-left: 4px solid #3498db; /* Añadir un borde izquierdo más llamativo */
+  border-left: 4px solid #3498db;
+  /* Añadir un borde izquierdo más llamativo */
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Sombra ligera */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  /* Sombra ligera */
   transition: opacity 0.4s ease;
   display: none;
-  margin-left: 50px; 
+  margin-left: 50px;
   width: 40%;
 }
+
 #result h2 {
   margin-bottom: 10px;
   font-size: 20px;
   line-height: 1.6;
   color: #007bff;
 }
+
 #result p {
   margin: 5px 0;
 }
+
 #result p strong {
   color: #333;
 }
+
 .modal {
   display: none;
   position: fixed;
@@ -200,6 +234,7 @@ button:hover {
   background-color: rgba(0, 0, 0, 0.4);
   z-index: 1000;
 }
+
 .modal-content {
   background-color: #fefefe;
   margin: 15% auto;
@@ -208,30 +243,37 @@ button:hover {
   width: 80%;
   border-radius: 10px;
 }
+
 .close {
   color: #aaa;
   float: right;
   font-size: 28px;
   font-weight: bold;
 }
+
 .close:hover,
 .close:focus {
   color: black;
   text-decoration: none;
   cursor: pointer;
 }
+
 /* Aplica un recuadro rojo oscuro y fondo claro solo a la línea de Success cuando es No */
 .log-entry p.error-box {
-  display: inline-block; /* Esto hará que el cuadro se ajuste al tamaño del texto */
+  display: inline-block;
+  /* Esto hará que el cuadro se ajuste al tamaño del texto */
   border: 2px solid darkred;
   background-color: #fdd;
   color: darkred;
   padding: 5px;
   border-radius: 5px;
   font-weight: bold;
-  cursor: pointer; /* Cambia el cursor a la forma de mano */
-  width: 100%; /* Asegura que todo el campo sea clickeable */
+  cursor: pointer;
+  /* Cambia el cursor a la forma de mano */
+  width: 100%;
+  /* Asegura que todo el campo sea clickeable */
 }
+
 /* Estilos para la ventana flotante */
 .tooltip-error {
   position: absolute;
@@ -242,8 +284,10 @@ button:hover {
   font-size: 14px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   z-index: 1000;
-  display: none; /* Oculto por defecto */
+  display: none;
+  /* Oculto por defecto */
 }
+
 .tooltip-error::after {
   content: "";
   position: absolute;
@@ -254,17 +298,21 @@ button:hover {
   border-style: solid;
   border-color: transparent transparent transparent rgba(255, 0, 0, 0.9);
 }
+
 .password-container {
   position: relative;
 }
+
 .password-container input[type="password"],
 .password-container input[type="text"] {
   width: 100%;
-  padding: 12px; /* Increased right padding to make room for the icon */
+  padding: 12px;
+  /* Increased right padding to make room for the icon */
   border-radius: 4px;
   box-sizing: border-box;
   border: 1px solid #bdc3c7;
 }
+
 .toggle-password {
   position: absolute;
   top: 22px;
@@ -274,17 +322,22 @@ button:hover {
   color: #827f8d;
   font-size: 18px;
 }
+
 #process-all-servers-btn {
   background-color: #2ecc71;
   margin-top: 1px;
   width: 100%;
   margin-bottom: 1px;
-  padding: 12px; /* Ajustado para dar más espacio dentro del botón */
-  font-size: 16px; /* Ajustado para asegurar que el texto se vea bien */
+  padding: 12px;
+  /* Ajustado para dar más espacio dentro del botón */
+  font-size: 16px;
+  /* Ajustado para asegurar que el texto se vea bien */
 }
+
 #process-all-servers-btn:hover {
   background-color: #27ae60;
 }
+
 #gridContainer {
   margin-top: 30px;
   border-top: 1px solid #e0e0e0;
@@ -292,46 +345,59 @@ button:hover {
   width: 100%;
   height: calc(100vh - 200px);
 }
+
 .grid-wrapper {
   width: 100%;
   overflow-x: auto;
   padding-bottom: 15px;
 }
+
 #myGrid {
   width: 100%;
   height: auto;
 }
+
 .ag-cell-wrapper {
   word-break: break-word;
 }
+
 .ag-root-wrapper {
   border: none !important;
 }
+
 /* Ocultar el scroll horizontal del cuerpo del grid */
 .ag-body-horizontal-scroll {
   display: none !important;
 }
+
 .ag-cell {
   white-space: normal;
   line-height: 1.5em;
 }
+
 .process-button-card {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 15px; /* Ajustado para dar un poco más de espacio alrededor del botón */
+  padding: 15px;
+  /* Ajustado para dar un poco más de espacio alrededor del botón */
   margin-top: 10px;
 }
+
 .status-failure {
-  background-color: #ffebee; /* Un rojo más suave */
-  color: #d32f2f; /* Un rojo más oscuro para el texto */
+  background-color: #ffebee;
+  /* Un rojo más suave */
+  color: #d32f2f;
+  /* Un rojo más oscuro para el texto */
   padding: 4px 8px;
   border-radius: 4px;
   font-weight: bold;
   display: inline-block;
-  width: 90%; /* Ajusta según necesites */
+  width: 90%;
+  /* Ajusta según necesites */
   margin: 0 auto;
 }
+
 #close-result {
   position: absolute;
   top: 10px;
@@ -342,10 +408,12 @@ button:hover {
   color: #333;
   cursor: pointer;
 }
+
 #close-result:hover {
   color: red;
 }
-#exportExcel{
+
+#exportExcel {
   background-color: #3498db;
   color: white;
   border: none;
@@ -358,13 +426,26 @@ button:hover {
   margin-top: 10px;
   width: 100%;
 }
+
 .ag-theme-alpine .ag-row {
-  height: 50px; /* Ajusta el valor según la altura deseada */
+  height: 50px;
+  /* Ajusta el valor según la altura deseada */
 }
+
 /* Efecto de desenfoque específico para modales de rutas */
-#add-route-modal, #edit-route-modal {
+#add-route-modal,
+#edit-route-modal {
   backdrop-filter: blur(5px);
 }
+
+#statisticsModal {
+  backdrop-filter: blur(5px);
+}
+
+#historyModal {
+  backdrop-filter: blur(5px);
+}
+
 .backup-route-container {
   display: flex;
   align-items: center;

@@ -240,11 +240,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statsButton = document.createElement("button");
     statsButton.id = "showStatsButton";
     statsButton.onclick = showStatistics;
-    
+
     // Crear el ícono para el botón de estadísticas
     const statsIcon = document.createElement("i");
     statsIcon.className = "fas fa-chart-bar";
-    
+
     // Agregar el ícono y el texto al botón
     statsButton.appendChild(statsIcon);
     statsButton.appendChild(document.createTextNode(" Mostrar Estadísticas"));
@@ -254,11 +254,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const historyButton = document.createElement("button");
     historyButton.id = "showHistoryButton";
     historyButton.onclick = showHistory;
-    
+
     // Crear el ícono para el botón de historial
     const historyIcon = document.createElement("i");
     historyIcon.className = "fas fa-history";
-    
+
     // Agregar el ícono y el texto al botón
     historyButton.appendChild(historyIcon);
     historyButton.appendChild(document.createTextNode(" Historial de Verificaciones"));
@@ -314,6 +314,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   async function showHistory() {
     const modal = document.createElement("div");
+    modal.id = 'historyModal'
     modal.style.position = "fixed";
     modal.style.top = "0";
     modal.style.left = "0";
@@ -2903,6 +2904,17 @@ ${last10LinesContent}
   }
 
   async function showStatistics() {
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.textContent = 'Cargando estadísticas...';
+    loadingIndicator.style.position = 'fixed';
+    loadingIndicator.style.top = '50%';
+    loadingIndicator.style.left = '50%';
+    loadingIndicator.style.transform = 'translate(-50%, -50%)';
+    loadingIndicator.style.backgroundColor = 'rgba(0,0,0,0.5)';
+    loadingIndicator.style.color = 'white';
+    loadingIndicator.style.padding = '20px';
+    loadingIndicator.style['backdrop-filter'] = 'blur(5px)';
+    document.body.appendChild(loadingIndicator);
     try {
       if (!statisticsModal) {
         console.log("Creando modal de estadísticas");
@@ -3151,8 +3163,8 @@ ${last10LinesContent}
           '<option value="all">Todas las rutas</option>';
 
         //console.log(
-          //"Todos los servidores y rutas:",
-          //result.allServersAndRoutes
+        //"Todos los servidores y rutas:",
+        //result.allServersAndRoutes
         //);
         //console.log("Datos procesados:", result.data);
 
@@ -3223,8 +3235,8 @@ ${last10LinesContent}
       // Inicializar el gráfico y los selectores con 30 días por defecto
       const initialResult = await window.electron.getDmpSizeData(30);
       //console.log(
-       // "Estructura completa de initialResult:",
-       // JSON.stringify(initialResult, null, 2)
+      // "Estructura completa de initialResult:",
+      // JSON.stringify(initialResult, null, 2)
       //);
       populateSelectors(initialResult);
       await updateCharts(30, "all", "all");
@@ -3251,6 +3263,8 @@ ${last10LinesContent}
       showCustomAlert(
         "Error al obtener o mostrar estadísticas. Por favor, revisa la consola para más detalles."
       );
+    } finally {
+      document.body.removeChild(loadingIndicator);
     }
   }
   function getRandomColor() {
