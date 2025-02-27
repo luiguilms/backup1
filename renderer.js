@@ -238,16 +238,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function createStatsButton() {
     const statsButton = document.createElement("button");
-    statsButton.textContent = "Mostrar Estadísticas";
     statsButton.id = "showStatsButton";
     statsButton.onclick = showStatistics;
+    
+    // Crear el ícono para el botón de estadísticas
+    const statsIcon = document.createElement("i");
+    statsIcon.className = "fas fa-chart-bar";
+    
+    // Agregar el ícono y el texto al botón
+    statsButton.appendChild(statsIcon);
+    statsButton.appendChild(document.createTextNode(" Mostrar Estadísticas"));
     statsButton.style.padding = "5px 10px";
     statsButton.style.marginLeft = "10px";
 
     const historyButton = document.createElement("button");
-    historyButton.textContent = "Historial de Verificaciones";
     historyButton.id = "showHistoryButton";
     historyButton.onclick = showHistory;
+    
+    // Crear el ícono para el botón de historial
+    const historyIcon = document.createElement("i");
+    historyIcon.className = "fas fa-history";
+    
+    // Agregar el ícono y el texto al botón
+    historyButton.appendChild(historyIcon);
+    historyButton.appendChild(document.createTextNode(" Historial de Verificaciones"));
     historyButton.style.padding = "5px 10px";
     historyButton.style.marginLeft = "10px";
 

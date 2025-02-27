@@ -360,3 +360,7 @@ button:hover {
 .ag-theme-alpine .ag-row {
   height: 50px; /* Ajusta el valor según la altura deseada */
 }
+/* Efecto de desenfoque específico para modales de rutas */
+#add-route-modal, #edit-route-modal {
+  backdrop-filter: blur(5px);
+}
