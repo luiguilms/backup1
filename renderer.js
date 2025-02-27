@@ -406,12 +406,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     resultsContainer.style.height = "75vh";
     resultsContainer.style.overflowY = "auto";
     content.appendChild(resultsContainer);
-    // Crear botón de exportación a Excel
+
+    // Crear un contenedor para los botones
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style.display = "flex";
+    buttonContainer.style.justifyContent = "center";
+    buttonContainer.style.gap = "15px"; // Espacio entre botones
+    buttonContainer.style.marginTop = "20px";
+    buttonContainer.style.marginBottom = "10px";
+
+    // Mejorar el botón de exportación a Excel
     const exportButton = document.createElement("button");
     exportButton.id = "exportHistoryExcel";
     exportButton.textContent = "Exportar a Excel";
-    exportButton.style.marginTop = "15px";
-    exportButton.style.padding = "10px";
+    exportButton.style.padding = "12px 20px";
     exportButton.style.backgroundColor = "#3498db";
     exportButton.style.color = "white";
     exportButton.style.border = "none";
@@ -419,9 +427,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     exportButton.style.cursor = "pointer";
     exportButton.style.fontWeight = "600";
     exportButton.style.fontSize = "16px";
+    exportButton.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.2)";
+    exportButton.style.transition = "background-color 0.3s";
+
+    // Agregar efecto hover con JavaScript
+    exportButton.addEventListener("mouseover", () => {
+      exportButton.style.backgroundColor = "#2980b9"; // Color más oscuro al pasar el mouse
+    });
+    exportButton.addEventListener("mouseout", () => {
+      exportButton.style.backgroundColor = "#3498db"; // Color original al quitar el mouse
+    });
 
     exportButton.addEventListener("click", () => {
-      // Buscar la API del grid de múltiples formas
+      // El código existente para la exportación
       const gridApiToUse =
         resultsContainer.querySelector('.ag-theme-alpine')?.gridApi ||
         resultsContainer.gridApi ||
@@ -435,14 +453,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         alert("No se puede exportar en este momento. Inténtelo de nuevo.");
       }
     });
-
-    // Añadir el botón al contenedor
-    content.appendChild(exportButton);
-
+    // Mejorar el botón de cerrar
     const closeButton = document.createElement("button");
     closeButton.textContent = "Cerrar";
+    closeButton.style.padding = "12px 20px";
+    closeButton.style.backgroundColor = "#95a5a6"; // Color gris para el botón secundario
+    closeButton.style.color = "white";
+    closeButton.style.border = "none";
+    closeButton.style.borderRadius = "5px";
+    closeButton.style.cursor = "pointer";
+    closeButton.style.fontWeight = "600";
+    closeButton.style.fontSize = "16px";
+    closeButton.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.2)";
+    closeButton.style.transition = "background-color 0.3s";
+
+    // Agregar efecto hover con JavaScript
+    closeButton.addEventListener("mouseover", () => {
+      closeButton.style.backgroundColor = "#7f8c8d"; // Color más oscuro al pasar el mouse
+    });
+    closeButton.addEventListener("mouseout", () => {
+      closeButton.style.backgroundColor = "#95a5a6"; // Color original al quitar el mouse
+    });
+
     closeButton.onclick = () => document.body.removeChild(modal);
-    content.appendChild(closeButton);
+
+    // Agregar los botones al contenedor
+    buttonContainer.appendChild(exportButton);
+    buttonContainer.appendChild(closeButton);
+    // Agregar el contenedor de botones al contenido principal
+    content.appendChild(buttonContainer);
 
     modal.appendChild(content);
     document.body.appendChild(modal);
