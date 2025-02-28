@@ -2288,7 +2288,7 @@ function getConstantIdentifier(fullPath, serverIdentifier, characterCount = 12) 
   return `${serverIdentifier}-${subdir.substring(0, characterCount)}`;
 }
 
-async function getDmpSizeData(days = 30) {
+async function getDmpSizeData(days = 15) {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);

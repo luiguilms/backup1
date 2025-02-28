@@ -247,7 +247,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Agregar el ícono y el texto al botón
     statsButton.appendChild(statsIcon);
-    statsButton.appendChild(document.createTextNode(" Mostrar Estadísticas"));
+    statsButton.appendChild(document.createTextNode("Estadísticas"));
     statsButton.style.padding = "5px 10px";
     statsButton.style.marginLeft = "10px";
 
@@ -261,7 +261,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Agregar el ícono y el texto al botón
     historyButton.appendChild(historyIcon);
-    historyButton.appendChild(document.createTextNode(" Historial de Verificaciones"));
+    historyButton.appendChild(document.createTextNode("Historial"));
     historyButton.style.padding = "5px 10px";
     historyButton.style.marginLeft = "10px";
 
@@ -346,7 +346,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     closeXButton.style.right = "10px";
     closeXButton.style.background = "black";
     closeXButton.style.border = "none";
-    closeXButton.style.fontSize = "20px";
+    closeXButton.style.fontSize = "15px";
     closeXButton.style.cursor = "pointer";
     closeXButton.onclick = () => document.body.removeChild(modal);
     content.appendChild(closeXButton);
@@ -1024,8 +1024,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }</p>
     <p><strong>Hora de Fin:</strong> ${formattedHoraFIN || "No disponible"}</p>
     <p><strong>Duración:</strong> ${serverData.duration || "No disponible"}</p>
-    <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"
-      }</p>
     <p><strong>Exitoso?:</strong> 
       <span id="success-status" class="${statusClass}" style="cursor: pointer;">
         ${successStatus || "No disponible"}
@@ -1039,6 +1037,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           serverData.backupPath === "/disco3/BK_RMAN_CONTRADIGI")
         ? ""
         : `
+        <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"
+      }</p>
         <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || "No disponible"
         }</p>
         <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || "No disponible"
@@ -2821,7 +2821,8 @@ ${last10LinesContent}
                   <div>
                     <label for="daySelector">Mostrar datos de los últimos:</label>
                     <select id="daySelector">
-                      <option value="30" selected>30 días</option>
+                      <option value="15" selected>15 días</option>
+                      <option value="30">30 días</option>
                       <option value="60">60 días</option>
                       <option value="90">90 días</option>
                     </select>
@@ -3020,7 +3021,16 @@ ${last10LinesContent}
         const chartContainer = document.getElementById("dmpSizeChartContainer");
         chartContainer.innerHTML = ""; // Limpiar gráficos existentes
 
-        filteredData.forEach((serverData) => {
+        filteredData.forEach((serverData, index) => {
+          // Crear un contenedor div para cada gráfico
+  const chartDiv = document.createElement("div");
+  chartDiv.style.marginBottom = "30px";
+  chartDiv.style.paddingBottom = "20px";
+  chartDiv.style.borderBottom = "2px solid #e0e0e0";
+  // Si es el último elemento, quitamos el borde
+  if (index === filteredData.length - 1) {
+    chartDiv.style.borderBottom = "none";
+  }
           //console.log("Datos para el gráfico:", serverData);
           const canvasId = `chart-${serverData.identifier}`.replace(
             /[^a-zA-Z0-9]/g,
@@ -3028,7 +3038,9 @@ ${last10LinesContent}
           );
           const canvasElement = document.createElement("canvas");
           canvasElement.id = canvasId;
-          chartContainer.appendChild(canvasElement);
+          chartDiv.appendChild(canvasElement);
+          // Agregar el div contenedor al contenedor principal
+  chartContainer.appendChild(chartDiv);
 
           const ctx = canvasElement.getContext("2d");
 
@@ -3070,6 +3082,18 @@ ${last10LinesContent}
             options: {
               responsive: true,
               plugins: {
+                title: {
+                  display: true,
+                  text: serverData.serverName,
+                  font: {
+                    size: 16,
+                    weight: 'bold'
+                  },
+                  padding: {
+                    top: 10,
+                    bottom: 15
+                  }
+                },
                 tooltip: {
                   callbacks: {
                     label: function (context) {
@@ -3232,14 +3256,14 @@ ${last10LinesContent}
         console.warn("Selector de días no encontrado");
       }
 
-      // Inicializar el gráfico y los selectores con 30 días por defecto
-      const initialResult = await window.electron.getDmpSizeData(30);
+      // Inicializar el gráfico y los selectores con 15 días por defecto
+      const initialResult = await window.electron.getDmpSizeData(15);
       //console.log(
       // "Estructura completa de initialResult:",
       // JSON.stringify(initialResult, null, 2)
       //);
       populateSelectors(initialResult);
-      await updateCharts(30, "all", "all");
+      await updateCharts(15, "all", "all");
 
       statisticsModal.style.display = "block";
       statisticsModal.offsetHeight;
