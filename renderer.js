@@ -917,7 +917,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       gridApi.forEachNodeAfterFilterAndSort(function (node) {
         const rowDataFiltered = {};
         columns.forEach((col) => {
-          rowDataFiltered[col.field] = node.data[col.field];
+          // Si el campo es 'success' (estado), transformar el valor
+          if (col.field === 'success') {
+            rowDataFiltered[col.field] = node.data[col.field] === 1 ?
+              "Éxito" :
+              "Fallo";
+          } else {
+            rowDataFiltered[col.field] = node.data[col.field];
+          }
         });
         rowData.push(rowDataFiltered);
       });
@@ -1038,7 +1045,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? ""
         : `
         <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"
-      }</p>
+        }</p>
         <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || "No disponible"
         }</p>
         <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || "No disponible"
@@ -3023,14 +3030,14 @@ ${last10LinesContent}
 
         filteredData.forEach((serverData, index) => {
           // Crear un contenedor div para cada gráfico
-  const chartDiv = document.createElement("div");
-  chartDiv.style.marginBottom = "30px";
-  chartDiv.style.paddingBottom = "20px";
-  chartDiv.style.borderBottom = "2px solid #e0e0e0";
-  // Si es el último elemento, quitamos el borde
-  if (index === filteredData.length - 1) {
-    chartDiv.style.borderBottom = "none";
-  }
+          const chartDiv = document.createElement("div");
+          chartDiv.style.marginBottom = "30px";
+          chartDiv.style.paddingBottom = "20px";
+          chartDiv.style.borderBottom = "2px solid #e0e0e0";
+          // Si es el último elemento, quitamos el borde
+          if (index === filteredData.length - 1) {
+            chartDiv.style.borderBottom = "none";
+          }
           //console.log("Datos para el gráfico:", serverData);
           const canvasId = `chart-${serverData.identifier}`.replace(
             /[^a-zA-Z0-9]/g,
@@ -3040,7 +3047,7 @@ ${last10LinesContent}
           canvasElement.id = canvasId;
           chartDiv.appendChild(canvasElement);
           // Agregar el div contenedor al contenedor principal
-  chartContainer.appendChild(chartDiv);
+          chartContainer.appendChild(chartDiv);
 
           const ctx = canvasElement.getContext("2d");
 

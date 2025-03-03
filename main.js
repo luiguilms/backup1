@@ -9,13 +9,122 @@ const ExcelJS = require("exceljs");
 ipcMain.handle("export-to-excel", async (event, data) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Backup Report");
+  
+  // Configurar las columnas con ancho más adecuado
   worksheet.columns = data.columns.map((col) => ({
     header: col,
     key: col,
-    width: 15,
+    width: 20, // Ancho más amplio para mejor visualización
   }));
+  
+  // Agregar filas
   worksheet.addRows(data.rows);
-  worksheet.getRow(1).font = { bold: true };
+  
+  // Determinar el rango total de la tabla
+  const totalRows = data.rows.length + 1; // +1 por la fila de encabezado
+  const totalCols = data.columns.length;
+
+  // Definir el rango de la tabla para el autoFilter
+  // Las letras de columna en Excel comienzan en 'A'
+  const startCol = 'A';
+  const endCol = String.fromCharCode('A'.charCodeAt(0) + totalCols - 1);
+  const filterRange = `${startCol}1:${endCol}${totalRows}`;
+  
+  // Aplicar autoFilter al rango de la tabla
+  worksheet.autoFilter = filterRange;
+  
+  // Dar formato a la fila de encabezados
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF4472C4' } // Azul de Excel
+  };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+  
+  // Aplicar bordes a toda la tabla
+  for (let i = 1; i <= totalRows; i++) {
+    const row = worksheet.getRow(i);
+    
+    // Establecer altura de la fila
+    row.height = 25;
+    
+    for (let j = 1; j <= totalCols; j++) {
+      const cell = row.getCell(j);
+      
+      // Aplicar bordes a todas las celdas
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+      
+      // Centrar verticalmente todo el contenido
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: i === 1 ? 'center' : 'left', // Centrar solo los encabezados
+        wrapText: true
+      };
+      
+      // Aplicar color de fondo a filas alternas para mejor legibilidad
+      if (i > 1 && i % 2 === 0) {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF2F2F2' } // Gris muy claro
+        };
+      }
+    }
+  }
+  
+  // Buscar el índice de la columna 'Estado' o 'success'
+  const successColumnIndex = data.columns.findIndex(
+    col => col === 'Estado' || col === 'Éxito?' || col === 'Success'
+  );
+  
+  if (successColumnIndex !== -1) {
+    // Agregar comentario en el encabezado
+    const headerCell = worksheet.getRow(1).getCell(successColumnIndex + 1);
+    headerCell.note = {
+      texts: [
+        {'font': {'bold': true}, 'text': 'Leyenda:\n'},
+        {'text': '1 = Éxito\n0 = Fallo'}
+      ]
+    };
+    
+    // Aplicar formato condicional a las celdas de datos de la columna estado
+    for (let i = 2; i <= totalRows; i++) {
+      const cell = worksheet.getRow(i).getCell(successColumnIndex + 1);
+      const cellValue = cell.value ? cell.value.toString() : "";
+      
+      // Centrar el texto de éxito/fallo
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      
+      if (cellValue === "Éxito") {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF92D050' } // Verde claro
+        };
+        cell.font = { bold: true, color: { argb: 'FF006100' } }; // Verde oscuro
+      } else if (cellValue === "Fallo") {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFF6666' } // Rojo claro
+        };
+        cell.font = { bold: true, color: { argb: 'FF9C0006' } }; // Rojo oscuro
+      }
+    }
+  }
+  
+  // Congelar la fila de encabezados para que permanezca visible al desplazarse
+  worksheet.views = [
+    { state: 'frozen', xSplit: 0, ySplit: 1, activeCell: 'A2' }
+  ];
+  
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer;
 });
@@ -1590,28 +1699,28 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('send-email-with-images', async (event, data) => {
     const transporter = nodemailer.createTransport({
-        host: '10.0.200.68',
-        port: 25,
-        secure: false,
-        tls: { rejectUnauthorized: false }
+      host: '10.0.200.68',
+      port: 25,
+      secure: false,
+      tls: { rejectUnauthorized: false }
     });
 
     const mailOptions = {
-        from: 'igs_llupacca@cajaarequipa.pe',
-        to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
-        subject: `Reporte de Backups - ${new Date(data.date).toISOString().split('T')[0]}`,
-        html: data.html // Usar directamente el HTML generado
+      from: 'igs_llupacca@cajaarequipa.pe',
+      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
+      subject: `Reporte de Backups - ${new Date(data.date).toISOString().split('T')[0]}`,
+      html: data.html // Usar directamente el HTML generado
     };
 
     try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Correo enviado exitosamente');
-        return { success: true };
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Correo enviado exitosamente');
+      return { success: true };
     } catch (error) {
-        console.error('Error al enviar correo:', error);
-        return { success: false, error: error.message };
+      console.error('Error al enviar correo:', error);
+      return { success: false, error: error.message };
     }
-});
+  });
   async function getFolderSize(conn, directoryPath, os, sftp) {
     if (os === "solaris" || os === "linux") {
       // Comando `du` para obtener el tamaño total en lugar de cada subcarpeta
@@ -2266,7 +2375,7 @@ async function sendCombinedAlerts() {
 
     const info = await transporter.sendMail(mailOptions);
     console.log('Correo combinado enviado con éxito:', info.response);
-    
+
     // Limpiar las alertas pendientes
     pendingAlerts = [];
   } catch (error) {
@@ -2293,8 +2402,8 @@ async function getDmpSizeData(days = 15) {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-     // Obtener todos los servidores y rutas con posible ajuste por cambio de IP
-     const allServersAndRoutesResult = await connection.execute(`
+    // Obtener todos los servidores y rutas con posible ajuste por cambio de IP
+    const allServersAndRoutesResult = await connection.execute(`
       SELECT DISTINCT 
         COALESCE(
           si.ServerName, 
@@ -2608,41 +2717,41 @@ function formatOracleDate(date) {
 function extractRmanLogDetails(logContent) {
   const logDetails = {
     fechaInicio: null,
-    fechaFin: null, 
+    fechaFin: null,
     duracion: "00:00:00",
     estadoBackup: 'Éxito',
     rutaBackup: null,
     errorMessage: null,
   };
- 
+
   const startDateRegex = /Recovery Manager: Release.*on (\w{3}) (\w{3}) (\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})/;
   const tagTimeRegex = /tag=TAG(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/;
   const errorRegex = /(ORA-\d+|RMAN-\d+)/g;
- 
+
   const lines = logContent.split('\n').map(line => line.trim()).filter(line => line !== "");
   const cleanedLogContent = lines.join('\n');
- 
+
   const startMatch = cleanedLogContent.match(startDateRegex);
   if (startMatch) {
     const [, , month, day, hours, minutes, seconds, year] = startMatch;
- 
+
     const months = {
       Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
       Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
     };
- 
+
     const formattedDateString = `${year}-${months[month]}-${day.padStart(2, '0')}T${hours}:${minutes}:${seconds}`;
- 
+
     const startDate = new Date(formattedDateString);
- 
+
     if (isNaN(startDate.getTime())) {
       console.error("Fecha de inicio no válida:", formattedDateString);
       throw new Error("La fecha proporcionada no es válida");
     }
- 
+
     logDetails.fechaInicio = formatOracleDate(startDate);
   }
- 
+
   const tagMatches = logContent.match(new RegExp(tagTimeRegex, 'g'));
   if (tagMatches && tagMatches.length > 0) {
     const lastTagMatch = tagMatches[tagMatches.length - 1];
@@ -2650,20 +2759,20 @@ function extractRmanLogDetails(logContent) {
     const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
     const endDate = new Date(formattedDate);
     logDetails.fechaFin = formatOracleDate(endDate);
- 
+
     const startDate = new Date(logDetails.fechaInicio);
     const durationMs = endDate - startDate;
     const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
     const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
     const durationSeconds = Math.floor((durationMs % (1000 * 60)) / 1000);
-    
+
     logDetails.duracion = `${String(durationHours).padStart(2, '0')}:${String(durationMinutes).padStart(2, '0')}:${String(durationSeconds).padStart(2, '0')}`;
   }
- 
+
   const errors = [];
   let firstErrorLineIndex = -1;
   let lastErrorLineIndex = -1;
- 
+
   // Encontrar todas las líneas que contienen errores
   lines.forEach((line, index) => {
     if (line.match(errorRegex)) {
@@ -2672,31 +2781,31 @@ function extractRmanLogDetails(logContent) {
       lastErrorLineIndex = index;
     }
   });
- 
+
   if (errors.length > 0) {
     logDetails.estadoBackup = 'Fallo';
-    
+
     // Construir el mensaje de error con contexto
     const errorContext = [];
-    
+
     // Agregar línea anterior al primer error
     if (firstErrorLineIndex > 0) {
       errorContext.push(lines[firstErrorLineIndex - 1]);
     }
-    
+
     // Agregar todas las líneas con errores
     errorContext.push(...errors);
-    
+
     // Agregar línea siguiente al último error
     if (lastErrorLineIndex < lines.length - 1) {
       errorContext.push(lines[lastErrorLineIndex + 1]);
     }
- 
+
     logDetails.errorMessage = errorContext.join('\n');
   }
- 
+
   return logDetails;
- }
+}
 async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
   const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage, logFileName } = rmanLogDetails;
 
