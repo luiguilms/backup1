@@ -326,7 +326,10 @@ button:hover {
 #process-all-servers-btn {
   background-color: #2ecc71;
   margin-top: 1px;
-  width: 100%;
+  width: auto;         /* En lugar de 100% */
+  min-width: 300px;    /* Ancho mínimo más grande para este botón */
+  max-width: 60%;      /* Ancho máximo del 60% del contenedor */
+  margin: 0 auto;      /* Centrar horizontalmente */
   margin-bottom: 1px;
   padding: 12px;
   /* Ajustado para dar más espacio dentro del botón */
@@ -478,4 +481,42 @@ button:hover {
 
 .route-action-buttons .icon-button i {
   font-size: 18px;
+}
+
+/* Ajuste para los botones principales */
+#verify-connection-btn,
+#server-form button[type="submit"] {
+  width: auto;         /* En lugar de 100% */
+  min-width: 200px;    /* Ancho mínimo para que sea clickeable */
+  margin: 0 auto;      /* Centrar horizontalmente */
+  display: block;      /* Para que el margin auto funcione */
+  padding: 12px 20px;  /* Padding horizontal y vertical */
+  margin-bottom: 10px; /* Espacio entre botones */
+}
+
+/* El botón de Test Conexion puede ser un poco más pequeño */
+#verify-connection-btn {
+  width: 30%;          /* Ancho del 30% del contenedor */
+  min-width: 150px;    /* Ancho mínimo */
+}
+
+/* Media query para dispositivos pequeños */
+@media (max-width: 768px) {
+  #verify-connection-btn,
+  #server-form button[type="submit"],
+  #process-all-servers-btn {
+    width: 100%;      /* En dispositivos pequeños, ancho completo */
+  }
+  
+  .button-container {
+    flex-direction: column;
+  }
+}
+
+/* Crear un contenedor flexible para los botones */
+.button-container {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  gap: 15px;           /* Espacio entre botones */
 }

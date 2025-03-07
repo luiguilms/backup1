@@ -2821,7 +2821,6 @@ ${last10LinesContent}
                   <div id="statisticsContent">
                       <p>Total de backups: <span id="totalBackups"></span></p>
                       <p>Backups exitosos: <span id="successfulBackups"></span></p>
-                      <p>Duración promedio: <span id="avgDuration"></span> minutos</p>
                       <p>Servidores: <span id="uniqueIPs"></span></p>
                       <p>Fecha del último backup: <span id="lastBackupDate"></span></p>
                   </div>
@@ -2975,10 +2974,6 @@ ${last10LinesContent}
           successfulBackups / totalBackups,
           (v) => (v * 100).toFixed(2)
         )}%)`
-      );
-      safelyUpdateContent(
-        "avgDuration",
-        formatValue(avgDurationSeconds, (v) => (v / 60).toFixed(2))
       );
       safelyUpdateContent(
         "uniqueServers",
