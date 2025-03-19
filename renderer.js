@@ -1805,11 +1805,11 @@ ${last10LinesContent}
 
           // Calcular diferencia en días
           const diffTime = currentDate.getTime() - backupDate.getTime();
-          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
           console.log(`Diferencia en días: ${diffDays}`);
 
-          if (diffDays > 1) {
+          if (diffTime > (1000 * 60 * 60 * 24)) { // Más de 24 horas
             // El backup es de hace más de 1 día (2 días o más)
             data.isOutdated = true;
             data.outdatedDays = diffDays;
