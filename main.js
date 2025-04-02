@@ -2731,6 +2731,19 @@ function extractRmanLogDetails(logContent) {
   const lines = logContent.split('\n').map(line => line.trim()).filter(line => line !== "");
   const cleanedLogContent = lines.join('\n');
 
+  // Verificar la última línea
+  const lastLine = lines[lines.length - 1] || "";
+  const isComplete = lastLine.includes("Recovery Manager complete.");
+
+  // Agregar la verificación de la última línea
+  if (isComplete) {
+    logDetails.errorMessage = "Recovery Manager complete.";
+  } else {
+    // No hay mensaje de finalización correcta
+    logDetails.errorMessage = "INCOMPLETO";
+    logDetails.estadoBackup = 'Fallo'; // Marcar como fallido si no está completo
+  }
+
   const startMatch = cleanedLogContent.match(startDateRegex);
   if (startMatch) {
     const [, , month, day, hours, minutes, seconds, year] = startMatch;

@@ -1011,11 +1011,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Verificar si el log contiene "Job"
     const containsJob = (serverData.groupControlInfo || "").includes("Job");
 
-    // Determinar el título para las últimas 10 líneas
-    const last10LinesTitle = containsJob
-      ? "Ver última línea del log"
-      : "Advertencia:";
+    // Verificar si es un servidor especial (RMAN)
+    const isSpecialServer = serverData.serverName === "WebContent" ||
+      (serverData.serverName === "Contratacion digital" &&
+        serverData.backupPath === "/disco3/BK_RMAN_CONTRADIGI");
 
+    // Determinar el título para las últimas líneas
+    let last10LinesTitle;
+    if (isSpecialServer) {
+      // Para servidores RMAN, cambiar el título según el estado
+      last10LinesTitle = serverData.success === 1 ? "Estado RMAN" : "Error RMAN";
+    } else {
+      // Para servidores normales, usar la lógica original
+      last10LinesTitle = containsJob ? "Ver última línea del log" : "Advertencia:";
+    }
+    // Determinar el estilo del pre según el tipo de servidor y el estado
+    let preStyle = "background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word; overflow-y: auto;";
+    if (isSpecialServer && serverData.success === 0) {
+      // Solo aplicar estilo de error si es servidor RMAN y el estado es fallido
+      preStyle = "background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word; overflow-y: auto;";
+    }
     // Crear contenido del modal
     const modalContent = `
     <h2 style="text-align: center; font-size: 20px;">Detalles del Servidor ${serverData.serverName
@@ -1039,17 +1054,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;">
     <strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}
     </p>
-    ${serverData.serverName === "WebContent" ||
-        (serverData.serverName === "Contratacion digital" &&
-          serverData.backupPath === "/disco3/BK_RMAN_CONTRADIGI")
+    ${isSpecialServer
         ? ""
         : `
-        <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"
-        }</p>
-        <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || "No disponible"
-        }</p>
-        <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || "No disponible"
-        }</p>
+        <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"}</p>
+        <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || "No disponible"}</p>
+        <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || "No disponible"}</p>
       `
       }
     <h3 style="margin-top: 20px;">${last10LinesTitle || "No disponible"}</h3>
@@ -1597,18 +1607,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       last10LinesTitle = logIncludesJob
         ? "Ver última línea del log"
         : "Advertencia:";
-      last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
-      ${(logData.last10Lines || []).join("\n") || "No disponible"}
+      last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">${(logData.last10Lines || []).join("\n") || "No disponible"}
     </pre>`;
-    } else {
-      last10LinesTitle = "Error RMAN";
-      last10LinesContent = logData.oraError ?
-        `<pre style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
-        ${JSON.parse(logData.oraError).errorLine || logData.last10Lines || "No se encontraron detalles del error"}
-      </pre>` :
-        `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">
-        ${logData.last10Lines || "No disponible"}
-      </pre>`;
+    }else {
+      // Determinar el título basado en el estado
+      last10LinesTitle = logData.status === "Fallo" ? "Error RMAN" : "Estado RMAN";
+      
+      // Comprobar si el mensaje es "Recovery Manager complete." independientemente de dónde esté almacenado
+      const isCompletionMessage = logData.oraError && 
+        JSON.parse(logData.oraError).errorLine && 
+        JSON.parse(logData.oraError).errorLine.includes("Recovery Manager complete.");
+      
+      // Si es un mensaje de completado exitoso, usar estilo de éxito aunque esté en oraError
+      if (isCompletionMessage) {
+        last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 
+        5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">${JSON.parse(logData.oraError).errorLine}
+        </pre>`;
+      } 
+      // Si no es un mensaje de completado exitoso, seguir con la lógica normal
+      else {
+        last10LinesContent = logData.oraError ?
+          `<pre style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 
+          4px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">${JSON.parse(logData.oraError).errorLine || logData.last10Lines || "No se encontraron detalles del error"}
+          </pre>` :
+          `<pre style="${logData.status === "Fallo" ? "background-color: #f8d7da; color: #721c24;" : 
+            "background-color: #f0f0f0;"} padding: 10px; border-radius: 5px; 
+            max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">${logData.last10Lines || "No disponible"}
+          </pre>`;
+      }
     }
 
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas
@@ -1890,19 +1916,28 @@ ${last10LinesContent}
       let errorContent = '';
 
       if (isSpecialServer) {
+        // Cambiar el título de "Error RMAN" a "Estado RMAN"
+        const statusTitle = "Estado RMAN:";
+        // Obtener el mensaje correcto según el estado
+        let statusMessage;
+        if (data.status === "Fallo") {
+          // Si es fallo, mostrar el error (como ya lo hace)
+          statusMessage = (data.oraError ?
+            JSON.parse(data.oraError).errorLine :
+            data.last10Lines)?.trim() || "Error no especificado";
+        } else {
+          // Si es éxito, mostrar el mensaje de Recovery Manager complete
+          statusMessage = data.last10Lines || "Recovery Manager complete.";
+        }
+
         errorContent = `
-          <div style="${data.status === "Fallo" ?
+    <div style="${data.status === "Fallo" ?
             'background-color: #f8d7da; color: #721c24;' :
-            'background-color: #f5f5f5; color: #333333;'} 
-            padding: 10px; margin: 10px 0; border-radius: 4px;">
-            <strong>Error RMAN:</strong><br>
-            <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${(data.status === "Fallo" ?
-            (data.oraError ?
-              JSON.parse(data.oraError).errorLine :
-              data.last10Lines)?.trim() ||
-            "Error no especificado" :
-            "Sin errores").trim()}</pre>
-          </div>`;
+            'background-color: #f5f5f5; color: #333333;'}  
+      padding: 10px; margin: 10px 0; border-radius: 4px;">
+      <strong>${statusTitle}</strong><br>
+      <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${statusMessage.trim()}</pre>
+    </div>`;
       }
       else {
         // Para servidores normales
@@ -2357,7 +2392,7 @@ ${last10LinesContent}
                 null,
               backupPath: logDetail.backupPath || "N/A",
               last10Lines:
-                logDetail.logDetails?.errorMessage || "No hay errores",
+                logDetail.logDetails?.errorMessage || "Recovery Manager complete.",
               groupControlInfo: logDetail.logDetails?.errorMessage
                 ? "Ver error"
                 : "Sin errores",
