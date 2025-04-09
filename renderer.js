@@ -811,7 +811,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const isSpecialServer =
               params.data.serverName === "WebContent" ||
               (params.data.serverName === "Contratacion digital" &&
-                params.data.backupPath === "/disco3/BK_RMAN_CONTRADIGI") || (params.data.serverName === "BIOMETRIA" &&
+                params.data.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (params.data.serverName === "BIOMETRIA" &&
                   params.data.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL");
 
             // Si es un servidor especial, usamos `error_message` como contenido del botón
@@ -1015,7 +1015,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Verificar si es un servidor especial (RMAN)
     const isSpecialServer = serverData.serverName === "WebContent" ||
       (serverData.serverName === "Contratacion digital" &&
-        serverData.backupPath === "/disco3/BK_RMAN_CONTRADIGI") || (serverData.serverName === "BIOMETRIA" &&
+        serverData.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (serverData.serverName === "BIOMETRIA" &&
           serverData.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL");
 
     // Determinar el título para las últimas líneas
@@ -1595,7 +1595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const isSpecialServer =
       logData.serverName === "WebContent" ||
       (logData.serverName === "Contratacion digital" &&
-        logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI") || (logData.serverName === "BIOMETRIA" &&
+        logData.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (logData.serverName === "BIOMETRIA" &&
           logData.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL");
 
     // Determinar si se deben mostrar las últimas 10 líneas del log
@@ -1913,7 +1913,7 @@ ${last10LinesContent}
 
       const isSpecialServer = data.serverName === "WebContent" ||
         (data.serverName === "Contratacion digital" &&
-          data.backupPath === "/disco3/BK_RMAN_CONTRADIGI") || (data.serverName === "BIOMETRIA" &&
+          data.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (data.serverName === "BIOMETRIA" &&
             data.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL");
 
       let logContent = '';
@@ -2371,7 +2371,7 @@ ${last10LinesContent}
           if (
             serverResult.serverName === "WebContent" ||
             (serverResult.serverName === "Contratacion digital" &&
-              logDetail.backupPath.trim() === "/disco3/BK_RMAN_CONTRADIGI") || (serverResult.serverName === "BIOMETRIA" &&
+              logDetail.backupPath.trim() === "/disco6/BK_RMAN_CONTRADIGI") || (serverResult.serverName === "BIOMETRIA" &&
                 logDetail.backupPath.trim() === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL")
           ) {
             console.log(
@@ -2568,7 +2568,7 @@ ${last10LinesContent}
       if (
         serverName === "WebContent" ||
         (serverName === "Contratacion digital" &&
-          logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI") || (serverName === "BIOMETRIA" &&
+          logData.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (serverName === "BIOMETRIA" &&
             logData.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL")
       ) {
         const {
@@ -3720,7 +3720,7 @@ ${last10LinesContent}
             if (
               serverName === "WebContent" ||
               (serverName === "Contratacion digital" &&
-                logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI") || (serverName === "BIOMETRIA" &&
+                logData.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (serverName === "BIOMETRIA" &&
                   logData.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL")
             ) {
               // Para WebContent, solo agregamos la entrada del log
@@ -3785,7 +3785,7 @@ ${last10LinesContent}
           if (
             serverName === "WebContent" ||
             (serverName === "Contratacion digital" &&
-              logData.backupPath === "/disco3/BK_RMAN_CONTRADIGI") || (serverName === 'BIOMETRIA' && logData.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL")
+              logData.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (serverName === 'BIOMETRIA' && logData.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL")
           ) {
             // Para WebContent, solo agregamos la entrada del log
             addLogEntry({ ...logDetailsArray, ip });

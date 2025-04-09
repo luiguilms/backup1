@@ -298,7 +298,7 @@ app.whenReady().then(() => {
         };
       }
       // Si es `WebContent`, aplicar lógica específica de RMAN
-      if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && directoryPath === '/disco3/BK_RMAN_CONTRADIGI') || (serverName === 'BIOMETRIA' && directoryPath === '/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL')) {
+      if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && directoryPath === '/disco6/BK_RMAN_CONTRADIGI') || (serverName === 'BIOMETRIA' && directoryPath === '/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL')) {
         // Obtiene archivos de log en el directorio para WebContent
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
@@ -1514,7 +1514,7 @@ app.whenReady().then(() => {
                 continue;
               }
               // Lógica específica para WebContent
-              if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && backupPath === '/disco3/BK_RMAN_CONTRADIGI') || (serverName === 'BIOMETRIA' && backupPath === '/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL')) {
+              if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && backupPath === '/disco6/BK_RMAN_CONTRADIGI') || (serverName === 'BIOMETRIA' && backupPath === '/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL')) {
                 // Guardar detalles específicos de WebContent, por ejemplo:
                 results.push({
                   serverName,
