@@ -2822,6 +2822,14 @@ function extractRmanLogDetails(logContent) {
 async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
   const { fechaInicio, fechaFin, duracion, estadoBackup, rutaBackup, errorMessage, logFileName } = rmanLogDetails;
 
+  // Límite máximo de caracteres para error_message
+  const MAX_ERROR_LENGTH = 4000;
+
+  // Truncar el errorMessage si excede el tamaño máximo
+  const truncatedErrorMessage = errorMessage.length > MAX_ERROR_LENGTH
+    ? errorMessage.substring(0, MAX_ERROR_LENGTH)
+    : errorMessage;
+
   // Crear la conexión a la base de datos Oracle
   let connection;
   try {
@@ -2843,7 +2851,7 @@ async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
         duracion,
         estadoBackup,
         rutaBackup,
-        errorMessage,
+        errorMessage: truncatedErrorMessage,
         servidor,
         ip,
         logFileName,
