@@ -57,6 +57,8 @@ contextBridge.exposeInMainWorld("electron", {
   getVerificationHistory: (date) => ipcRenderer.invoke("get-verification-history", date),
   send: (channel, data) => ipcRenderer.send(channel, data),
   sendEmailWithImages: (data) => ipcRenderer.invoke('send-email-with-images', data),
+  checkNetworkerConflicts: (backupData) => 
+    ipcRenderer.invoke("check-networker-conflicts", backupData),
   // Escuchar el evento 'start-processing' del main process
   startProcessingIfScheduled: (callback) => {
     ipcRenderer.on('start-processing', () => {

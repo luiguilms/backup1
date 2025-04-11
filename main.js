@@ -2874,3 +2874,82 @@ async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
     }
   }
 }
+
+// En main.js, modifica la función check-networker-conflicts:
+ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
+  let connection;
+  const networkerConflicts = [];
+  
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    // Primero obtenemos todas las rutas y sus programaciones
+    const allRoutesResult = await connection.execute(
+      `SELECT ns.ScheduledStartTime, br.BackupPath, si.ServerName, si.IP
+       FROM NetworkerSchedule ns
+       JOIN BackupRoutes br ON ns.RouteID = br.RouteID
+       JOIN ServerInfo si ON br.ServerID = si.ID`
+    );
+    
+    console.log(`Total de rutas configuradas en NetworkerSchedule: ${allRoutesResult.rows.length}`);
+    
+    // Procesar cada elemento en backupData
+    for (const data of backupData) {
+      console.log(`Verificando conflicto para ${data.serverName} - ${data.backupPath}`);
+      
+      if (data.endTime && data.backupPath) {
+        // Encontrar la ruta principal que coincide (está contenida en la ruta completa)
+        const matchingRoute = allRoutesResult.rows.find(row => {
+          const configuredPath = row[1];
+          const configuredServer = row[2];
+          
+          // La ruta debe coincidir Y el servidor debe ser el mismo
+          return data.backupPath.includes(configuredPath) && data.serverName === configuredServer;
+        });
+        
+        if (matchingRoute) {
+          const scheduledStartTime = new Date(matchingRoute[0]);
+          const configuredPath = matchingRoute[1];
+          const serverNameFromDB = matchingRoute[2];
+          
+          console.log(`¡Coincidencia encontrada! Ruta configurada: "${configuredPath}"`);
+          console.log(`Servidor desde BD: "${serverNameFromDB}"`);
+          console.log(`Hora programada de inicio en Networker: ${scheduledStartTime.toLocaleString()}`);
+          
+          const backupEndTime = new Date(data.endTime);
+          console.log(`Hora de fin del backup (parseada): ${backupEndTime.toLocaleString()}`);
+          
+          // Verificar si hay conflicto
+          if (backupEndTime > scheduledStartTime) {
+            const minutesDifference = Math.round((backupEndTime - scheduledStartTime) / (1000 * 60));
+            console.log(`¡CONFLICTO DETECTADO! El backup termina ${minutesDifference} minutos después del inicio programado en Networker`);
+            
+            networkerConflicts.push({
+              serverName: data.serverName,
+              backupPath: data.backupPath,
+              configuredPath: configuredPath,  // Incluir la ruta configurada para referencia
+              backupEndTime: backupEndTime.toISOString(),
+              networkerStartTime: scheduledStartTime.toISOString(),
+              minutesDifference: minutesDifference
+            });
+          } else {
+            console.log(`No hay conflicto. El backup termina antes del inicio programado en Networker.`);
+          }
+        } else {
+          console.log(`No se encontró configuración de Networker para esta ruta.`);
+        }
+      } else {
+        console.log(`Saltando verificación: falta hora de fin (${data.endTime}) o ruta de backup (${data.backupPath})`);
+      }
+    }
+    
+    return { success: true, conflicts: networkerConflicts };
+  } catch (err) {
+    console.error("Error al verificar conflictos con Networker:", err);
+    return { success: false, error: err.message, conflicts: [] };
+  } finally {
+    if (connection) {
+      try { await connection.close(); } catch (err) { console.error(err); }
+    }
+  }
+});

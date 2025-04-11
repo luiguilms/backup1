@@ -1612,28 +1612,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         : "Advertencia:";
       last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">${(logData.last10Lines || []).join("\n") || "No disponible"}
     </pre>`;
-    }else {
+    } else {
       // Determinar el título basado en el estado
       last10LinesTitle = logData.status === "Fallo" ? "Error RMAN" : "Estado RMAN";
-      
+
       // Comprobar si el mensaje es "Recovery Manager complete." independientemente de dónde esté almacenado
-      const isCompletionMessage = logData.oraError && 
-        JSON.parse(logData.oraError).errorLine && 
+      const isCompletionMessage = logData.oraError &&
+        JSON.parse(logData.oraError).errorLine &&
         JSON.parse(logData.oraError).errorLine.includes("Recovery Manager complete.");
-      
+
       // Si es un mensaje de completado exitoso, usar estilo de éxito aunque esté en oraError
       if (isCompletionMessage) {
         last10LinesContent = `<pre style="background-color: #f0f0f0; padding: 10px; border-radius: 
         5px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">${JSON.parse(logData.oraError).errorLine}
         </pre>`;
-      } 
+      }
       // Si no es un mensaje de completado exitoso, seguir con la lógica normal
       else {
         last10LinesContent = logData.oraError ?
           `<pre style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 
           4px; max-height: 200px; white-space: pre-wrap; word-wrap: break-word;">${JSON.parse(logData.oraError).errorLine || logData.last10Lines || "No se encontraron detalles del error"}
           </pre>` :
-          `<pre style="${logData.status === "Fallo" ? "background-color: #f8d7da; color: #721c24;" : 
+          `<pre style="${logData.status === "Fallo" ? "background-color: #f8d7da; color: #721c24;" :
             "background-color: #f0f0f0;"} padding: 10px; border-radius: 5px; 
             max-height: 200px; white-space: pre-wrap; word-wrap: break-word; overflow-y: auto;">${logData.last10Lines || "No disponible"}
           </pre>`;
@@ -1799,6 +1799,45 @@ ${last10LinesContent}
 
     const failedServers = rowData.filter(data => data.status === "Fallo");
     const successServers = rowData.filter(data => data.status !== "Fallo");
+
+    // *** NUEVO CÓDIGO: Verificar conflictos con Networker ***
+  console.log("Iniciando verificación de conflictos con Networker...");
+  console.log(`Procesando ${rowData.length} rutas de backup para verificar conflictos`);
+  
+  let networkerResult = { conflicts: [] };
+  try {
+    // Llamar a la función del backend para verificar conflictos
+    networkerResult = await window.electron.checkNetworkerConflicts(rowData);
+    console.log(`Resultado de verificación:`, networkerResult);
+  } catch (error) {
+    console.error('Error al verificar conflictos con Networker:', error);
+  }
+  
+  const networkerConflicts = networkerResult.conflicts || [];
+  console.log(`Se encontraron ${networkerConflicts.length} conflictos con Networker`);
+  
+  // Generar contenido HTML para conflictos de Networker
+  let networkerConflictsContent = "";
+  if (networkerConflicts.length > 0) {
+    console.log("Generando contenido HTML para conflictos con Networker...");
+    networkerConflictsContent = `
+  <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #f5c6cb;">
+    <h3 style="margin-top: 0; color: #721c24;">⚠️ Conflictos con programación de Networker</h3>
+    <p>Se detectaron ${networkerConflicts.length} conflicto(s) entre el fin del backup y el inicio del respaldo en Networker:</p>
+    <ul style="margin-bottom: 0;">
+      ${networkerConflicts.map(conflict => `
+        <li><strong>${conflict.serverName}</strong>
+          <br><span style="color: #721c24">Ruta completa: ${conflict.backupPath}</span>
+          <br><span style="color: #721c24">Ruta configurada: ${conflict.configuredPath}</span>
+          <br><span style="color: #721c24">Hora de fin del backup: ${new Date(conflict.backupEndTime).toLocaleString()}</span>
+          <br><span style="color: #721c24">Hora de inicio en Networker: ${new Date(conflict.networkerStartTime).toLocaleString()}</span>
+          <br><span style="color: #721c24">El backup termina ${conflict.minutesDifference} minutos después de iniciarse Networker</span>
+        </li>`).join('')}
+    </ul>
+  </div>
+`;
+  }
+
     // *** NUEVO CÓDIGO: Detectar backups antiguos ***
     const outdatedBackups = [];
     const currentDate = new Date();
@@ -2014,6 +2053,7 @@ ${last10LinesContent}
                 ${summaryContent}
                 ${pendingContent}
                 ${outdatedContent}
+                ${networkerConflictsContent}
                 ${emailContent}
             </div>
         `,
