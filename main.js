@@ -2883,13 +2883,45 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     
-    // Primero obtenemos todas las rutas y sus programaciones
-    const allRoutesResult = await connection.execute(
-      `SELECT ns.ScheduledStartTime, br.BackupPath, si.ServerName, si.IP
-       FROM NetworkerSchedule ns
-       JOIN BackupRoutes br ON ns.RouteID = br.RouteID
-       JOIN ServerInfo si ON br.ServerID = si.ID`
-    );
+    // Verificar si es el primer día del mes
+    const today = new Date();
+    const isFirstDayOfMonth = today.getDate() === 1;
+    //const isFirstDayOfMonth = true; // Forzar modo "primer día del mes" para pruebas
+    console.log(`Es el primer día del mes: ${isFirstDayOfMonth}`);
+    
+    // Consulta SQL para obtener las programaciones según el día del mes
+    let query;
+    if (isFirstDayOfMonth) {
+      // El primer día del mes, solo obtenemos las programaciones mensuales
+      query = `
+        SELECT 
+          ns.ScheduledMonthlyStartTime, 
+          ns.MonthlyEncryptedTime,
+          br.BackupPath, 
+          si.ServerName, 
+          si.IP
+        FROM NetworkerSchedule ns
+        JOIN BackupRoutes br ON ns.RouteID = br.RouteID
+        JOIN ServerInfo si ON br.ServerID = si.ID
+        WHERE ns.ScheduledMonthlyStartTime IS NOT NULL OR ns.MonthlyEncryptedTime IS NOT NULL`;
+    } else {
+      // Resto de días, solo obtenemos la programación diaria
+      query = `
+        SELECT 
+          ns.ScheduledStartTime,
+          NULL AS dummy1,
+          NULL AS dummy2,
+          br.BackupPath, 
+          si.ServerName, 
+          si.IP
+        FROM NetworkerSchedule ns
+        JOIN BackupRoutes br ON ns.RouteID = br.RouteID
+        JOIN ServerInfo si ON br.ServerID = si.ID
+        WHERE ns.ScheduledStartTime IS NOT NULL`;
+    }
+    
+    // Obtenemos todas las rutas y sus programaciones
+    const allRoutesResult = await connection.execute(query);
     
     console.log(`Total de rutas configuradas en NetworkerSchedule: ${allRoutesResult.rows.length}`);
     
@@ -2900,40 +2932,87 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
       if (data.endTime && data.backupPath) {
         // Encontrar la ruta principal que coincide (está contenida en la ruta completa)
         const matchingRoute = allRoutesResult.rows.find(row => {
-          const configuredPath = row[1];
-          const configuredServer = row[2];
+          const configuredPath = row[3]; // Índice del BackupPath
+          const configuredServer = row[4]; // Índice del ServerName
           
           // La ruta debe coincidir Y el servidor debe ser el mismo
           return data.backupPath.includes(configuredPath) && data.serverName === configuredServer;
         });
         
         if (matchingRoute) {
-          const scheduledStartTime = new Date(matchingRoute[0]);
-          const configuredPath = matchingRoute[1];
-          const serverNameFromDB = matchingRoute[2];
+          const configuredPath = matchingRoute[3];
+          const serverNameFromDB = matchingRoute[4];
+          const backupEndTime = new Date(data.endTime);
           
           console.log(`¡Coincidencia encontrada! Ruta configurada: "${configuredPath}"`);
           console.log(`Servidor desde BD: "${serverNameFromDB}"`);
-          console.log(`Hora programada de inicio en Networker: ${scheduledStartTime.toLocaleString()}`);
-          
-          const backupEndTime = new Date(data.endTime);
           console.log(`Hora de fin del backup (parseada): ${backupEndTime.toLocaleString()}`);
           
-          // Verificar si hay conflicto
-          if (backupEndTime > scheduledStartTime) {
-            const minutesDifference = Math.round((backupEndTime - scheduledStartTime) / (1000 * 60));
-            console.log(`¡CONFLICTO DETECTADO! El backup termina ${minutesDifference} minutos después del inicio programado en Networker`);
+          if (isFirstDayOfMonth) {
+            // En el primer día del mes, verificamos conflictos con programaciones mensuales
             
-            networkerConflicts.push({
-              serverName: data.serverName,
-              backupPath: data.backupPath,
-              configuredPath: configuredPath,  // Incluir la ruta configurada para referencia
-              backupEndTime: backupEndTime.toISOString(),
-              networkerStartTime: scheduledStartTime.toISOString(),
-              minutesDifference: minutesDifference
-            });
+            // Verificar conflicto con programación mensual (si existe)
+            if (matchingRoute[0]) { // ScheduledMonthlyStartTime
+              const scheduledMonthlyStartTime = new Date(matchingRoute[0]);
+              console.log(`Hora programada de inicio mensual en Networker: ${scheduledMonthlyStartTime.toLocaleString()}`);
+              
+              if (backupEndTime > scheduledMonthlyStartTime) {
+                const monthlyMinutesDifference = Math.round((backupEndTime - scheduledMonthlyStartTime) / (1000 * 60));
+                console.log(`¡CONFLICTO MENSUAL DETECTADO! El backup termina ${monthlyMinutesDifference} minutos después del inicio programado mensual en Networker`);
+                
+                networkerConflicts.push({
+                  serverName: data.serverName,
+                  backupPath: data.backupPath,
+                  configuredPath: configuredPath,
+                  backupEndTime: backupEndTime.toISOString(),
+                  networkerStartTime: scheduledMonthlyStartTime.toISOString(),
+                  minutesDifference: monthlyMinutesDifference,
+                  conflictType: "Mensual"
+                });
+              }
+            }
+            
+            // Verificar conflicto con encriptación mensual (si existe)
+            if (matchingRoute[1]) { // MonthlyEncryptedTime
+              const monthlyEncryptedTime = new Date(matchingRoute[1]);
+              console.log(`Hora programada de encriptación mensual en Networker: ${monthlyEncryptedTime.toLocaleString()}`);
+              
+              if (backupEndTime > monthlyEncryptedTime) {
+                const encryptedMinutesDifference = Math.round((backupEndTime - monthlyEncryptedTime) / (1000 * 60));
+                console.log(`¡CONFLICTO DE ENCRIPTACIÓN DETECTADO! El backup termina ${encryptedMinutesDifference} minutos después del inicio programado de encriptación en Networker`);
+                
+                networkerConflicts.push({
+                  serverName: data.serverName,
+                  backupPath: data.backupPath,
+                  configuredPath: configuredPath,
+                  backupEndTime: backupEndTime.toISOString(),
+                  networkerStartTime: monthlyEncryptedTime.toISOString(),
+                  minutesDifference: encryptedMinutesDifference,
+                  conflictType: "Encriptación Mensual"
+                });
+              }
+            }
           } else {
-            console.log(`No hay conflicto. El backup termina antes del inicio programado en Networker.`);
+            // Resto de días del mes, solo verificamos conflictos con programación diaria
+            if (matchingRoute[0]) { // ScheduledStartTime
+              const scheduledStartTime = new Date(matchingRoute[0]);
+              console.log(`Hora programada de inicio diario en Networker: ${scheduledStartTime.toLocaleString()}`);
+              
+              if (backupEndTime > scheduledStartTime) {
+                const minutesDifference = Math.round((backupEndTime - scheduledStartTime) / (1000 * 60));
+                console.log(`¡CONFLICTO DIARIO DETECTADO! El backup termina ${minutesDifference} minutos después del inicio programado diario en Networker`);
+                
+                networkerConflicts.push({
+                  serverName: data.serverName,
+                  backupPath: data.backupPath,
+                  configuredPath: configuredPath,
+                  backupEndTime: backupEndTime.toISOString(),
+                  networkerStartTime: scheduledStartTime.toISOString(),
+                  minutesDifference: minutesDifference,
+                  conflictType: "Diario"
+                });
+              }
+            }
           }
         } else {
           console.log(`No se encontró configuración de Networker para esta ruta.`);

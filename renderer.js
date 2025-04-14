@@ -1818,25 +1818,45 @@ ${last10LinesContent}
   
   // Generar contenido HTML para conflictos de Networker
   let networkerConflictsContent = "";
-  if (networkerConflicts.length > 0) {
-    console.log("Generando contenido HTML para conflictos con Networker...");
-    networkerConflictsContent = `
+if (networkerConflicts.length > 0) {
+  console.log("Generando contenido HTML para conflictos con Networker...");
+  
+  // Agrupar conflictos por tipo
+  const dailyConflicts = networkerConflicts.filter(c => c.conflictType === "Diario");
+  const monthlyConflicts = networkerConflicts.filter(c => c.conflictType === "Mensual");
+  const encryptedConflicts = networkerConflicts.filter(c => c.conflictType === "Encriptación Mensual");
+  
+  // Función para generar HTML para un tipo de conflicto
+  const generateConflictHTML = (conflicts, title, borderColor) => {
+    if (conflicts.length === 0) return '';
+    
+    return `
+    <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 2px solid ${borderColor};">
+      <h4 style="margin-top: 0; color: #721c24;">${title} (${conflicts.length})</h4>
+      <ul style="margin-bottom: 0;">
+        ${conflicts.map(conflict => `
+          <li><strong>${conflict.serverName}</strong>
+            <br><span style="color: #721c24">Ruta completa: ${conflict.backupPath}</span>
+            <br><span style="color: #721c24">Ruta configurada: ${conflict.configuredPath}</span>
+            <br><span style="color: #721c24">Hora de fin del backup: ${new Date(conflict.backupEndTime).toLocaleString()}</span>
+            <br><span style="color: #721c24">Hora programada en Networker: ${new Date(conflict.networkerStartTime).toLocaleString()}</span>
+            <br><span style="color: #721c24">El backup termina ${conflict.minutesDifference} minutos después de iniciarse Networker</span>
+          </li>`).join('')}
+      </ul>
+    </div>`;
+  };
+
+  networkerConflictsContent = `
   <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #f5c6cb;">
     <h3 style="margin-top: 0; color: #721c24;">⚠️ Conflictos con programación de Networker</h3>
     <p>Se detectaron ${networkerConflicts.length} conflicto(s) entre el fin del backup y el inicio del respaldo en Networker:</p>
-    <ul style="margin-bottom: 0;">
-      ${networkerConflicts.map(conflict => `
-        <li><strong>${conflict.serverName}</strong>
-          <br><span style="color: #721c24">Ruta completa: ${conflict.backupPath}</span>
-          <br><span style="color: #721c24">Ruta configurada: ${conflict.configuredPath}</span>
-          <br><span style="color: #721c24">Hora de fin del backup: ${new Date(conflict.backupEndTime).toLocaleString()}</span>
-          <br><span style="color: #721c24">Hora de inicio en Networker: ${new Date(conflict.networkerStartTime).toLocaleString()}</span>
-          <br><span style="color: #721c24">El backup termina ${conflict.minutesDifference} minutos después de iniciarse Networker</span>
-        </li>`).join('')}
-    </ul>
+    
+    ${generateConflictHTML(dailyConflicts, "Conflictos con respaldo diario", "#dc3545")}
+    ${generateConflictHTML(monthlyConflicts, "Conflictos con respaldo mensual", "#fd7e14")}
+    ${generateConflictHTML(encryptedConflicts, "Conflictos con encriptación mensual", "#6f42c1")}
   </div>
 `;
-  }
+}
 
     // *** NUEVO CÓDIGO: Detectar backups antiguos ***
     const outdatedBackups = [];
