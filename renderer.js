@@ -2054,7 +2054,7 @@ if (networkerConflicts.length > 0) {
                 <p style="word-break: break-all;"><strong>Ruta del backup:</strong> ${data.backupPath || "N/A"}</p>
                 <p>
  <strong style="background-color:rgb(192, 255, 206); padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
-   Máximo Grupo: <span style="color:rgb(4, 102, 48);">${data.groupNumber || "N/A"}</span>
+   Máximo Grupo: <span style="color:rgb(4, 102, 48);">${data.groupNumber || "1"}</span>
  </strong>
  </p>
             </div>
@@ -2217,7 +2217,7 @@ if (networkerConflicts.length > 0) {
           filter: true, // Permitir filtrar
           minWidth: 100, // Ancho mínimo de la columna
           cellRenderer: (params) => {
-            return `<span>${params.value || "N/A"}</span>`; // Mostrar el valor o 'N/A' si está vacío
+            return `<span>${params.value || "1"}</span>`; // Mostrar el valor o 'N/A' si está vacío
           },
         },
         {
@@ -2483,7 +2483,7 @@ if (networkerConflicts.length > 0) {
             last10Lines: displayedLines || "N/A",
             groupControlInfo: groupControlInfo || "N/A",
             hasWarning: logInfo.hasWarning || "N/A",
-            groupNumber: logDetail.logDetails?.groupNumber || "N/A" // Agregar esta línea
+            groupNumber: logDetail.logDetails?.groupNumber || "1" // Agregar esta línea
           };
         };
         if (Array.isArray(serverResult.logDetails)) {
