@@ -9,17 +9,17 @@ const ExcelJS = require("exceljs");
 ipcMain.handle("export-to-excel", async (event, data) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Backup Report");
-  
+
   // Configurar las columnas con ancho más adecuado
   worksheet.columns = data.columns.map((col) => ({
     header: col,
     key: col,
     width: 20, // Ancho más amplio para mejor visualización
   }));
-  
+
   // Agregar filas
   worksheet.addRows(data.rows);
-  
+
   // Determinar el rango total de la tabla
   const totalRows = data.rows.length + 1; // +1 por la fila de encabezado
   const totalCols = data.columns.length;
@@ -29,10 +29,10 @@ ipcMain.handle("export-to-excel", async (event, data) => {
   const startCol = 'A';
   const endCol = String.fromCharCode('A'.charCodeAt(0) + totalCols - 1);
   const filterRange = `${startCol}1:${endCol}${totalRows}`;
-  
+
   // Aplicar autoFilter al rango de la tabla
   worksheet.autoFilter = filterRange;
-  
+
   // Dar formato a la fila de encabezados
   const headerRow = worksheet.getRow(1);
   headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -42,17 +42,17 @@ ipcMain.handle("export-to-excel", async (event, data) => {
     fgColor: { argb: 'FF4472C4' } // Azul de Excel
   };
   headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-  
+
   // Aplicar bordes a toda la tabla
   for (let i = 1; i <= totalRows; i++) {
     const row = worksheet.getRow(i);
-    
+
     // Establecer altura de la fila
     row.height = 25;
-    
+
     for (let j = 1; j <= totalCols; j++) {
       const cell = row.getCell(j);
-      
+
       // Aplicar bordes a todas las celdas
       cell.border = {
         top: { style: 'thin' },
@@ -60,14 +60,14 @@ ipcMain.handle("export-to-excel", async (event, data) => {
         bottom: { style: 'thin' },
         right: { style: 'thin' }
       };
-      
+
       // Centrar verticalmente todo el contenido
       cell.alignment = {
         vertical: 'middle',
         horizontal: i === 1 ? 'center' : 'left', // Centrar solo los encabezados
         wrapText: true
       };
-      
+
       // Aplicar color de fondo a filas alternas para mejor legibilidad
       if (i > 1 && i % 2 === 0) {
         cell.fill = {
@@ -78,30 +78,30 @@ ipcMain.handle("export-to-excel", async (event, data) => {
       }
     }
   }
-  
+
   // Buscar el índice de la columna 'Estado' o 'success'
   const successColumnIndex = data.columns.findIndex(
     col => col === 'Estado' || col === 'Éxito?' || col === 'Success'
   );
-  
+
   if (successColumnIndex !== -1) {
     // Agregar comentario en el encabezado
     const headerCell = worksheet.getRow(1).getCell(successColumnIndex + 1);
     headerCell.note = {
       texts: [
-        {'font': {'bold': true}, 'text': 'Leyenda:\n'},
-        {'text': '1 = Éxito\n0 = Fallo'}
+        { 'font': { 'bold': true }, 'text': 'Leyenda:\n' },
+        { 'text': '1 = Éxito\n0 = Fallo' }
       ]
     };
-    
+
     // Aplicar formato condicional a las celdas de datos de la columna estado
     for (let i = 2; i <= totalRows; i++) {
       const cell = worksheet.getRow(i).getCell(successColumnIndex + 1);
       const cellValue = cell.value ? cell.value.toString() : "";
-      
+
       // Centrar el texto de éxito/fallo
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      
+
       if (cellValue === "Éxito") {
         cell.fill = {
           type: 'pattern',
@@ -119,12 +119,12 @@ ipcMain.handle("export-to-excel", async (event, data) => {
       }
     }
   }
-  
+
   // Congelar la fila de encabezados para que permanezca visible al desplazarse
   worksheet.views = [
     { state: 'frozen', xSplit: 0, ySplit: 1, activeCell: 'A2' }
   ];
-  
+
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer;
 });
@@ -405,8 +405,8 @@ app.whenReady().then(() => {
         console.log("Subdirectorios encontrados:", directories.map(dir => dir.filename));
 
         const isBackupComplete = directories.length >= 7; // Considerado completo si hay 7 o más carpetas
-        if (targetOS === "solaris") {
-          // Solo para Solaris, verificar el backup incompleto
+        if (targetOS === "linux") {
+          // Solo para linux, verificar el backup incompleto
           const isBackupComplete = directories.length >= 7; // Considerado completo si hay 7 o más carpetas
           if (!isBackupComplete) {
             // Solo activar si hay menos de 7 carpetas
@@ -418,7 +418,20 @@ app.whenReady().then(() => {
         }
         const isBackupVoid = directories.length === 0;
         if (isBackupVoid) {
-          // Agregamos una propiedad para indicar backup incompleto
+          // No marcar como vacía si es el servidor BANTOTAL
+          if (serverName === "Bantotal") {
+            console.log(`Ignorando alerta de carpeta vacía para BANTOTAL: ${directoryPath}`);
+            conn.end();
+            return {
+              backupVoid: false, // No marcamos como vacía aunque lo esté
+              backupPath: directoryPath,
+              ip,
+              serverName,
+              skippedEmptyCheck: true // Indicador de que se omitió la verificación
+            };
+          }
+
+          // Para el resto de servidores, continuar con la lógica normal
           conn.end();
           return {
             backupVoid: true,
@@ -1571,14 +1584,20 @@ app.whenReady().then(() => {
               }
               // Verificar si el backup o alguna subcarpeta está vacía
               if (logDetails && logDetails.backupVoid) {
-                results.push({
-                  serverName,
-                  ip,
-                  backupPath,
-                  warning: `${ip} La carpeta principal ${backupPath} está vacía en el servidor ${serverName}.`,
-                  logDetails: logDetails,
-                });
-                continue;
+                // No agregar advertencia si es BANTOTAL
+                if (serverName !== "Bantotal") {
+                  results.push({
+                    serverName,
+                    ip,
+                    backupPath,
+                    warning: `${ip} La carpeta principal ${backupPath} está vacía en el servidor ${serverName}.`,
+                    logDetails: logDetails,
+                  });
+                  continue;
+                } else {
+                  console.log(`Omitiendo alerta de carpeta vacía para BANTOTAL: ${backupPath}`);
+                  // No hacemos continue aquí para permitir que siga el flujo normal
+                }
               }
               // Extraer mensaje de error ORA si existe
 
@@ -2359,7 +2378,7 @@ async function sendCombinedAlerts() {
 
     const mailOptions = {
       from: 'igs_llupacca@cajaarequipa.pe',
-      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
+      to: 'igs_llupacca@cajaarequipa.pe',
       subject: `Alertas de espacio en servidores (${pendingAlerts.length} alertas)`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
@@ -2879,16 +2898,16 @@ async function saveRmanLogToDatabase(rmanLogDetails, servidor, ip) {
 ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
   let connection;
   const networkerConflicts = [];
-  
+
   try {
     connection = await oracledb.getConnection(dbConfig);
-    
+
     // Verificar si es el primer día del mes
     const today = new Date();
     const isFirstDayOfMonth = today.getDate() === 1;
     //const isFirstDayOfMonth = true; // Forzar modo "primer día del mes" para pruebas
     console.log(`Es el primer día del mes: ${isFirstDayOfMonth}`);
-    
+
     // Consulta SQL para obtener las programaciones según el día del mes
     let query;
     if (isFirstDayOfMonth) {
@@ -2919,47 +2938,47 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
         JOIN ServerInfo si ON br.ServerID = si.ID
         WHERE ns.ScheduledStartTime IS NOT NULL`;
     }
-    
+
     // Obtenemos todas las rutas y sus programaciones
     const allRoutesResult = await connection.execute(query);
-    
+
     console.log(`Total de rutas configuradas en NetworkerSchedule: ${allRoutesResult.rows.length}`);
-    
+
     // Procesar cada elemento en backupData
     for (const data of backupData) {
       console.log(`Verificando conflicto para ${data.serverName} - ${data.backupPath}`);
-      
+
       if (data.endTime && data.backupPath) {
         // Encontrar la ruta principal que coincide (está contenida en la ruta completa)
         const matchingRoute = allRoutesResult.rows.find(row => {
           const configuredPath = row[3]; // Índice del BackupPath
           const configuredServer = row[4]; // Índice del ServerName
-          
+
           // La ruta debe coincidir Y el servidor debe ser el mismo
           return data.backupPath.includes(configuredPath) && data.serverName === configuredServer;
         });
-        
+
         if (matchingRoute) {
           const configuredPath = matchingRoute[3];
           const serverNameFromDB = matchingRoute[4];
           const backupEndTime = new Date(data.endTime);
-          
+
           console.log(`¡Coincidencia encontrada! Ruta configurada: "${configuredPath}"`);
           console.log(`Servidor desde BD: "${serverNameFromDB}"`);
           console.log(`Hora de fin del backup (parseada): ${backupEndTime.toLocaleString()}`);
-          
+
           if (isFirstDayOfMonth) {
             // En el primer día del mes, verificamos conflictos con programaciones mensuales
-            
+
             // Verificar conflicto con programación mensual (si existe)
             if (matchingRoute[0]) { // ScheduledMonthlyStartTime
               const scheduledMonthlyStartTime = new Date(matchingRoute[0]);
               console.log(`Hora programada de inicio mensual en Networker: ${scheduledMonthlyStartTime.toLocaleString()}`);
-              
+
               if (backupEndTime > scheduledMonthlyStartTime) {
                 const monthlyMinutesDifference = Math.round((backupEndTime - scheduledMonthlyStartTime) / (1000 * 60));
                 console.log(`¡CONFLICTO MENSUAL DETECTADO! El backup termina ${monthlyMinutesDifference} minutos después del inicio programado mensual en Networker`);
-                
+
                 networkerConflicts.push({
                   serverName: data.serverName,
                   backupPath: data.backupPath,
@@ -2971,16 +2990,16 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
                 });
               }
             }
-            
+
             // Verificar conflicto con encriptación mensual (si existe)
             if (matchingRoute[1]) { // MonthlyEncryptedTime
               const monthlyEncryptedTime = new Date(matchingRoute[1]);
               console.log(`Hora programada de encriptación mensual en Networker: ${monthlyEncryptedTime.toLocaleString()}`);
-              
+
               if (backupEndTime > monthlyEncryptedTime) {
                 const encryptedMinutesDifference = Math.round((backupEndTime - monthlyEncryptedTime) / (1000 * 60));
                 console.log(`¡CONFLICTO DE ENCRIPTACIÓN DETECTADO! El backup termina ${encryptedMinutesDifference} minutos después del inicio programado de encriptación en Networker`);
-                
+
                 networkerConflicts.push({
                   serverName: data.serverName,
                   backupPath: data.backupPath,
@@ -2997,11 +3016,11 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
             if (matchingRoute[0]) { // ScheduledStartTime
               const scheduledStartTime = new Date(matchingRoute[0]);
               console.log(`Hora programada de inicio diario en Networker: ${scheduledStartTime.toLocaleString()}`);
-              
+
               if (backupEndTime > scheduledStartTime) {
                 const minutesDifference = Math.round((backupEndTime - scheduledStartTime) / (1000 * 60));
                 console.log(`¡CONFLICTO DIARIO DETECTADO! El backup termina ${minutesDifference} minutos después del inicio programado diario en Networker`);
-                
+
                 networkerConflicts.push({
                   serverName: data.serverName,
                   backupPath: data.backupPath,
@@ -3021,7 +3040,7 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
         console.log(`Saltando verificación: falta hora de fin (${data.endTime}) o ruta de backup (${data.backupPath})`);
       }
     }
-    
+
     return { success: true, conflicts: networkerConflicts };
   } catch (err) {
     console.error("Error al verificar conflictos con Networker:", err);

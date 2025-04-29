@@ -2064,12 +2064,25 @@ if (networkerConflicts.length > 0) {
         </div>`;
     }).join('');
 
+    // Calcular el total de backups monitoreados
+  const totalBackups = rowData.length;
+  
+  // Crear una línea simple con el total
+  const totalBackupsInfo = `
+    <div style="background-color: #f8f9fa; padding: 10px; margin-bottom: 20px; border-radius: 5px; text-align: center; border: 1px solid #dee2e6;">
+        <p style="font-size: 16px; margin: 0;">
+            <strong>Total de backups monitoreados:</strong> ${totalBackups}
+        </p>
+    </div>
+  `;
+
     const emailData = {
       html: `
             <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
                 <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
                     Reporte Detallado de Estado de Backups
                 </h1>
+                ${totalBackupsInfo}
                 ${summaryContent}
                 ${pendingContent}
                 ${outdatedContent}
@@ -2381,19 +2394,31 @@ if (networkerConflicts.length > 0) {
         const processLogDetail = (logDetail) => {
           // Verificar si el logDetail indica carpeta vacía
           if (logDetail.backupVoid) {
-            showErrorModal(
-              "Carpeta Vacía Detectada",
-              `${serverResult.ip} La carpeta en la ruta ${logDetail.backupPath} está vacía. \n Servidor: ${serverResult.serverName}`,
-              serverResult.serverName,
-              serverResult.ip
-            );
-            return null; // No añadir al grid
+            // No mostrar modal si es BANTOTAL
+            if (serverResult.serverName !== "Bantotal") {
+              showErrorModal(
+                "Carpeta Vacía Detectada",
+                `${serverResult.ip} La carpeta en la ruta ${logDetail.backupPath} está vacía. \n Servidor: ${serverResult.serverName}`,
+                serverResult.serverName,
+                serverResult.ip
+              );
+              return null; // No añadir al grid
+            } else {
+              console.log(`Omitiendo modal de carpeta vacía para BANTOTAL: ${logDetail.backupPath}`);
+              return null; // No añadir al grid
+            }
           }
 
           if (!logDetail || !logDetail.logFileName) {
+            // Si es Bantotal, simplemente retornamos null sin mostrar el modal
+            if (serverResult.serverName === "Bantotal") {
+              console.log(`Omitiendo alerta de log no encontrado para BANTOTAL: ${logDetail?.backupPath || 'ruta desconocida'}`);
+              return null;
+            }
+            
+            // Para los demás servidores, mostramos el modal como antes
             showErrorModal(
-              `No se encontró archivo de log para el servidor: ${serverResult.serverName || "Desconocido"
-              }`,
+              `No se encontró archivo de log para el servidor: ${serverResult.serverName || "Desconocido"}`,
               serverResult.ip || "IP desconocida"
             );
             return null;
