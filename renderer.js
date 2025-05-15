@@ -1360,6 +1360,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.getElementById("password").value = (
               serverData.password || ""
             ).replace(/^"|"$/g, "");
+            // Aquí asignamos el valor de db_engine en el formulario
+            document.getElementById("db_engine").value = serverData.db_engine || "oracle"; // Asumimos "oracle" si no hay valor 
             console.log("Formulario actualizado con los datos del servidor.");
           } else {
             console.error("No se pudieron cargar los detalles del servidor.");
@@ -1386,6 +1388,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           port: document.getElementById("port").value,
           username: document.getElementById("username").value,
           password: document.getElementById("password").value,
+          dbEngine: document.getElementById("db_engine").value,
         };
 
         console.log("Editando servidor:", serverData);
@@ -1419,6 +1422,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           port: document.getElementById("port").value,
           username: document.getElementById("username").value,
           password: document.getElementById("password").value,
+          dbEngine: document.getElementById("db_engine").value,
         };
 
         try {

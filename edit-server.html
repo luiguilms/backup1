@@ -46,6 +46,15 @@
         <i class="far fa-eye toggle-password" id="togglePassword"></i>
       </div>
     </div>
+    <!-- Nueva sección para seleccionar la base de datos -->
+    <div class="form-group">
+      <label for="db_engine">Tipo de Base de Datos:</label>
+      <select id="db_engine" name="db_engine" required>
+        <option value="oracle">Oracle</option>
+        <option value="postgresql">PostgreSQL</option>
+        <option value="sqlserver">SQL Server</option>
+      </select>
+    </div>
     <button type="submit">Guardar Cambios</button>
   </form>
   <div id="success-message" style="display: none; color: green">

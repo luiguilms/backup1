@@ -957,7 +957,8 @@ app.whenReady().then(() => {
     port,
     encryptedUser,
     encryptedPassword,
-    serverName
+    serverName,
+    dbEngine
   ) {
     let connection;
     try {
@@ -968,8 +969,8 @@ app.whenReady().then(() => {
       });
       // Insertar datos en la base de datos, incluyendo un ID definido
       const result = await connection.execute(
-        `INSERT INTO ServerInfo (IP, OS_Type, Port, EncryptedUser, EncryptedPassword, ServerName)
-       VALUES (:ip, :osType, :port, :encryptedUser, :encryptedPassword, :serverName)`,
+        `INSERT INTO ServerInfo (IP, OS_Type, Port, EncryptedUser, EncryptedPassword, ServerName, db_engine)
+       VALUES (:ip, :osType, :port, :encryptedUser, :encryptedPassword, :serverName, :dbEngine)`,
         {
           ip: ip,
           osType: osType,
@@ -977,6 +978,7 @@ app.whenReady().then(() => {
           encryptedUser: Buffer.from(JSON.stringify(encryptedUser)),
           encryptedPassword: Buffer.from(JSON.stringify(encryptedPassword)),
           serverName: serverName,
+          dbEngine: dbEngine
         },
         { autoCommit: true }
       );
@@ -996,7 +998,7 @@ app.whenReady().then(() => {
   }
   // Modificación en el manejo del IPC para agregar un servidor con ID
   ipcMain.handle("add-server", async (event, serverData) => {
-    const { serverName, ip, os, port, username, password } = serverData;
+    const { serverName, ip, os, port, username, password, dbEngine } = serverData;
     try {
       console.log(`Agregando servidor: ${serverName}, IP: ${ip}, OS: ${os}`);
       const encryptedUser = encrypt(username);
@@ -1008,7 +1010,8 @@ app.whenReady().then(() => {
         port,
         encryptedUser,
         encryptedPassword,
-        serverName
+        serverName,
+        dbEngine
       );
       return { success: true };
     } catch (error) {
@@ -1292,7 +1295,7 @@ app.whenReady().then(() => {
     }
   );
   // Función para actualizar servidor en la base de datos
-  async function updateServerInfo(id, name, ip, os, port, username, password) {
+  async function updateServerInfo(id, name, ip, os, port, username, password, dbEngine) {
     let connection;
     try {
       connection = await oracledb.getConnection({
@@ -1303,7 +1306,7 @@ app.whenReady().then(() => {
       // Actualizar datos del servidor
       const result = await connection.execute(
         `UPDATE ServerInfo 
-       SET ServerName = :name, IP = :ip, OS_Type = :os, Port = :port, EncryptedUser = :username, EncryptedPassword = :password
+       SET ServerName = :name, IP = :ip, OS_Type = :os, Port = :port, EncryptedUser = :username, EncryptedPassword = :password, db_engine = :dbEngine
        WHERE ID = :id`,
         {
           id: id,
@@ -1313,6 +1316,7 @@ app.whenReady().then(() => {
           port: port,
           username: Buffer.from(JSON.stringify(username)), // Encripta el usuario
           password: Buffer.from(JSON.stringify(password)), // Encripta la contraseña
+          dbEngine: dbEngine
         },
         { autoCommit: true }
       );
@@ -1333,7 +1337,7 @@ app.whenReady().then(() => {
   }
   // En el manejador para actualizar el servidor
   ipcMain.handle("update-server", async (event, serverData) => {
-    const { id, serverName, ip, os, port, username, password } = serverData;
+    const { id, serverName, ip, os, port, username, password, dbEngine } = serverData;
     try {
       console.log(`Actualizando servidor: ${serverName}, IP: ${ip}, OS: ${os}`);
       // Eliminar comillas innecesarias en el username y password antes de encriptarlos
@@ -1348,7 +1352,8 @@ app.whenReady().then(() => {
         os,
         port,
         encryptedUser,
-        encryptedPassword
+        encryptedPassword,
+        dbEngine
       );
       console.log("Servidor actualizado correctamente:", result);
       return { success: true };
