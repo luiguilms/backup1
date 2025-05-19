@@ -252,6 +252,16 @@ app.whenReady().then(() => {
     const servers = await getServers(); // Usa la función que ya tienes
     const server = servers.find((s) => s.ip === ip);
     const serverName = server ? server.name : "N/A";
+    if (server) {
+  console.log(`Servidor encontrado: ${serverName}, DB Engine: ${server.db_engine}`);
+  if (server.db_engine === 'postgresql') {
+    console.log(`>>> Procesando ruta PostgreSQL para servidor ${serverName} (IP: ${ip})`);
+  } else {
+    console.log(`>>> Procesando ruta para otro motor de BD: ${server.db_engine}`);
+  }
+} else {
+  console.log(`No se encontró servidor para IP: ${ip}`);
+}
     if (serverName === "EBS" || serverName === "BI") {
       if (firstDay && !isMensualRoute) {
         console.log(
@@ -282,6 +292,13 @@ app.whenReady().then(() => {
           resolve(sftp);
         });
       });
+      // Aquí el check para PostgreSQL
+      if (server && server.db_engine === 'postgresql') {
+        const postgresResult = await processPostgresBackupLogs(sftp, directoryPath, serverName, ip);
+        sftp.end();
+        conn.end();
+        return postgresResult;
+      }
       const directoryExists = await new Promise((resolve) => {
         sftp.stat(directoryPath, (err) => {
           resolve(!err); // Devuelve `false` si hay un error (no existe), `true` si existe
@@ -1058,7 +1075,7 @@ app.whenReady().then(() => {
       });
 
       const result = await connection.execute(
-        `SELECT ID, ServerName, IP, OS_Type, Port FROM ServerInfo`
+        `SELECT ID, ServerName, IP, OS_Type, Port, db_engine FROM ServerInfo`
       );
       return result.rows.map((row) => ({
         id: row[0],
@@ -1066,6 +1083,7 @@ app.whenReady().then(() => {
         ip: row[2],
         os: row[3],
         port: row[4],
+        db_engine: row[5],
         display: `${row[2]} - ${row[1]}`, // Formato "IP - NombreDelServidor"
       }));
     } catch (err) {
@@ -3056,3 +3074,214 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
     }
   }
 });
+
+// Función para procesar logs PostgreSQL
+async function processPostgresBackupLogs(sftp, directoryPath, serverName, ip) {
+  // 1. Listar archivos en la carpeta
+  const files = await new Promise((resolve, reject) => {
+    sftp.readdir(directoryPath, (err, files) => {
+      if (err) return reject(err);
+      resolve(files);
+    });
+  });
+
+  // 2. Filtrar solo archivos .log
+  const logFiles = files.filter(file => file.filename.toLowerCase().endsWith('.log'));
+
+  if (logFiles.length === 0) {
+    return { error: 'No hay archivos .log en la carpeta especificada.' };
+  }
+
+  let logNames = logFiles.map(f => f.filename).join('; ');
+  let fileDetails = [];
+  let errorMessages = [];
+  let estadoBackup = 'Éxito';
+  let totalSizeBytes = 0;
+
+  // 3. Calcular el tamaño total de la carpeta (sin tener en cuenta las subcarpetas)
+  let totalFolderSize = 0;
+
+  // Iteramos sobre todos los archivos para calcular el tamaño total de la carpeta
+  for (const file of files) {
+    const filePath = path.posix.join(directoryPath, file.filename);
+    const stats = await new Promise((resolve, reject) => {
+      sftp.stat(filePath, (err, stats) => {
+        if (err) return reject(err);
+        resolve(stats);
+      });
+    });
+
+    // Sumar el tamaño de cada archivo
+    totalFolderSize += stats.size;
+  }
+
+  // Iteramos solo sobre los archivos .log para procesar los mensajes de error
+  for (const file of logFiles) {
+    const filePath = path.posix.join(directoryPath, file.filename);
+
+    // Obtener stats del archivo (fecha de modificación y tamaño)
+    const stats = await new Promise((resolve, reject) => {
+      sftp.stat(filePath, (err, stats) => {
+        if (err) return reject(err);
+        resolve(stats);
+      });
+    });
+
+    // Manejar correctamente el mtime según el sistema operativo
+    let mtime;
+    if (typeof stats.mtime === 'number') {
+      mtime = new Date(stats.mtime * 1000);
+    } else {
+      mtime = new Date(stats.mtime);
+    }
+
+    // Asegurarnos de que la fecha sea válida
+    if (isNaN(mtime.getTime())) {
+      console.log(`Fecha no válida para el archivo ${file.filename}:`, stats.mtime);
+      mtime = new Date();
+    }
+
+    // Guardar los detalles del archivo
+    fileDetails.push({
+      filename: file.filename,
+      mtime: mtime,
+      size: stats.size
+    });
+
+    // Leer contenido para buscar errores
+    const content = await new Promise((resolve, reject) => {
+      sftp.readFile(filePath, 'utf8', (err, data) => {
+        if (err) return reject(err);
+        resolve(data);
+      });
+    });
+
+    // Detectar palabras 'error' o 'errors' (case insensitive)
+    const regexError = /\berror\b/i;
+    if (regexError.test(content)) {
+      estadoBackup = 'Fallo';
+      const errorLines = content.split('\n').filter(line => regexError.test(line));
+      errorMessages.push(`Archivo ${file.filename}:\n${errorLines.join('\n')}`);
+    }
+  }
+
+  // Ordenar archivos por fecha de modificación
+  fileDetails.sort((a, b) => a.mtime - b.mtime);
+
+  // El archivo más antiguo determina la fecha de inicio
+  const earliestDate = fileDetails.length > 0 ? fileDetails[0].mtime : new Date();
+  
+  // El archivo más reciente determina la fecha de fin
+  const latestDate = fileDetails.length > 0 ? fileDetails[fileDetails.length - 1].mtime : new Date();
+
+  // Convertir las fechas a formato legible (con hora, minutos y segundos en formato 24h)
+  const formattedStartDate = earliestDate.toLocaleString('es-PE', {
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit', 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit', 
+    hour12: false // No AM/PM, formato 24h
+  });
+
+  const formattedEndDate = latestDate.toLocaleString('es-PE', {
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit', 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit', 
+    hour12: false // No AM/PM, formato 24h
+  });
+
+  // Convertir el tamaño total de la carpeta a MB o GB
+  let formattedFolderSize;
+
+  // Convertir bytes a MB
+  let totalFolderSizeMB = totalFolderSize / (1024 * 1024); 
+
+  // Si el tamaño supera 1000MB, lo convertimos a GB
+  if (totalFolderSizeMB >= 1000) {
+    formattedFolderSize = (totalFolderSizeMB / 1024).toFixed(2) + ' GB';
+  } else {
+    formattedFolderSize = totalFolderSizeMB.toFixed(2) + ' MB';
+  }
+
+  // Objeto con datos para guardar en BD, con nombres exactos de columnas
+  const postgresLogData = {
+    logNames,
+    fecha_inicio: earliestDate,
+    fecha_fin: latestDate,
+    estado_backup: estadoBackup,
+    backupPath: directoryPath,
+    error_message: errorMessages.length > 0 ? errorMessages.join('\n\n') : null,
+    serverName: serverName,
+    ip,
+    totalFolderSize: formattedFolderSize,
+    dbEngine: 'postgresql'
+  };
+
+  // Guardar en la base de datos
+  await savePostgresBackupLogs(postgresLogData);
+
+  // Retornar los datos para ser utilizados por el frontend
+  return {
+    logNames,
+    fecha_inicio: formattedStartDate,
+    fecha_fin: formattedEndDate,
+    estado_backup: estadoBackup,
+    backupPath: directoryPath,
+    error_message: errorMessages.length > 0 ? errorMessages.join('\n\n') : null,
+    serverName: serverName,
+    ip,
+    totalFolderSize: formattedFolderSize,
+    dbEngine: 'postgresql'
+  };
+}
+
+
+
+
+async function savePostgresBackupLogs(data) {
+  let connection;
+  try {
+    connection = await oracledb.getConnection({
+      user: 'USRMONBAK',
+      password: 'U$po_resp4ld',
+      connectString: '10.0.202.63:1523/monbakpdb',
+    });
+
+    const sql = `INSERT INTO PostgresBackupLogs
+  (logNames, fecha_inicio, fecha_fin, estado, BackupPath, errorMessage, serverName, ip, totalFolderSize, executionDate)
+  VALUES (:logNames, :fecha_inicio, :fecha_fin, :estado, :backupPath, :errorMessage, :serverName, :ip, :totalFolderSize, SYSTIMESTAMP)`;
+
+    const binds = {
+      logNames: data.logNames,
+      fecha_inicio: data.fecha_inicio,
+      fecha_fin: data.fecha_fin,
+      estado: data.estado_backup,
+      backupPath: data.backupPath,
+      errorMessage: data.error_message,
+      serverName: data.serverName,
+      ip: data.ip,
+      totalFolderSize: data.totalFolderSize
+    };
+
+    const result = await connection.execute(sql, binds, { autoCommit: true });
+
+    console.log('Registro PostgresBackupLogs insertado:', result.rowsAffected);
+    return { success: true };
+  } catch (err) {
+    console.error('Error insertando en PostgresBackupLogs:', err);
+    return { success: false, error: err.message };
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error cerrando conexión a BD:', err);
+      }
+    }
+  }
+}

@@ -2646,14 +2646,70 @@ if (networkerConflicts.length > 0) {
       entryDiv.className = "log-entry";
       // Verifica que 'serverName' esté correctamente asignado
       const serverName = logData.serverName || "N/A";
-      // Añade este log para verificar el valor en el lado del cliente
-      //console.log(
-      //"Tamaño de la carpeta recibido (logData.totalFolderSize):",
-      //logData.totalFolderSize
-      //);
-      //console.log("Datos del log:", logData); // Para depuración
-      // Si el valor de success es No, aplicar la clase 'error' a todo el párrafo
-      // Caso específico para WebContent
+     const isPostgreSQL = logData.dbEngine && logData.dbEngine.toLowerCase() === 'postgresql';
+console.log("Es PostgreSQL:", isPostgreSQL);
+
+if (isPostgreSQL) {
+  // Aquí procesas los logs de PostgreSQL, que pueden no tener las mismas propiedades que Oracle.
+  const logNames = logData.logNames || "N/A";
+  
+  // Convertir CLOB (logNames) si está disponible
+  const formattedLogNames = typeof logNames === 'string' ? logNames : 'No se encontraron logs';
+
+  // Asegurarse de que las fechas estén en formato Date
+  const parseDate = (dateString) => {
+    if (!dateString) return null;
+    const parts = dateString.split(/[\s,:/]+/);  // Separar la fecha por los delimitadores
+    return new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4], parts[5]);
+  };
+
+  // Convertir las fechas (en formato 'DD/MM/YYYY, HH:mm:ss') a objetos Date
+  const startDate = parseDate(logData.fecha_inicio);
+  const endDate = parseDate(logData.fecha_fin);
+
+  // Formatear las fechas como 'DD/MM/YYYY, HH:mm:ss'
+  const formattedStartDate = startDate 
+    ? startDate.toLocaleString('es-PE', { 
+        hour12: false, // 24 horas
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    : "N/A";
+  
+  const formattedEndDate = endDate 
+    ? endDate.toLocaleString('es-PE', { 
+        hour12: false, // 24 horas
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    : "N/A";
+
+  console.log("Fecha de inicio recibida:", logData.fecha_inicio);
+  console.log("Fecha de fin recibida:", logData.fecha_fin);
+
+  console.log("Fecha de inicio formateada:", formattedStartDate);
+  console.log("Fecha de fin formateada:", formattedEndDate);
+
+  entryDiv.innerHTML = `
+    <p><strong>IP:</strong> ${logData.ip}</p>
+    <p><strong>Servidor:</strong> ${serverName}</p>
+    <p><strong>Fecha de inicio:</strong> ${formattedStartDate}</p>
+    <p><strong>Fecha de fin:</strong> ${formattedEndDate}</p>
+    <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"}</p>
+    <p><strong>Nombre(s) del archivo(s) .log:</strong> ${formattedLogNames}</p>
+    <p><strong>Estado del backup:</strong> ${logData.estado_backup || "No disponible"}</p>
+    <p><strong>Mensaje de error:</strong> ${logData.error_message || "Sin errores detectados"}</p>
+    <p><strong>Tamaño de la carpeta:</strong> ${logData.totalFolderSize || "N/A"}</p>
+  `;
+} else {
       if (
         serverName === "WebContent" ||
         (serverName === "Contratacion digital" &&
@@ -2763,6 +2819,7 @@ if (networkerConflicts.length > 0) {
           showLast10LinesModal(linesToShow, logData.logDetails.hasWarning);
         };
         entryDiv.appendChild(showLogButton);
+      }
       }
       document
         .getElementById("close-result")
