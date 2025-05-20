@@ -1,4 +1,5 @@
-let gridApi = null;
+let mainGridApi = null;
+let postgresGridApi = null;
 document.addEventListener("DOMContentLoaded", async () => {
   const currentPage = window.location.pathname;
   const currentPath = window.location.pathname;
@@ -1789,9 +1790,9 @@ ${last10LinesContent}
       });
     }
   }
-  async function sendServerDetails(gridApi) {
+  async function sendServerDetails(mainGridApi) {
     let rowData = [];
-    gridApi.forEachNode(node => {
+    mainGridApi.forEachNode(node => {
       if (node.data) rowData.push(node.data);
     });
 
@@ -1805,36 +1806,36 @@ ${last10LinesContent}
     const successServers = rowData.filter(data => data.status !== "Fallo");
 
     // *** NUEVO CÓDIGO: Verificar conflictos con Networker ***
-  console.log("Iniciando verificación de conflictos con Networker...");
-  console.log(`Procesando ${rowData.length} rutas de backup para verificar conflictos`);
-  
-  let networkerResult = { conflicts: [] };
-  try {
-    // Llamar a la función del backend para verificar conflictos
-    networkerResult = await window.electron.checkNetworkerConflicts(rowData);
-    console.log(`Resultado de verificación:`, networkerResult);
-  } catch (error) {
-    console.error('Error al verificar conflictos con Networker:', error);
-  }
-  
-  const networkerConflicts = networkerResult.conflicts || [];
-  console.log(`Se encontraron ${networkerConflicts.length} conflictos con Networker`);
-  
-  // Generar contenido HTML para conflictos de Networker
-  let networkerConflictsContent = "";
-if (networkerConflicts.length > 0) {
-  console.log("Generando contenido HTML para conflictos con Networker...");
-  
-  // Agrupar conflictos por tipo
-  const dailyConflicts = networkerConflicts.filter(c => c.conflictType === "Diario");
-  const monthlyConflicts = networkerConflicts.filter(c => c.conflictType === "Mensual");
-  const encryptedConflicts = networkerConflicts.filter(c => c.conflictType === "Encriptación Mensual");
-  
-  // Función para generar HTML para un tipo de conflicto
-  const generateConflictHTML = (conflicts, title, borderColor) => {
-    if (conflicts.length === 0) return '';
-    
-    return `
+    console.log("Iniciando verificación de conflictos con Networker...");
+    console.log(`Procesando ${rowData.length} rutas de backup para verificar conflictos`);
+
+    let networkerResult = { conflicts: [] };
+    try {
+      // Llamar a la función del backend para verificar conflictos
+      networkerResult = await window.electron.checkNetworkerConflicts(rowData);
+      console.log(`Resultado de verificación:`, networkerResult);
+    } catch (error) {
+      console.error('Error al verificar conflictos con Networker:', error);
+    }
+
+    const networkerConflicts = networkerResult.conflicts || [];
+    console.log(`Se encontraron ${networkerConflicts.length} conflictos con Networker`);
+
+    // Generar contenido HTML para conflictos de Networker
+    let networkerConflictsContent = "";
+    if (networkerConflicts.length > 0) {
+      console.log("Generando contenido HTML para conflictos con Networker...");
+
+      // Agrupar conflictos por tipo
+      const dailyConflicts = networkerConflicts.filter(c => c.conflictType === "Diario");
+      const monthlyConflicts = networkerConflicts.filter(c => c.conflictType === "Mensual");
+      const encryptedConflicts = networkerConflicts.filter(c => c.conflictType === "Encriptación Mensual");
+
+      // Función para generar HTML para un tipo de conflicto
+      const generateConflictHTML = (conflicts, title, borderColor) => {
+        if (conflicts.length === 0) return '';
+
+        return `
     <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 2px solid ${borderColor};">
       <h4 style="margin-top: 0; color: #721c24;">${title} (${conflicts.length})</h4>
       <ul style="margin-bottom: 0;">
@@ -1848,9 +1849,9 @@ if (networkerConflicts.length > 0) {
           </li>`).join('')}
       </ul>
     </div>`;
-  };
+      };
 
-  networkerConflictsContent = `
+      networkerConflictsContent = `
   <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #f5c6cb;">
     <h3 style="margin-top: 0; color: #721c24;">⚠️ Conflictos con programación de Networker</h3>
     <p>Se detectaron ${networkerConflicts.length} conflicto(s) entre el fin del backup y el inicio del respaldo en Networker:</p>
@@ -1860,7 +1861,7 @@ if (networkerConflicts.length > 0) {
     ${generateConflictHTML(encryptedConflicts, "Conflictos con encriptación mensual", "#6f42c1")}
   </div>
 `;
-}
+    }
 
     // *** NUEVO CÓDIGO: Detectar backups antiguos ***
     const outdatedBackups = [];
@@ -2069,10 +2070,10 @@ if (networkerConflicts.length > 0) {
     }).join('');
 
     // Calcular el total de backups monitoreados
-  const totalBackups = rowData.length;
-  
-  // Crear una línea simple con el total
-  const totalBackupsInfo = `
+    const totalBackups = rowData.length;
+
+    // Crear una línea simple con el total
+    const totalBackupsInfo = `
     <div style="background-color: #f8f9fa; padding: 10px; margin-bottom: 20px; border-radius: 5px; text-align: center; border: 1px solid #dee2e6;">
         <p style="font-size: 16px; margin: 0;">
             <strong>Total de backups monitoreados:</strong> ${totalBackups}
@@ -2105,161 +2106,248 @@ if (networkerConflicts.length > 0) {
       throw error;
     }
   }
-  function initGrid(gridDiv) {
+  function initGrid(gridDiv, isPostgres = false) {
+    let columnDefs = isPostgres ? [
+      {
+        headerName: "Servidor",
+        field: "serverName",
+        sortable: true,
+        filter: true,
+        minWidth: 120,
+        cellRenderer: (params) => {
+          const serverDiv = document.createElement("div");
+          serverDiv.classList.add("server-cell");
+          serverDiv.textContent = params.data.serverName;
+          serverDiv.style.cursor = "pointer";
+
+          serverDiv.addEventListener("click", () => {
+            showLogDetailsModal(params.data);
+          });
+
+          return serverDiv;
+        },
+      },
+      {
+        headerName: "IP",
+        field: "ip",
+        sortable: true,
+        filter: true,
+        minWidth: 100,
+      },
+      {
+        headerName: "Estado",
+        field: "estado_backup",
+        sortable: true,
+        filter: true,
+        minWidth: 100,
+        cellRenderer: (params) => {
+          const statusClass = params.value === 'Éxito' ? 'status-success' : 'status-failure';
+          return `<div class="${statusClass}">${params.value}</div>`;
+        },
+      },
+      {
+        headerName: "Fecha Inicio",
+        field: "fecha_inicio",
+        sortable: true,
+        filter: true,
+        minWidth: 150,
+      },
+      {
+        headerName: "Fecha Fin",
+        field: "fecha_fin",
+        sortable: true,
+        filter: true,
+        minWidth: 150,
+      },
+      {
+        headerName: "Tamaño Total",
+        field: "totalFolderSize",
+        sortable: true,
+        filter: true,
+        minWidth: 100,
+      },
+      {
+        headerName: "Ruta de Backup",
+        field: "backupPath",
+        sortable: true,
+        filter: true,
+        minWidth: 200,
+      },
+      {
+        headerName: "Mensajes de Error",
+        field: "error_message",
+        sortable: true,
+        filter: true,
+        minWidth: 200,
+        cellRenderer: (params) => {
+          if (!params.value) return 'Sin errores';
+
+          const button = document.createElement("button");
+          button.innerHTML = "Ver error";
+          button.addEventListener("click", () => {
+            showErrorDetailsModal(params.data.error_message);
+          });
+          return button;
+        },
+      }
+    ] : [
+      // Tus columnas originales para el grid principal
+      {
+        headerName: "Servidor",
+        field: "serverName",
+        sortable: true,
+        filter: true,
+        minWidth: 120,
+        cellRenderer: (params) => {
+          const serverDiv = document.createElement("div");
+          serverDiv.classList.add("server-cell");
+          serverDiv.textContent = params.data.serverName;
+          serverDiv.style.cursor = "pointer";
+
+          // Agregar evento de clic para mostrar el modal
+          serverDiv.addEventListener("click", () => {
+            console.log("Clic en Servidor:", params.data.serverName);
+            showLogDetailsModal(params.data); // Llamar a la función para mostrar el modal
+          });
+
+          return serverDiv;
+        },
+      },
+      {
+        headerName: "IP",
+        field: "ip",
+        sortable: true,
+        filter: true,
+        minWidth: 100,
+        cellRenderer: (params) => {
+          const ipDiv = document.createElement("div");
+          ipDiv.classList.add("server-cell");
+          ipDiv.textContent = params.data.ip;
+          ipDiv.style.cursor = "pointer";
+
+          // Agregar evento de clic para mostrar el modal
+          ipDiv.addEventListener("click", () => {
+            showLogDetailsModal(params.data); // Llamar a la función para mostrar el modal
+          });
+
+          return ipDiv;
+        },
+      },
+      {
+        headerName: "Estado",
+        field: "status",
+        sortable: true,
+        filter: true,
+        minWidth: 80,
+        cellRenderer: (params) => {
+          return `<div class="${params.data.statusClass}">${params.value}</div>`;
+        },
+      },
+      {
+        headerName: "Archivo de Log",
+        field: "logFileName",
+        sortable: true,
+        filter: true,
+        minWidth: 300,
+        cellRenderer: (params) => {
+          const logDiv = document.createElement("div");
+          logDiv.classList.add("server-cell");
+          logDiv.textContent = params.data.logFileName;
+          logDiv.style.cursor = "pointer";
+
+          // Agregar evento de clic para mostrar el modal
+          logDiv.addEventListener("click", () => {
+            showLogDetailsModal(params.data); // Llamar a la función para mostrar el modal
+          });
+
+          return logDiv;
+        },
+      },
+      {
+        headerName: "Hora de Inicio",
+        field: "startTime",
+        sortable: true,
+        filter: true,
+        minWidth: 150,
+      },
+      {
+        headerName: "Hora de Fin",
+        field: "endTime",
+        sortable: true,
+        filter: true,
+        minWidth: 150,
+      },
+      {
+        headerName: "Duración",
+        field: "duration",
+        sortable: true,
+        filter: true,
+        minWidth: 100,
+      },
+      {
+        headerName: "Tamaño Total DMP",
+        field: "totalDmpSize",
+        sortable: true,
+        filter: true,
+        minWidth: 100,
+      },
+      {
+        headerName: "Tamaño Total Carpeta",
+        field: "totalFolderSize",
+        sortable: true,
+        filter: true,
+        minWidth: 100,
+      },
+      {
+        headerName: "Estado de Backup",
+        field: "backupStatus",
+        sortable: true,
+        filter: true,
+        minWidth: 80,
+      },
+      {
+        headerName: "Ruta de Backup",
+        field: "backupPath",
+        sortable: true,
+        filter: true,
+        minWidth: 150,
+      },
+      {
+        headerName: "Grupo Maximo",
+        field: "groupNumber",
+        sortable: true,
+        filter: true,
+        minWidth: 100,
+        cellRenderer: (params) => {
+          return `<span>${params.value || "1"}</span>`;
+        },
+      },
+      {
+        headerName: "Grupo de control",
+        field: "last10Lines",
+        cellRenderer: (params) => {
+          const button = document.createElement("button");
+          button.innerHTML = params.data.groupControlInfo;
+          button.addEventListener("click", () => {
+            showLast10LinesModal(
+              params.data.last10Lines,
+              params.data.hasWarning
+            );
+          });
+          return button;
+        },
+        minwidth: 120,
+      },
+    ];
+
     const gridOptions = {
-      columnDefs: [
-        {
-          headerName: "Servidor",
-          field: "serverName",
-          sortable: true,
-          filter: true,
-          minWidth: 120,
-          cellRenderer: (params) => {
-            const serverDiv = document.createElement("div");
-            serverDiv.classList.add("server-cell");
-            serverDiv.textContent = params.data.serverName;
-            serverDiv.style.cursor = "pointer";
-
-            // Agregar evento de clic para mostrar el modal
-            serverDiv.addEventListener("click", () => {
-              console.log("Clic en Servidor:", params.data.serverName);
-              showLogDetailsModal(params.data); // Llamar a la función para mostrar el modal
-            });
-
-            return serverDiv;
-          },
-        },
-        {
-          headerName: "IP",
-          field: "ip",
-          sortable: true,
-          filter: true,
-          minWidth: 100,
-          cellRenderer: (params) => {
-            const ipDiv = document.createElement("div");
-            ipDiv.classList.add("server-cell");
-            ipDiv.textContent = params.data.ip;
-            ipDiv.style.cursor = "pointer";
-
-            // Agregar evento de clic para mostrar el modal
-            ipDiv.addEventListener("click", () => {
-              showLogDetailsModal(params.data); // Llamar a la función para mostrar el modal
-            });
-
-            return ipDiv;
-          },
-        },
-        {
-          headerName: "Estado",
-          field: "status",
-          sortable: true,
-          filter: true,
-          minWidth: 80,
-          cellRenderer: (params) => {
-            return `<div class="${params.data.statusClass}">${params.value}</div>`;
-          },
-        },
-        {
-          headerName: "Archivo de Log",
-          field: "logFileName",
-          sortable: true,
-          filter: true,
-          minWidth: 300,
-          cellRenderer: (params) => {
-            const logDiv = document.createElement("div");
-            logDiv.classList.add("server-cell");
-            logDiv.textContent = params.data.logFileName;
-            logDiv.style.cursor = "pointer";
-
-            // Agregar evento de clic para mostrar el modal
-            logDiv.addEventListener("click", () => {
-              showLogDetailsModal(params.data); // Llamar a la función para mostrar el modal
-            });
-
-            return logDiv;
-          },
-        },
-        {
-          headerName: "Hora de Inicio",
-          field: "startTime",
-          sortable: true,
-          filter: true,
-          minWidth: 150,
-        },
-        {
-          headerName: "Hora de Fin",
-          field: "endTime",
-          sortable: true,
-          filter: true,
-          minWidth: 150,
-        },
-        {
-          headerName: "Duración",
-          field: "duration",
-          sortable: true,
-          filter: true,
-          minWidth: 100,
-        },
-        {
-          headerName: "Tamaño Total DMP",
-          field: "totalDmpSize",
-          sortable: true,
-          filter: true,
-          minWidth: 100,
-        },
-        {
-          headerName: "Tamaño Total Carpeta",
-          field: "totalFolderSize",
-          sortable: true,
-          filter: true,
-          minWidth: 100,
-        },
-        {
-          headerName: "Estado de Backup",
-          field: "backupStatus",
-          sortable: true,
-          filter: true,
-          minWidth: 80,
-        },
-        {
-          headerName: "Ruta de Backup",
-          field: "backupPath",
-          sortable: true,
-          filter: true,
-          minWidth: 150,
-        }, {
-          headerName: "Grupo Maximo", // Nombre de la columna
-          field: "groupNumber", // Nombre del campo en los datos
-          sortable: true, // Permitir ordenar
-          filter: true, // Permitir filtrar
-          minWidth: 100, // Ancho mínimo de la columna
-          cellRenderer: (params) => {
-            return `<span>${params.value || "1"}</span>`; // Mostrar el valor o 'N/A' si está vacío
-          },
-        },
-        {
-          headerName: "Grupo de control",
-          field: "last10Lines",
-          cellRenderer: (params) => {
-            const button = document.createElement("button");
-            button.innerHTML = params.data.groupControlInfo;
-            button.addEventListener("click", () => {
-              showLast10LinesModal(
-                params.data.last10Lines,
-                params.data.hasWarning
-              );
-            });
-            return button;
-          },
-          minwidth: 120,
-        },
-      ],
-      pagination: true, // Habilita la paginación
-      paginationPageSize: 10, // Número de filas por página
+      columnDefs: columnDefs,
+      pagination: true,
+      paginationPageSize: 10,
       defaultColDef: {
         resizable: true,
         sortable: true,
-        filter: true, // Asegúrate de que los filtros estén habilitados aquí
+        filter: true,
       },
       rowData: [],
       onGridReady: (params) => {
@@ -2269,18 +2357,26 @@ if (networkerConflicts.length > 0) {
       onFirstDataRendered: (params) => {
         params.api.autoSizeAllColumns();
       },
-      //domLayout: 'autoWidht'
     };
     try {
-      gridApi = agGrid.createGrid(gridDiv, gridOptions);
-      //console.log("Grid inicializado correctamente");
+      const gridApi = agGrid.createGrid(gridDiv, gridOptions);
+
+      if (isPostgres) {
+        postgresGridApi = gridApi;
+      } else {
+        mainGridApi = gridApi;
+      }
+
       window.addEventListener("resize", () => {
         if (gridApi) {
           gridApi.sizeColumnsToFit();
         }
       });
+
+      return gridApi;
     } catch (error) {
-      console.error("Error al inicializar AG-Grid:", error);
+      console.error(`Error al inicializar ${isPostgres ? 'PostgreSQL' : 'principal'} AG-Grid:`, error);
+      return null;
     }
   }
   async function startProcessAllServers() {
@@ -2290,14 +2386,26 @@ if (networkerConflicts.length > 0) {
       const result = await window.electron.processAllServers();
       hideLoading();
       if (result.success) {
-        // Mostrar el contenedor del grid
-        gridContainer.style.display = "block";
-        // Inicializar el grid si aún no se ha hecho
-        if (!gridApi) {
-          initGrid(gridDiv);
+        // Mostrar contenedores de grid
+        document.getElementById("gridContainer").style.display = "block";
+        document.getElementById("postgresqlGridContainer").style.display = "block";
+
+        // Inicializar los grids si aún no se han hecho
+        if (!mainGridApi) {
+          mainGridApi = initGrid(document.getElementById("myGrid"), false);
         }
+
+        if (!postgresGridApi) {
+          postgresGridApi = initGrid(document.getElementById("postgresqlGrid"), true);
+        }
+
+        // Procesar y mostrar los resultados
         displayAllServersResults(result.results);
-        await sendServerDetails(gridApi);
+
+        // Enviar detalles del servidor (si es necesario)
+        if (mainGridApi) {
+          await sendServerDetails(mainGridApi);
+        }
       } else {
         console.error("Error al procesar los servidores:", result.error);
         showErrorMessage("Error al procesar los servidores: " + result.error);
@@ -2346,29 +2454,32 @@ if (networkerConflicts.length > 0) {
   }
   let pendingBackups = [];
   function displayAllServersResults(results) {
-    //console.log("Mostrando resultados de servidores:", results);
-    if (gridApi && typeof gridApi.setRowData === "function") {
-      const rowData = results.flatMap((serverResult) => {
-        console.table(serverResult); // Si `results` es un array de objetos `serverResult`
+    // Verifica que las API de los grids estén disponibles
+    if (mainGridApi && typeof mainGridApi.setRowData === "function" && postgresGridApi && typeof postgresGridApi.setRowData === "function") {
+
+      // Creamos dos arrays para los datos del grid principal y el grid de PostgreSQL
+      const mainGridData = [];
+      const postgresGridData = [];
+
+      results.forEach((serverResult) => {
+        console.table(serverResult); // Muestra los resultados en consola
+
+        // Si el servidor tiene un error, lo manejamos
         if (serverResult.error) {
           if (serverResult.error.includes("no existe")) {
-            // Mostrar modal específico para la ruta inexistente
             showErrorpathModal(
               "Ruta de Backup No Existente",
               `${serverResult.ip} La ruta ${serverResult.backupPath} no existe en el servidor ${serverResult.serverName}`
             );
-          } else if (
-            serverResult.error.includes("/Backup incompleto")
-          ) {
+          } else if (serverResult.error.includes("/Backup incompleto")) {
             showErrorModal(
               serverResult.error,
               serverResult.ip,
-              serverResult.serverName // Asegúrate de que este valor esté disponible
+              serverResult.serverName
             );
           } else {
             showErrorModal(
-              `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"
-              }`,
+              `No se realizó la conexión con el servidor: ${serverResult.serverName || "Desconocido"}`,
               serverResult.ip || "IP desconocida"
             );
           }
@@ -2378,8 +2489,10 @@ if (networkerConflicts.length > 0) {
             backupPath: serverResult.backupPath || "Ruta desconocida",
             error: serverResult.error || "Error desconocido"
           });
-          return []; // No añadir nada al grid
+          return; // No añadir nada al grid
         }
+
+        // Si hay una advertencia, mostramos el modal correspondiente
         if (serverResult.warning) {
           showErrorModal(
             "Backup Incompleto",
@@ -2393,12 +2506,11 @@ if (networkerConflicts.length > 0) {
             backupPath: serverResult.backupPath || "Ruta desconocida",
             error: serverResult.warning || "Advertencia desconocida"
           });
-          return []; // No añadir nada al grid
+          return; // No añadir nada al grid
         }
+        // Aquí procesamos los detalles del log
         const processLogDetail = (logDetail) => {
-          // Verificar si el logDetail indica carpeta vacía
           if (logDetail.backupVoid) {
-            // No mostrar modal si es BANTOTAL
             if (serverResult.serverName !== "Bantotal") {
               showErrorModal(
                 "Carpeta Vacía Detectada",
@@ -2414,61 +2526,46 @@ if (networkerConflicts.length > 0) {
           }
 
           if (!logDetail || !logDetail.logFileName) {
-            // Si es Bantotal, simplemente retornamos null sin mostrar el modal
             if (serverResult.serverName === "Bantotal") {
               console.log(`Omitiendo alerta de log no encontrado para BANTOTAL: ${logDetail?.backupPath || 'ruta desconocida'}`);
               return null;
             }
-            
-            // Para los demás servidores, mostramos el modal como antes
+
             showErrorModal(
               `No se encontró archivo de log para el servidor: ${serverResult.serverName || "Desconocido"}`,
               serverResult.ip || "IP desconocida"
             );
             return null;
           }
-          const status = serverResult.error
-            ? "Error"
-            : logDetail.logDetails?.success
-              ? "Éxito"
-              : "Fallo";
-          const statusClass =
-            status === "Fallo"
-              ? "status-failure"
-              : status === "Éxito"
-                ? "status-success"
-                : "status-error";
+
+          const status = serverResult.error ? "Error" : logDetail.logDetails?.success ? "Éxito" : "Fallo";
+          const statusClass = status === "Fallo" ? "status-failure" : status === "Éxito" ? "status-success" : "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
           const totalDmpSize = Array.isArray(logDetail.dumpFileInfo)
-            ? logDetail.dumpFileInfo.reduce(
-              (sum, file) => sum + (file.fileSize || 0),
-              0
-            )
+            ? logDetail.dumpFileInfo.reduce((sum, file) => sum + (file.fileSize || 0), 0)
             : 0;
-          const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
+          const formattedDmpSize = formatFileSize(totalDmpSize);
           const formattedFolderSize = logDetail.totalFolderSize
-            ? formatFileSize(parseFloat(logDetail.totalFolderSize)) // Si hay tamaño de carpeta, lo formateamos
-            : "N/A"; // Si no hay tamaño de carpeta, mostramos "N/A"
+            ? formatFileSize(parseFloat(logDetail.totalFolderSize))
+            : "N/A";
           const logInfo = logDetail.logDetails || {};
-          const displayedLines = logInfo.hasWarning
-            ? logDetail.last10Lines || []
-            : [logDetail.lastLine || "No hay información disponible"];
-          const groupControlInfo = logInfo.hasWarning
-            ? "Ver grupos de control (Advertencia)"
-            : "Ver última línea del log";
+          const displayedLines = logInfo.hasWarning ? logDetail.last10Lines || [] : [logDetail.lastLine || "No hay información disponible"];
+          const groupControlInfo = logInfo.hasWarning ? "Ver grupos de control (Advertencia)" : "Ver última línea del log";
+
           // Datos específicos para WebContent
           if (
             serverResult.serverName === "WebContent" ||
-            (serverResult.serverName === "Contratacion digital" &&
-              logDetail.backupPath.trim() === "/disco6/BK_RMAN_CONTRADIGI") || (serverResult.serverName === "BIOMETRIA" &&
-                logDetail.backupPath.trim() === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL")
+            (serverResult.serverName === "Contratacion digital" && logDetail.backupPath.trim() === "/disco6/BK_RMAN_CONTRADIGI") ||
+            (serverResult.serverName === "BIOMETRIA" && logDetail.backupPath.trim() === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL")
           ) {
             console.log(
-              "Procesando servidor:",
+              "Procesando servidor especial:",
               serverResult.serverName,
               "con ruta:",
               logDetail.backupPath
             );
+
+            // Para WebContent y otros servidores especiales, omitimos algunos datos
             return {
               serverName: serverResult.serverName || "N/A",
               ip: serverResult.ip || "N/A",
@@ -2479,19 +2576,15 @@ if (networkerConflicts.length > 0) {
               duration: logDetail.logDetails?.duracion || "N/A",
               totalDmpSize: "N/A", // No aplica para WebContent
               totalFolderSize: "N/A", // No aplica para WebContent
-              statusClass: logDetail.logDetails?.estadoBackup === "Éxito" ?
-                "status-success" : "status-failure",
-              oraError: logDetail.logDetails?.errorMessage ?
-                JSON.stringify({ errorLine: logDetail.logDetails.errorMessage }) :
-                null,
+              statusClass: logDetail.logDetails?.estadoBackup === "Éxito" ? "status-success" : "status-failure",
+              oraError: logDetail.logDetails?.errorMessage ? JSON.stringify({ errorLine: logDetail.logDetails.errorMessage }) : null,
               backupPath: logDetail.backupPath || "N/A",
-              last10Lines:
-                logDetail.logDetails?.errorMessage || "Recovery Manager complete.",
-              groupControlInfo: logDetail.logDetails?.errorMessage
-                ? "Ver error"
-                : "Sin errores",
+              last10Lines: logDetail.logDetails?.errorMessage || "Recovery Manager complete.",
+              groupControlInfo: logDetail.logDetails?.errorMessage ? "Ver error" : "Sin errores",
             };
           }
+
+          // Para servidores no especiales, retornamos los datos con los campos estándar
           return {
             serverName: serverResult.serverName,
             ip: serverResult.ip || "N/A",
@@ -2512,30 +2605,62 @@ if (networkerConflicts.length > 0) {
             last10Lines: displayedLines || "N/A",
             groupControlInfo: groupControlInfo || "N/A",
             hasWarning: logInfo.hasWarning || "N/A",
-            groupNumber: logDetail.logDetails?.groupNumber || "1" // Agregar esta línea
+            groupNumber: logDetail.logDetails?.groupNumber || "1", // Agregar esta línea
           };
         };
+
+        // Nueva función específica para procesar datos de PostgreSQL
+        const processPostgresDetail = (postgresDetail) => {
+          // Eliminar validación incorrecta de backupVoid
+          if (!postgresDetail) return null;
+
+          // Mapeo correcto
+          return {
+            serverName: postgresDetail.serverName || "N/A",
+            ip: postgresDetail.ip || "N/A",
+            estado_backup: postgresDetail.estado_backup || "N/A",
+            fecha_inicio: postgresDetail.fecha_inicio || "N/A",
+            fecha_fin: postgresDetail.fecha_fin || "N/A",
+            totalFolderSize: postgresDetail.totalFolderSize || "N/A",
+            backupPath: postgresDetail.backupPath || "N/A",
+            error_message: postgresDetail.error_message || null
+          };
+        };
+        // Procesar PostgreSQL primero
+    if (serverResult.dbEngine === "postgresql") {
+        console.log("Procesando PostgreSQL:", serverResult);
+        const processed = processPostgresDetail(serverResult);
+        if (processed) {
+            postgresGridData.push(processed);
+            console.log("Datos PostgreSQL procesados:", processed);
+        }
+        return; // ¡Importante! No continuar con Oracle
+    }
+
+
+        // Procesamiento de los datos de log para el servidor principal
         if (Array.isArray(serverResult.logDetails)) {
-          return serverResult.logDetails
-            .map((logDetail) => processLogDetail(logDetail))
-            .filter((detail) => detail !== null);
+          serverResult.logDetails.forEach((logDetail) => {
+            const processed = processLogDetail(logDetail);
+            if (processed) mainGridData.push(processed);
+          });
         } else if (serverResult.logDetails) {
           const processed = processLogDetail(serverResult.logDetails);
-          return processed ? [processed] : [];
+          if (processed) mainGridData.push(processed);
         } else {
           showErrorModal(
-            `No se encontraron rutas para el servidor: ${serverResult.serverName || "Desconocido"
-            }`,
+            `No se encontraron rutas para el servidor: ${serverResult.serverName || "Desconocido"}`,
             serverResult.ip || "IP desconocida"
           );
-          return [];
         }
       });
-
-      gridApi.setRowData(rowData);
+      console.log('Datos para el grid PostgreSQL:', postgresGridData);
+      // Enviar los datos a los grids correspondientes
+      mainGridApi.setRowData(mainGridData);
+      postgresGridApi.setRowData(postgresGridData);
       let tooltipVisible = false;
       // Configurar el evento de clic en celda para mostrar el tooltip de error
-      gridApi.addEventListener("cellClicked", (params) => {
+      mainGridApi.addEventListener("cellClicked", (params) => {
         if (params.column.colId === "status" && params.data.status !== "Éxito") {
           const tooltipError = document.getElementById("tooltipError") || (() => {
             const div = document.createElement("div");
@@ -2646,59 +2771,59 @@ if (networkerConflicts.length > 0) {
       entryDiv.className = "log-entry";
       // Verifica que 'serverName' esté correctamente asignado
       const serverName = logData.serverName || "N/A";
-     const isPostgreSQL = logData.dbEngine && logData.dbEngine.toLowerCase() === 'postgresql';
-console.log("Es PostgreSQL:", isPostgreSQL);
+      const isPostgreSQL = logData.dbEngine && logData.dbEngine.toLowerCase() === 'postgresql';
+      console.log("Es PostgreSQL:", isPostgreSQL);
 
-if (isPostgreSQL) {
-  // Aquí procesas los logs de PostgreSQL, que pueden no tener las mismas propiedades que Oracle.
-  const logNames = logData.logNames || "N/A";
-  
-  // Convertir CLOB (logNames) si está disponible
-  const formattedLogNames = typeof logNames === 'string' ? logNames : 'No se encontraron logs';
+      if (isPostgreSQL) {
+        // Aquí procesas los logs de PostgreSQL, que pueden no tener las mismas propiedades que Oracle.
+        const logNames = logData.logNames || "N/A";
 
-  // Asegurarse de que las fechas estén en formato Date
-  const parseDate = (dateString) => {
-    if (!dateString) return null;
-    const parts = dateString.split(/[\s,:/]+/);  // Separar la fecha por los delimitadores
-    return new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4], parts[5]);
-  };
+        // Convertir CLOB (logNames) si está disponible
+        const formattedLogNames = typeof logNames === 'string' ? logNames : 'No se encontraron logs';
 
-  // Convertir las fechas (en formato 'DD/MM/YYYY, HH:mm:ss') a objetos Date
-  const startDate = parseDate(logData.fecha_inicio);
-  const endDate = parseDate(logData.fecha_fin);
+        // Asegurarse de que las fechas estén en formato Date
+        const parseDate = (dateString) => {
+          if (!dateString) return null;
+          const parts = dateString.split(/[\s,:/]+/);  // Separar la fecha por los delimitadores
+          return new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4], parts[5]);
+        };
 
-  // Formatear las fechas como 'DD/MM/YYYY, HH:mm:ss'
-  const formattedStartDate = startDate 
-    ? startDate.toLocaleString('es-PE', { 
-        hour12: false, // 24 horas
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      })
-    : "N/A";
-  
-  const formattedEndDate = endDate 
-    ? endDate.toLocaleString('es-PE', { 
-        hour12: false, // 24 horas
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      })
-    : "N/A";
+        // Convertir las fechas (en formato 'DD/MM/YYYY, HH:mm:ss') a objetos Date
+        const startDate = parseDate(logData.fecha_inicio);
+        const endDate = parseDate(logData.fecha_fin);
 
-  console.log("Fecha de inicio recibida:", logData.fecha_inicio);
-  console.log("Fecha de fin recibida:", logData.fecha_fin);
+        // Formatear las fechas como 'DD/MM/YYYY, HH:mm:ss'
+        const formattedStartDate = startDate
+          ? startDate.toLocaleString('es-PE', {
+            hour12: false, // 24 horas
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })
+          : "N/A";
 
-  console.log("Fecha de inicio formateada:", formattedStartDate);
-  console.log("Fecha de fin formateada:", formattedEndDate);
+        const formattedEndDate = endDate
+          ? endDate.toLocaleString('es-PE', {
+            hour12: false, // 24 horas
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })
+          : "N/A";
 
-  entryDiv.innerHTML = `
+        console.log("Fecha de inicio recibida:", logData.fecha_inicio);
+        console.log("Fecha de fin recibida:", logData.fecha_fin);
+
+        console.log("Fecha de inicio formateada:", formattedStartDate);
+        console.log("Fecha de fin formateada:", formattedEndDate);
+
+        entryDiv.innerHTML = `
     <p><strong>IP:</strong> ${logData.ip}</p>
     <p><strong>Servidor:</strong> ${serverName}</p>
     <p><strong>Fecha de inicio:</strong> ${formattedStartDate}</p>
@@ -2709,23 +2834,23 @@ if (isPostgreSQL) {
     <p><strong>Mensaje de error:</strong> ${logData.error_message || "Sin errores detectados"}</p>
     <p><strong>Tamaño de la carpeta:</strong> ${logData.totalFolderSize || "N/A"}</p>
   `;
-} else {
-      if (
-        serverName === "WebContent" ||
-        (serverName === "Contratacion digital" &&
-          logData.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (serverName === "BIOMETRIA" &&
-            logData.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL")
-      ) {
-        const {
-          fechaInicio,
-          fechaFin,
-          duracion,
-          estadoBackup,
-          rutaBackup,
-          errorMessage,
-        } = logData.logDetails;
+      } else {
+        if (
+          serverName === "WebContent" ||
+          (serverName === "Contratacion digital" &&
+            logData.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (serverName === "BIOMETRIA" &&
+              logData.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL")
+        ) {
+          const {
+            fechaInicio,
+            fechaFin,
+            duracion,
+            estadoBackup,
+            rutaBackup,
+            errorMessage,
+          } = logData.logDetails;
 
-        entryDiv.innerHTML = `
+          entryDiv.innerHTML = `
           <p><strong>IP:</strong> ${logData.ip}</p>
           <p><strong>Servidor:</strong> ${serverName}</p>
           <p><strong>Fecha de inicio:</strong> ${fechaInicio || "N/A"}</p>
@@ -2733,93 +2858,93 @@ if (isPostgreSQL) {
           <p><strong>Duración:</strong> ${duracion || "N/A"}</p>
           <p><strong>Estado del backup:</strong> ${estadoBackup}</p>
           <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"
-          }</p>
+            }</p>
           <p><strong>Nombre del archivo .log:</strong> ${logData.logFileName || "N/A"
-          }</p>
+            }</p>
           <p><strong>Mensaje de error:</strong> ${errorMessage || "Sin errores detectados"
-          }</p>
+            }</p>
       `;
-      } else {
-        const successClass = logData.logDetails?.success ? "" : "error-box";
-        console.log("Contenido de dumpFileInfo:", logData.dumpFileInfo); // Verifica qué archivos se están pasando
-        // Subcarpetas que queremos verificar en la ruta de backup
-        const subcarpetas = [
-          "ESQ_USRREPBI",
-          "BK_ANTES2",
-          "APP_ESQUEMAS",
-          "BK_MD_ANTES",
-          "BK_JAQL546_FPAE71",
-          "BK_ANTES",
-          "RENIEC",
-        ];
-        let subcarpeta = "";
+        } else {
+          const successClass = logData.logDetails?.success ? "" : "error-box";
+          console.log("Contenido de dumpFileInfo:", logData.dumpFileInfo); // Verifica qué archivos se están pasando
+          // Subcarpetas que queremos verificar en la ruta de backup
+          const subcarpetas = [
+            "ESQ_USRREPBI",
+            "BK_ANTES2",
+            "APP_ESQUEMAS",
+            "BK_MD_ANTES",
+            "BK_JAQL546_FPAE71",
+            "BK_ANTES",
+            "RENIEC",
+          ];
+          let subcarpeta = "";
 
-        // Verificar si el servidor es Bantotal y si la ruta de backup contiene alguna subcarpeta de las definidas
-        if (logData.serverName === "Bantotal" && logData.backupPath) {
-          // Verificar si alguna subcarpeta está en la ruta de backup
-          subcarpeta =
-            subcarpetas.find((sub) => logData.backupPath.includes(sub)) || "";
-        }
+          // Verificar si el servidor es Bantotal y si la ruta de backup contiene alguna subcarpeta de las definidas
+          if (logData.serverName === "Bantotal" && logData.backupPath) {
+            // Verificar si alguna subcarpeta está en la ruta de backup
+            subcarpeta =
+              subcarpetas.find((sub) => logData.backupPath.includes(sub)) || "";
+          }
 
-        // Si se encuentra una subcarpeta, la mostramos debajo del título
-        let subcarpetaContent = "";
-        if (subcarpeta) {
-          subcarpetaContent = `<h3 style="font-size: 16px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`;
-        }
+          // Si se encuentra una subcarpeta, la mostramos debajo del título
+          let subcarpetaContent = "";
+          if (subcarpeta) {
+            subcarpetaContent = `<h3 style="font-size: 16px; color: #555;">Subcarpeta: ${subcarpeta}</h3>`;
+          }
 
-        const totalDmpSize = logData.dumpFileInfo.reduce(
-          (sum, file) => sum + file.fileSize,
-          0
-        );
-        const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
-        // Manejo de `totalFolderSize` para asegurar que sea un número válido
-        const folderSizeValue = Array.isArray(logData.totalFolderSize)
-          ? logData.totalFolderSize[0]?.sizeInMB || "N/A"
-          : logData.totalFolderSize;
+          const totalDmpSize = logData.dumpFileInfo.reduce(
+            (sum, file) => sum + file.fileSize,
+            0
+          );
+          const formattedDmpSize = formatFileSize(totalDmpSize); // Aquí usamos la nueva función
+          // Manejo de `totalFolderSize` para asegurar que sea un número válido
+          const folderSizeValue = Array.isArray(logData.totalFolderSize)
+            ? logData.totalFolderSize[0]?.sizeInMB || "N/A"
+            : logData.totalFolderSize;
 
-        const formattedFolderSize = !isNaN(parseFloat(folderSizeValue))
-          ? formatFileSize(parseFloat(folderSizeValue))
-          : "Tamaño no disponible";
-        // Añadir el estado del backup
-        const backupStatus = logData.logDetails.backupStatus || "N/A";
-        entryDiv.innerHTML = `
+          const formattedFolderSize = !isNaN(parseFloat(folderSizeValue))
+            ? formatFileSize(parseFloat(folderSizeValue))
+            : "Tamaño no disponible";
+          // Añadir el estado del backup
+          const backupStatus = logData.logDetails.backupStatus || "N/A";
+          entryDiv.innerHTML = `
             <p><strong>IP:</strong> ${logData.ip
-          }<strong> Nombre del servidor:</strong> ${serverName}</p>
+            }<strong> Nombre del servidor:</strong> ${serverName}</p>
         ${subcarpetaContent}
             <p><strong>Tiempo de inicio:</strong> ${logData.logDetails.startTime || "N/A"
-          }</p>
+            }</p>
             <p><strong>Tiempo de fin:</strong> ${logData.logDetails.endTime || "N/A"
-          }</p>
+            }</p>
             <p><strong>Estado del backup:</strong> ${backupStatus}</p>
             <p><strong>Duración:</strong> ${logData.logDetails.duration || "N/A"
-          }</p>
+            }</p>
             <!-- Aplica la clase 'error' al párrafo si success es No -->
             <p class="${successClass}"><strong>Exitoso?:</strong> ${logData.logDetails.success ? "Yes" : "No"
-          }</p>
+            }</p>
             <p><strong>Peso total de archivo .dmp:</strong> ${formattedDmpSize}</p> <!-- Aquí -->
             <p><strong>Nombre del archivo .log:</strong> ${logData.logFileName || "N/A"
-          }</p>
+            }</p>
             <p><strong>Ruta del backup:</strong> ${logData.backupPath || "N/A"
-          } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
+            } (${formattedFolderSize})</p> <!-- Mostrar tamaño de carpeta aquí -->
         `;
 
-        if (logData.logDetails.oraError) {
-          entryDiv.dataset.oraError = JSON.stringify(
-            logData.logDetails.oraError
-          );
+          if (logData.logDetails.oraError) {
+            entryDiv.dataset.oraError = JSON.stringify(
+              logData.logDetails.oraError
+            );
+          }
+          const showLogButton = document.createElement("button");
+          showLogButton.textContent = logData.logDetails.hasWarning
+            ? "Ver grupos de control (Advertencia)"
+            : "Ver última línea del log";
+          showLogButton.onclick = () => {
+            const linesToShow = logData.logDetails.hasWarning
+              ? logData.logDetails.last10Lines
+              : [logData.lastLine || "No hay información disponible"];
+            showLast10LinesModal(linesToShow, logData.logDetails.hasWarning);
+          };
+          entryDiv.appendChild(showLogButton);
         }
-        const showLogButton = document.createElement("button");
-        showLogButton.textContent = logData.logDetails.hasWarning
-          ? "Ver grupos de control (Advertencia)"
-          : "Ver última línea del log";
-        showLogButton.onclick = () => {
-          const linesToShow = logData.logDetails.hasWarning
-            ? logData.logDetails.last10Lines
-            : [logData.lastLine || "No hay información disponible"];
-          showLast10LinesModal(linesToShow, logData.logDetails.hasWarning);
-        };
-        entryDiv.appendChild(showLogButton);
-      }
       }
       document
         .getElementById("close-result")
@@ -2948,14 +3073,14 @@ if (isPostgreSQL) {
     }
   }
   async function handleExport(format) {
-    if (!gridApi) {
+    if (!mainGridApi) {
       console.error("Grid API no está disponible");
       return;
     }
     showLoadingIndicator();
     try {
       if (format === "excel") {
-        await exportToExcel(gridApi);
+        await exportToExcel(mainGridApi);
       } else {
         console.error("Formato de exportación no soportado");
       }

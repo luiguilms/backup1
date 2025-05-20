@@ -297,7 +297,10 @@ app.whenReady().then(() => {
         const postgresResult = await processPostgresBackupLogs(sftp, directoryPath, serverName, ip);
         sftp.end();
         conn.end();
-        return postgresResult;
+        return {
+            ...postgresResult,
+            dbEngine: 'postgresql' // Asegurar que está presente
+        };
       }
       const directoryExists = await new Promise((resolve) => {
         sftp.stat(directoryPath, (err) => {
@@ -1521,11 +1524,23 @@ app.whenReady().then(() => {
                 decryptedPassword,
                 osType
               );
+              
               // Si logDetails es null, significa que la ruta fue excluida
               if (logDetails === null) {
                 console.log(`Ruta ${backupPath} excluida para el servidor ${serverName}`);
                 continue; // Saltar esta ruta y pasar a la siguiente
               }
+              // Si es PostgreSQL, agregar dbEngine al resultado principal
+        if (logDetails.dbEngine === 'postgresql') {
+            results.push({
+                serverName,
+                ip,
+                backupPath,
+                ...logDetails, // Incluye dbEngine, estado_backup, etc.
+                error: null
+            });
+            continue;
+        }
 
               // Verificar si logDetails está vacío o contiene un error
               if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
@@ -2401,7 +2416,7 @@ async function sendCombinedAlerts() {
 
     const mailOptions = {
       from: 'igs_llupacca@cajaarequipa.pe',
-      to: 'igs_llupacca@cajaarequipa.pe',
+      to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
       subject: `Alertas de espacio en servidores (${pendingAlerts.length} alertas)`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
@@ -3239,9 +3254,6 @@ async function processPostgresBackupLogs(sftp, directoryPath, serverName, ip) {
     dbEngine: 'postgresql'
   };
 }
-
-
-
 
 async function savePostgresBackupLogs(data) {
   let connection;

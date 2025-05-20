@@ -354,6 +354,12 @@ button:hover {
   overflow-x: auto;
   padding-bottom: 15px;
 }
+#postgresqlGridContainer h2 {
+  margin-top: 40px; /* Controla el espacio superior del título */
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1; /* Asegura que el título esté detrás del botón */
+}
 
 #myGrid {
   width: 100%;
@@ -428,6 +434,7 @@ button:hover {
   transition: background-color 0.3s ease;
   margin-top: 10px;
   width: 100%;
+  top: 15px;
 }
 
 .ag-theme-alpine .ag-row {
