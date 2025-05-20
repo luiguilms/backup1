@@ -1796,11 +1796,66 @@ ${last10LinesContent}
       if (node.data) rowData.push(node.data);
     });
 
+    // Ordenar datos del grid principal
     rowData.sort((a, b) => {
       const aHasError = a.status === "Fallo" ? 1 : 0;
       const bHasError = b.status === "Fallo" ? 1 : 0;
       return bHasError - aHasError;
     });
+
+    // Obtener datos del grid de PostgreSQL
+    let postgresData = [];
+    if (postgresGridApi) { // Asegurar que el grid existe
+      postgresGridApi.forEachNode(node => {
+        if (node.data) postgresData.push(node.data);
+      });
+
+      // Ordenar PostgreSQL poniendo fallos primero
+      postgresData.sort((a, b) => {
+        const aHasError = a.estado_backup === "Fallo" ? 1 : 0;
+        const bHasError = b.estado_backup === "Fallo" ? 1 : 0;
+        return bHasError - aHasError;
+      });
+    }
+    const failedPgServers = postgresData.filter(data => data.estado_backup === "Fallo");
+
+    // Generar contenido HTML para PostgreSQL
+    const postgresContent = postgresData.map(data => {
+      // Determinar el estilo según el estado
+      const statusColor = data.estado_backup === 'Éxito' ? 'green' : 'red';
+      const borderStyle = data.estado_backup === 'Éxito' ?
+        'border: 1px solid #e0e0e0;' :
+        'border: 2px solid #dc3545;';
+      // Formatear los nombres de logs para mostrarlos uno debajo del otro
+      let formattedLogs = "No disponible";
+      if (data.logNames) {
+        // Dividir por punto y coma y crear lista con viñetas
+        const logsList = data.logNames.split(';').map(log => log.trim()).filter(log => log);
+        if (logsList.length > 0) {
+          formattedLogs = `
+        <ul style="margin: 5px 0; padding-left: 20px; list-style-type: disc;">
+          ${logsList.map(log => `<li style="margin-left: 15px;">${log}</li>`).join('')}
+        </ul>
+      `;
+        }
+      }
+      return `
+      <div style="margin: 20px 0; ${borderStyle} padding: 15px; border-radius: 8px;">
+        <h3 style="color: #2c3e50;">${data.serverName} (PostgreSQL)</h3>
+        <p><strong>IP:</strong> ${data.ip}</p>
+        <div>
+          <p style="margin-bottom: 5px;"><strong>Archivos de Log:</strong></p>
+          ${formattedLogs}
+        </div>
+        <p><strong>Estado:</strong> <span style="color: ${statusColor}">${data.estado_backup}</span></p>
+        <p><strong>Fecha Inicio:</strong> ${data.fecha_inicio || "No disponible"}</p>
+        <p><strong>Fecha Fin:</strong> ${data.fecha_fin || "No disponible"}</p>
+        <p><strong>Tamaño Total:</strong> ${data.totalFolderSize || "No disponible"}</p>
+        <p><strong>Ruta Backup:</strong> ${data.backupPath || "No disponible"}</p>
+        <p><strong>Mensaje de Error:</strong> ${data.error_message ? `<span style="color: red">${data.error_message}</span>` : '<span style="color: green">Sin errores</span>'}</p>
+      </div>
+      `;
+    }).join('');
 
     const failedServers = rowData.filter(data => data.status === "Fallo");
     const successServers = rowData.filter(data => data.status !== "Fallo");
@@ -2083,18 +2138,44 @@ ${last10LinesContent}
 
     const emailData = {
       html: `
-            <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
-                <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
-                    Reporte Detallado de Estado de Backups
-                </h1>
-                ${totalBackupsInfo}
-                ${summaryContent}
-                ${pendingContent}
-                ${outdatedContent}
-                ${networkerConflictsContent}
-                ${emailContent}
-            </div>
-        `,
+        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
+          <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">
+            Reporte Detallado de Estado de Backups
+          </h1>
+          
+          <!-- Información total -->
+          <div style="background-color: #f8f9fa; padding: 10px; margin-bottom: 20px; border-radius: 5px; text-align: center; border: 1px solid #dee2e6;">
+            <p style="font-size: 16px; margin: 0;">
+              <strong>Total de backups monitoreados:</strong> ${rowData.length + postgresData.length} 
+              (Oracle: ${rowData.length}, PostgreSQL: ${postgresData.length})
+            </p>
+          </div>
+          
+          <!-- Resumen de Errores Oracle -->
+          ${summaryContent}
+          
+          <!-- Otra información importante -->
+          ${pendingContent}
+          ${outdatedContent}
+          ${networkerConflictsContent}
+          
+          <!-- Sección de Oracle -->
+          ${rowData.length > 0 ? `
+            <h2 style="color: #2c3e50; text-align: center; margin: 40px 0 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+              Backups Oracle (${rowData.length})
+            </h2>
+            ${emailContent}
+          ` : ''}
+          
+          <!-- Sección de PostgreSQL -->
+          ${postgresData.length > 0 ? `
+            <h2 style="color: #2c3e50; text-align: center; margin: 40px 0 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+              Backups PostgreSQL (${postgresData.length})
+            </h2>
+            ${postgresContent}
+          ` : ''}
+        </div>
+      `,
       date: new Date().toLocaleDateString()
     };
 
@@ -2133,6 +2214,26 @@ ${last10LinesContent}
         sortable: true,
         filter: true,
         minWidth: 100,
+      },
+      {
+        headerName: "Archivo de Log",
+        field: "logNames",
+        sortable: true,
+        filter: true,
+        minWidth: 200,
+        cellRenderer: (params) => {
+          const logDiv = document.createElement("div");
+          logDiv.classList.add("server-cell");
+          logDiv.textContent = params.value || "No disponible";
+          logDiv.style.cursor = "pointer";
+
+          // Agregar evento de clic para mostrar el modal
+          logDiv.addEventListener("click", () => {
+            showLogDetailsModal(params.data);
+          });
+
+          return logDiv;
+        },
       },
       {
         headerName: "Estado",
@@ -2618,6 +2719,7 @@ ${last10LinesContent}
           return {
             serverName: postgresDetail.serverName || "N/A",
             ip: postgresDetail.ip || "N/A",
+            logNames: postgresDetail.logNames || "N/A",
             estado_backup: postgresDetail.estado_backup || "N/A",
             fecha_inicio: postgresDetail.fecha_inicio || "N/A",
             fecha_fin: postgresDetail.fecha_fin || "N/A",
@@ -2627,15 +2729,15 @@ ${last10LinesContent}
           };
         };
         // Procesar PostgreSQL primero
-    if (serverResult.dbEngine === "postgresql") {
-        console.log("Procesando PostgreSQL:", serverResult);
-        const processed = processPostgresDetail(serverResult);
-        if (processed) {
+        if (serverResult.dbEngine === "postgresql") {
+          console.log("Procesando PostgreSQL:", serverResult);
+          const processed = processPostgresDetail(serverResult);
+          if (processed) {
             postgresGridData.push(processed);
             console.log("Datos PostgreSQL procesados:", processed);
+          }
+          return; // ¡Importante! No continuar con Oracle
         }
-        return; // ¡Importante! No continuar con Oracle
-    }
 
 
         // Procesamiento de los datos de log para el servidor principal
