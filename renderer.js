@@ -1796,94 +1796,49 @@ ${last10LinesContent}
       if (node.data) rowData.push(node.data);
     });
 
-    // Ordenar datos del grid principal
-    rowData.sort((a, b) => {
-      const aHasError = a.status === "Fallo" ? 1 : 0;
-      const bHasError = b.status === "Fallo" ? 1 : 0;
-      return bHasError - aHasError;
-    });
-
     // Obtener datos del grid de PostgreSQL
     let postgresData = [];
-    if (postgresGridApi) { // Asegurar que el grid existe
+    if (postgresGridApi) {
       postgresGridApi.forEachNode(node => {
         if (node.data) postgresData.push(node.data);
       });
-
-      // Ordenar PostgreSQL poniendo fallos primero
-      postgresData.sort((a, b) => {
-        const aHasError = a.estado_backup === "Fallo" ? 1 : 0;
-        const bHasError = b.estado_backup === "Fallo" ? 1 : 0;
-        return bHasError - aHasError;
-      });
     }
+
+    // **CAMBIO PRINCIPAL: Combinar y ordenar todos los backups juntos**
+    // Marcar el tipo de backup para poder identificarlos después
+    const oracleBackups = rowData.map(data => ({
+      ...data,
+      backupType: 'Oracle',
+      isError: data.status === "Fallo"
+    }));
+    
+    const postgresBackups = postgresData.map(data => ({
+      ...data,
+      backupType: 'PostgreSQL',
+      isError: data.estado_backup === "Fallo"
+    }));
+
+    // Combinar todos los backups
+    const allBackups = [...oracleBackups, ...postgresBackups];
+
+    // Ordenar: primero todos los errores (Oracle y PostgreSQL), luego los exitosos
+    allBackups.sort((a, b) => {
+      // Primero ordenar por error/éxito
+      if (a.isError && !b.isError) return -1;
+      if (!a.isError && b.isError) return 1;
+      
+      // Si ambos tienen el mismo estado, mantener orden por tipo (opcional)
+      if (a.backupType !== b.backupType) {
+        return a.backupType === 'Oracle' ? -1 : 1;
+      }
+      
+      return 0;
+    });
+
+    // Separar nuevamente para mantener las funciones existentes
+    const sortedOracleBackups = allBackups.filter(backup => backup.backupType === 'Oracle');
+    const sortedPostgresBackups = allBackups.filter(backup => backup.backupType === 'PostgreSQL');
     // Generar contenido HTML para PostgreSQL
-    const postgresContent = postgresData.map(data => {
-      // Determinar el estilo según el estado
-      const statusColor = data.estado_backup === 'Éxito' ? 'green' : 'red';
-      const borderStyle = data.estado_backup === 'Éxito' ?
-        'border: 1px solid #e0e0e0;' :
-        'border: 2px solid #dc3545;';
-      // Formatear los nombres de logs para mostrarlos uno debajo del otro
-      let formattedLogs = "No disponible";
-      if (data.logNames) {
-        // Dividir por punto y coma y crear lista con viñetas
-        const logsList = data.logNames.split(';').map(log => log.trim()).filter(log => log);
-        if (logsList.length > 0) {
-          formattedLogs = `
-        <ul style="margin: 5px 0; padding-left: 20px; list-style-type: disc;">
-          ${logsList.map(log => `<li style="margin-left: 15px;">${log}</li>`).join('')}
-        </ul>
-      `;
-        }
-      }
-      let formattedError = "No disponible";
-
-      // Verificar si hay un mensaje de error
-      if (data.error_message) {
-        // Separar el nombre del archivo de los errores
-        const errorParts = data.error_message.split("\n");
-        const fileName = errorParts[0];  // El nombre del archivo
-        const errors = errorParts.slice(1);  // Los errores
-
-        // Formatear el nombre del archivo y los errores
-  formattedError = `
-    <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 2px solid #dc3545;">
-      <p><strong>Archivo log:</strong> ${fileName}</p>
-      <p><strong>Errores:</strong></p>
-      <ul style="margin: 5px 0; padding-left: 20px; list-style-type: disc;">
-        ${errors.map(error => `<li style="margin-left: 15px;">${error}</li>`).join('')}
-      </ul>
-    </div>
-  `;
-
-      }
-      return `
-      <div style="margin: 20px 0; ${borderStyle} padding: 15px; border-radius: 8px;">
-        <h3 style="color: #2c3e50;">${data.serverName} (PostgreSQL)</h3>
-        <p><strong>IP:</strong> ${data.ip}</p>
-        <div>
-          <p style="margin-bottom: 5px;"><strong>Archivos de Log:</strong></p>
-          ${formattedLogs}
-        </div>
-        <p><strong>Estado:</strong> 
-        <span style="color: ${statusColor}; ${data.estado_backup === 'Fallo' ? 'background-color: #f8d7da; color: #721c24; padding: 5px; border-radius: 4px;' : ''}">
-          ${data.estado_backup}
-        </span>
-      </p>
-        <p><strong>Fecha Inicio:</strong> ${data.fecha_inicio || "No disponible"}</p>
-        <p><strong>Fecha Fin:</strong> ${data.fecha_fin || "No disponible"}</p>
-        <p><strong>Tamaño Total:</strong> ${data.totalFolderSize || "No disponible"}</p>
-        <p><strong>Ruta Backup:</strong> ${data.backupPath || "No disponible"}</p>
-        <p><strong>Mensaje de Error:</strong><br> 
-      ${formattedError}
-    </p>
-      </div>
-      `;
-    }).join('');
-
-    const failedServers = rowData.filter(data => data.status === "Fallo");
-    const successServers = rowData.filter(data => data.status !== "Fallo");
 
     // *** NUEVO CÓDIGO: Verificar conflictos con Networker ***
     console.log("Iniciando verificación de conflictos con Networker...");
@@ -2034,120 +1989,185 @@ ${last10LinesContent}
       `;
     }
 
+    // **MODIFICAR: Usar los backups combinados para el resumen de errores**
+    const allFailedBackups = allBackups.filter(backup => backup.isError);
+    
     let summaryContent = '';
-    if (failedServers.length > 0) {
+    if (allFailedBackups.length > 0) {
       summaryContent = `
-            <div style="background-color: #fff3cd; color: #856404; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #ffeeba;">
-                <h3 style="margin-top: 0;">Resumen de Errores</h3>
-                <p>Se encontraron ${failedServers.length} servidor(es) con errores de un total de ${rowData.length} backups.</p>
-                <ul style="margin-bottom: 0;">
-                    ${failedServers.map(server => `
-                        <li>${server.serverName} - ${server.backupPath}</li>
-                    `).join('')}
-                </ul>
-            </div>
-        `;
+        <div style="background-color: #fff3cd; color: #856404; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #ffeeba;">
+            <h3 style="margin-top: 0;">Resumen de Errores</h3>
+            <p>Se encontraron ${allFailedBackups.length} servidor(s) con errores de un total de ${allBackups.length} backups.</p>
+            <ul style="margin-bottom: 0;">
+                ${allFailedBackups.map(server => `
+                    <li><strong>${server.serverName}</strong> (${server.backupType}) - ${server.backupPath || 'Ruta no disponible'}</li>
+                `).join('')}
+            </ul>
+        </div>
+      `;
     }
+// **FUNCIÓN PARA GENERAR CONTENIDO HTML UNIFICADO**
+    const generateUnifiedContent = (backups) => {
+      return backups.map(data => {
+        if (data.backupType === 'Oracle') {
+          // Lógica existente para Oracle
+          const successStatus = data.status === "Fallo" ? "Fallo" : "Éxito";
+          const statusStyle = data.status === "Fallo" ?
+            'background-color: #f8d7da; color: #721c24; padding: 5px;' :
+            'background-color: #d4edda; color: #155724; padding: 5px;';
 
-    const emailContent = rowData.map(data => {
-      const successStatus = data.status === "Fallo" ? "Fallo" : "Éxito";
-      const statusStyle = data.status === "Fallo" ?
-        'background-color: #f8d7da; color: #721c24; padding: 5px;' :
-        'background-color: #d4edda; color: #155724; padding: 5px;';
+          const isSpecialServer = data.serverName === "WebContent" ||
+            (data.serverName === "Contratacion digital" &&
+              data.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || 
+            (data.serverName === "BIOMETRIA" &&
+              data.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL");
 
-      const isSpecialServer = data.serverName === "WebContent" ||
-        (data.serverName === "Contratacion digital" &&
-          data.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (data.serverName === "BIOMETRIA" &&
-            data.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL");
+          let logContent = '';
+          let errorContent = '';
 
-      let logContent = '';
-      let errorContent = '';
+          if (isSpecialServer) {
+            const statusTitle = "Estado RMAN:";
+            let statusMessage;
+            if (data.status === "Fallo") {
+              statusMessage = (data.oraError ?
+                JSON.parse(data.oraError).errorLine :
+                data.last10Lines)?.trim() || "Error no especificado";
+            } else {
+              statusMessage = data.last10Lines || "Recovery Manager complete.";
+            }
 
-      if (isSpecialServer) {
-        // Cambiar el título de "Error RMAN" a "Estado RMAN"
-        const statusTitle = "Estado RMAN:";
-        // Obtener el mensaje correcto según el estado
-        let statusMessage;
-        if (data.status === "Fallo") {
-          // Si es fallo, mostrar el error (como ya lo hace)
-          statusMessage = (data.oraError ?
-            JSON.parse(data.oraError).errorLine :
-            data.last10Lines)?.trim() || "Error no especificado";
+            errorContent = `
+        <div style="${data.status === "Fallo" ?
+                'background-color: #f8d7da; color: #721c24;' :
+                'background-color: #f5f5f5; color: #333333;'}  
+          padding: 10px; margin: 10px 0; border-radius: 4px;">
+          <strong>${statusTitle}</strong><br>
+          <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${statusMessage.trim()}</pre>
+        </div>`;
+          } else {
+            logContent = `
+        <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
+            <strong>${data.last10Lines ? "Últimas líneas del log:" : "Advertencia:"}</strong><br>
+            <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; padding: 0;">${Array.isArray(data.last10Lines) ?
+                data.last10Lines.map(line => line.trim()).join('<br>') :
+                (data.last10Lines?.trim() || 'No disponible')
+              }</pre>
+        </div>`;
+            
+            if (data.status === "Fallo" && data.oraError) {
+              const errorObj = JSON.parse(data.oraError);
+              errorContent = `
+            <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
+              <strong>Error detectado:</strong>
+              <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">
+        <strong>Línea anterior:</strong> ${errorObj.previousLine.trim()}
+        <strong>Error:</strong> ${errorObj.errorLine.trim()}
+        <strong>Línea siguiente:</strong> ${errorObj.nextLine.trim()}
+              </pre>
+            </div>`;
+            }
+          }
+
+          const containerStyle = data.status === "Fallo" ?
+            'border: 2px solid #dc3545;' :
+            'border: 1px solid #ddd;';
+
+          return `
+            <div style="${containerStyle} padding: 20px; margin-bottom: 30px; border-radius: 8px;">
+                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                    ${data.serverName} <span style="background-color: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-left: 10px;">Oracle</span>
+                </h2>
+                
+                <div style="margin: 15px 0;">
+                    <p><strong>IP:</strong> ${data.ip}</p>
+                    <p><strong>Archivo de Log:</strong> ${data.logFileName || "No disponible"}</p>
+                    <p><strong>Hora de Inicio:</strong> ${data.startTime || "No disponible"}</p>
+                    <p><strong>Hora de Fin:</strong> ${data.endTime || "No disponible"}</p>
+                    <p><strong>Duración:</strong> ${data.duration || "No disponible"}</p>                
+                    ${!isSpecialServer ? `
+                        <p><strong>Estado de Backup:</strong> ${data.backupStatus || "No disponible"}</p>
+                        <p><strong>Peso total de archivo .dmp:</strong> ${data.totalDmpSize || "No disponible"}</p>
+                        <p><strong>Tamaño Total Carpeta:</strong> ${data.totalFolderSize || "No disponible"}</p>
+                    ` : ''}
+                    <p>
+                        <strong>Estado:</strong> 
+                        <span style="${statusStyle}; border-radius: 4px;">
+                            ${successStatus}
+                        </span>
+                    </p>
+                    <p style="word-break: break-all;"><strong>Ruta del backup:</strong> ${data.backupPath || "N/A"}</p>
+                    <p>
+     <strong style="background-color:rgb(192, 255, 206); padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
+       Máximo Grupo: <span style="color:rgb(4, 102, 48);">${data.groupNumber || "1"}</span>
+     </strong>
+     </p>
+                </div>
+                
+                ${errorContent}
+                ${logContent}
+            </div>`;
         } else {
-          // Si es éxito, mostrar el mensaje de Recovery Manager complete
-          statusMessage = data.last10Lines || "Recovery Manager complete.";
-        }
+          // Lógica existente para PostgreSQL
+          const statusColor = data.estado_backup === 'Éxito' ? 'green' : 'red';
+          const borderStyle = data.estado_backup === 'Éxito' ?
+            'border: 1px solid #e0e0e0;' :
+            'border: 2px solid #dc3545;';
 
-        errorContent = `
-    <div style="${data.status === "Fallo" ?
-            'background-color: #f8d7da; color: #721c24;' :
-            'background-color: #f5f5f5; color: #333333;'}  
-      padding: 10px; margin: 10px 0; border-radius: 4px;">
-      <strong>${statusTitle}</strong><br>
-      <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${statusMessage.trim()}</pre>
-    </div>`;
-      }
-      else {
-        // Para servidores normales
-        logContent = `
-    <div style="background-color: #f5f5f5; padding: 10px; margin: 10px 0;">
-        <strong>${data.last10Lines ? "Últimas líneas del log:" : "Advertencia:"}</strong><br>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; padding: 0;">${Array.isArray(data.last10Lines) ?
-            data.last10Lines.map(line => line.trim()).join('<br>') :
-            (data.last10Lines?.trim() || 'No disponible')
-          }</pre>
-    </div>`;
-        if (data.status === "Fallo" && data.oraError) {
-          const errorObj = JSON.parse(data.oraError);
-          errorContent = `
-        <div style="background-color: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; border-radius: 4px;">
-          <strong>Error detectado:</strong>
-          <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">
-    <strong>Línea anterior:</strong> ${errorObj.previousLine.trim()}
-    <strong>Error:</strong> ${errorObj.errorLine.trim()}
-    <strong>Línea siguiente:</strong> ${errorObj.nextLine.trim()}
-          </pre>
-        </div>`;
-        }
-      }
-      const containerStyle = data.status === "Fallo" ?
-        'border: 2px solid #dc3545;' :
-        'border: 1px solid #ddd;';
-      return `
-        <div style="${containerStyle} padding: 20px; margin-bottom: 30px; border-radius: 8px;">
-            <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-                ${data.serverName}
-            </h2>
-            
-            <div style="margin: 15px 0;">
-                <p><strong>IP:</strong> ${data.ip}</p>
-                <p><strong>Archivo de Log:</strong> ${data.logFileName || "No disponible"}</p>
-                <p><strong>Hora de Inicio:</strong> ${data.startTime || "No disponible"}</p>
-                <p><strong>Hora de Fin:</strong> ${data.endTime || "No disponible"}</p>
-                <p><strong>Duración:</strong> ${data.duration || "No disponible"}</p>                
-                ${!isSpecialServer ? `
-                    <p><strong>Estado de Backup:</strong> ${data.backupStatus || "No disponible"}</p>
-                    <p><strong>Peso total de archivo .dmp:</strong> ${data.totalDmpSize || "No disponible"}</p>
-                    <p><strong>Tamaño Total Carpeta:</strong> ${data.totalFolderSize || "No disponible"}</p>
-                ` : ''}
-                <p>
-                    <strong>Estado:</strong> 
-                    <span style="${statusStyle}; border-radius: 4px;">
-                        ${successStatus}
-                    </span>
-                </p>
-                <p style="word-break: break-all;"><strong>Ruta del backup:</strong> ${data.backupPath || "N/A"}</p>
-                <p>
- <strong style="background-color:rgb(192, 255, 206); padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
-   Máximo Grupo: <span style="color:rgb(4, 102, 48);">${data.groupNumber || "1"}</span>
- </strong>
- </p>
+          let formattedLogs = "No disponible";
+          if (data.logNames) {
+            const logsList = data.logNames.split(';').map(log => log.trim()).filter(log => log);
+            if (logsList.length > 0) {
+              formattedLogs = `
+            <ul style="margin: 5px 0; padding-left: 20px; list-style-type: disc;">
+              ${logsList.map(log => `<li style="margin-left: 15px;">${log}</li>`).join('')}
+            </ul>
+          `;
+            }
+          }
+
+          let formattedError = "No disponible";
+          if (data.error_message) {
+            const errorParts = data.error_message.split("\n");
+            const fileName = errorParts[0];
+            const errors = errorParts.slice(1);
+
+            formattedError = `
+        <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 2px solid #dc3545;">
+          <p><strong>Archivo log:</strong> ${fileName}</p>
+          <p><strong>Errores:</strong></p>
+          <ul style="margin: 5px 0; padding-left: 20px; list-style-type: disc;">
+            ${errors.map(error => `<li style="margin-left: 15px;">${error}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+          }
+
+          return `
+          <div style="margin: 20px 0; ${borderStyle} padding: 15px; border-radius: 8px;">
+            <h3 style="color: #2c3e50;">${data.serverName} <span style="background-color: #17a2b8; color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-left: 10px;">PostgreSQL</span></h3>
+            <p><strong>IP:</strong> ${data.ip}</p>
+            <div>
+              <p style="margin-bottom: 5px;"><strong>Archivos de Log:</strong></p>
+              ${formattedLogs}
             </div>
-            
-            ${errorContent}
-            ${logContent}
-        </div>`;
-    }).join('');
+            <p><strong>Estado:</strong> 
+            <span style="color: ${statusColor}; ${data.estado_backup === 'Fallo' ? 'background-color: #f8d7da; color: #721c24; padding: 5px; border-radius: 4px;' : ''}">
+              ${data.estado_backup}
+            </span>
+          </p>
+            <p><strong>Fecha Inicio:</strong> ${data.fecha_inicio || "No disponible"}</p>
+            <p><strong>Fecha Fin:</strong> ${data.fecha_fin || "No disponible"}</p>
+            <p><strong>Tamaño Total:</strong> ${data.totalFolderSize || "No disponible"}</p>
+            <p><strong>Ruta Backup:</strong> ${data.backupPath || "No disponible"}</p>
+            <p><strong>Mensaje de Error:</strong><br> 
+          ${formattedError}
+        </p>
+          </div>
+          `;
+        }
+      }).join('');
+    };
+
 
     const emailData = {
       html: `
@@ -2172,21 +2192,11 @@ ${last10LinesContent}
           ${outdatedContent}
           ${networkerConflictsContent}
           
-          <!-- Sección de Oracle -->
-          ${rowData.length > 0 ? `
-            <h2 style="color: #2c3e50; text-align: center; margin: 40px 0 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-              Backups Oracle (${rowData.length})
-            </h2>
-            ${emailContent}
-          ` : ''}
-          
-          <!-- Sección de PostgreSQL -->
-          ${postgresData.length > 0 ? `
-            <h2 style="color: #2c3e50; text-align: center; margin: 40px 0 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-              Backups PostgreSQL (${postgresData.length})
-            </h2>
-            ${postgresContent}
-          ` : ''}
+          <!-- **NUEVO: Sección unificada de todos los backups** -->
+          <h2 style="color: #2c3e50; text-align: center; margin: 40px 0 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+            Todos los Backups (${allBackups.length}) - Errores Primero
+          </h2>
+          ${generateUnifiedContent(allBackups)}
         </div>
       `,
       date: new Date().toLocaleDateString()
