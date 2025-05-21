@@ -2075,7 +2075,7 @@ ${last10LinesContent}
           return `
             <div style="${containerStyle} padding: 20px; margin-bottom: 30px; border-radius: 8px;">
                 <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-                    ${data.serverName} <span style="background-color: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-left: 10px;">Oracle</span>
+                    ${data.serverName} <span></span>
                 </h2>
                 
                 <div style="margin: 15px 0;">
@@ -2144,7 +2144,7 @@ ${last10LinesContent}
 
           return `
           <div style="margin: 20px 0; ${borderStyle} padding: 15px; border-radius: 8px;">
-            <h3 style="color: #2c3e50;">${data.serverName} <span style="background-color: #17a2b8; color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-left: 10px;">PostgreSQL</span></h3>
+            <h3 style="color: #2c3e50;">${data.serverName} <span></span></h3>
             <p><strong>IP:</strong> ${data.ip}</p>
             <div>
               <p style="margin-bottom: 5px;"><strong>Archivos de Log:</strong></p>
@@ -2191,11 +2191,6 @@ ${last10LinesContent}
           ${pendingContent}
           ${outdatedContent}
           ${networkerConflictsContent}
-          
-          <!-- **NUEVO: Sección unificada de todos los backups** -->
-          <h2 style="color: #2c3e50; text-align: center; margin: 40px 0 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-            Todos los Backups (${allBackups.length}) - Errores Primero
-          </h2>
           ${generateUnifiedContent(allBackups)}
         </div>
       `,
