@@ -1817,8 +1817,6 @@ ${last10LinesContent}
         return bHasError - aHasError;
       });
     }
-    const failedPgServers = postgresData.filter(data => data.estado_backup === "Fallo");
-
     // Generar contenido HTML para PostgreSQL
     const postgresContent = postgresData.map(data => {
       // Determinar el estilo según el estado
@@ -1839,6 +1837,27 @@ ${last10LinesContent}
       `;
         }
       }
+      let formattedError = "No disponible";
+
+      // Verificar si hay un mensaje de error
+      if (data.error_message) {
+        // Separar el nombre del archivo de los errores
+        const errorParts = data.error_message.split("\n");
+        const fileName = errorParts[0];  // El nombre del archivo
+        const errors = errorParts.slice(1);  // Los errores
+
+        // Formatear el nombre del archivo y los errores
+  formattedError = `
+    <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 2px solid #dc3545;">
+      <p><strong>Archivo log:</strong> ${fileName}</p>
+      <p><strong>Errores:</strong></p>
+      <ul style="margin: 5px 0; padding-left: 20px; list-style-type: disc;">
+        ${errors.map(error => `<li style="margin-left: 15px;">${error}</li>`).join('')}
+      </ul>
+    </div>
+  `;
+
+      }
       return `
       <div style="margin: 20px 0; ${borderStyle} padding: 15px; border-radius: 8px;">
         <h3 style="color: #2c3e50;">${data.serverName} (PostgreSQL)</h3>
@@ -1847,12 +1866,18 @@ ${last10LinesContent}
           <p style="margin-bottom: 5px;"><strong>Archivos de Log:</strong></p>
           ${formattedLogs}
         </div>
-        <p><strong>Estado:</strong> <span style="color: ${statusColor}">${data.estado_backup}</span></p>
+        <p><strong>Estado:</strong> 
+        <span style="color: ${statusColor}; ${data.estado_backup === 'Fallo' ? 'background-color: #f8d7da; color: #721c24; padding: 5px; border-radius: 4px;' : ''}">
+          ${data.estado_backup}
+        </span>
+      </p>
         <p><strong>Fecha Inicio:</strong> ${data.fecha_inicio || "No disponible"}</p>
         <p><strong>Fecha Fin:</strong> ${data.fecha_fin || "No disponible"}</p>
         <p><strong>Tamaño Total:</strong> ${data.totalFolderSize || "No disponible"}</p>
         <p><strong>Ruta Backup:</strong> ${data.backupPath || "No disponible"}</p>
-        <p><strong>Mensaje de Error:</strong> ${data.error_message ? `<span style="color: red">${data.error_message}</span>` : '<span style="color: green">Sin errores</span>'}</p>
+        <p><strong>Mensaje de Error:</strong><br> 
+      ${formattedError}
+    </p>
       </div>
       `;
     }).join('');
@@ -2123,18 +2148,6 @@ ${last10LinesContent}
             ${logContent}
         </div>`;
     }).join('');
-
-    // Calcular el total de backups monitoreados
-    const totalBackups = rowData.length;
-
-    // Crear una línea simple con el total
-    const totalBackupsInfo = `
-    <div style="background-color: #f8f9fa; padding: 10px; margin-bottom: 20px; border-radius: 5px; text-align: center; border: 1px solid #dee2e6;">
-        <p style="font-size: 16px; margin: 0;">
-            <strong>Total de backups monitoreados:</strong> ${totalBackups}
-        </p>
-    </div>
-  `;
 
     const emailData = {
       html: `
