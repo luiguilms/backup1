@@ -3024,7 +3024,8 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
                   backupEndTime: backupEndTime.toISOString(),
                   networkerStartTime: scheduledMonthlyStartTime.toISOString(),
                   minutesDifference: monthlyMinutesDifference,
-                  conflictType: "Mensual"
+                  conflictType: "Mensual",
+                  backupType: data.backupType || "Oracle"
                 });
               }
             }
@@ -3045,7 +3046,8 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
                   backupEndTime: backupEndTime.toISOString(),
                   networkerStartTime: monthlyEncryptedTime.toISOString(),
                   minutesDifference: encryptedMinutesDifference,
-                  conflictType: "Encriptación Mensual"
+                  conflictType: "Encriptación Mensual",
+                  backupType: data.backupType || "Oracle"
                 });
               }
             }
@@ -3066,7 +3068,8 @@ ipcMain.handle("check-networker-conflicts", async (event, backupData) => {
                   backupEndTime: backupEndTime.toISOString(),
                   networkerStartTime: scheduledStartTime.toISOString(),
                   minutesDifference: minutesDifference,
-                  conflictType: "Diario"
+                  conflictType: "Diario",
+                  backupType: data.backupType || "Oracle"
                 });
               }
             }

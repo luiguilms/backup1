@@ -1834,69 +1834,155 @@ ${last10LinesContent}
       
       return 0;
     });
-
-    // Separar nuevamente para mantener las funciones existentes
-    const sortedOracleBackups = allBackups.filter(backup => backup.backupType === 'Oracle');
-    const sortedPostgresBackups = allBackups.filter(backup => backup.backupType === 'PostgreSQL');
     // Generar contenido HTML para PostgreSQL
+function convertPostgresToStandardDate(postgresDate) {
+  if (!postgresDate || typeof postgresDate !== 'string') {
+    return null;
+  }
+  
+  try {
+    // PostgreSQL format: "21/05/2025, 20:35:10"
+    // Target format: "2025-05-21 20:35:10"
+    
+    const [datePart, timePart] = postgresDate.split(', ');
+    if (!datePart || !timePart) {
+      console.warn(`Formato de fecha PostgreSQL inválido: ${postgresDate}`);
+      return null;
+    }
+    
+    const [day, month, year] = datePart.split('/');
+    if (!day || !month || !year) {
+      console.warn(`Formato de fecha PostgreSQL inválido: ${postgresDate}`);
+      return null;
+    }
+    
+    // Convertir a formato ISO: YYYY-MM-DD HH:MM:SS
+    const standardDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timePart}`;
+    
+    // Verificar que la fecha sea válida
+    const testDate = new Date(standardDate);
+    if (isNaN(testDate.getTime())) {
+      console.warn(`Fecha PostgreSQL no válida después de conversión: ${standardDate}`);
+      return null;
+    }
+    
+    console.log(`Fecha PostgreSQL convertida: ${postgresDate} -> ${standardDate}`);
+    return standardDate;
+    
+  } catch (error) {
+    console.error(`Error convirtiendo fecha PostgreSQL ${postgresDate}:`, error);
+    return null;
+  }
+}
+    // *** MODIFICACIÓN: Combinar datos de Oracle y PostgreSQL para verificación de Networker ***
+console.log("Iniciando verificación de conflictos con Networker...");
 
-    // *** NUEVO CÓDIGO: Verificar conflictos con Networker ***
-    console.log("Iniciando verificación de conflictos con Networker...");
-    console.log(`Procesando ${rowData.length} rutas de backup para verificar conflictos`);
+// Preparar datos combinados para la verificación
+const allBackupData = [
+  // Datos de Oracle (formato original)
+  ...rowData.map(data => ({
+    ...data,
+    backupType: 'Oracle'
+  })),
+  ...postgresData.map(data => {
+    const convertedEndTime = convertPostgresToStandardDate(data.fecha_fin);
+    const convertedStartTime = convertPostgresToStandardDate(data.fecha_inicio);
+    
+    console.log(`Mapeando PostgreSQL: ${data.serverName}, Path: ${data.backupPath}`);
+    console.log(`  Fecha fin original: ${data.fecha_fin}`);
+    console.log(`  Fecha fin convertida: ${convertedEndTime}`);
+    console.log(`  Fecha inicio original: ${data.fecha_inicio}`);
+    console.log(`  Fecha inicio convertida: ${convertedStartTime}`);
+    
+    return {
+      ...data,
+      backupType: 'PostgreSQL',
+      serverName: data.serverName,
+      backupPath: data.backupPath,
+      endTime: convertedEndTime,    // ← FECHA CONVERTIDA
+      startTime: convertedStartTime // ← FECHA CONVERTIDA
+    };
+  })
+];
+// DEBUGGING ADICIONAL:
+console.log("=== DEBUGGING POSTGRESQL NETWORKER ===");
+console.log(`Total PostgreSQL backups: ${postgresData.length}`);
+postgresData.forEach((data, index) => {
+  console.log(`PostgreSQL ${index}:`, {
+    serverName: data.serverName,
+    backupPath: data.backupPath,
+    fecha_fin: data.fecha_fin,
+    fecha_inicio: data.fecha_inicio
+  });
+});
+console.log(`Procesando ${allBackupData.length} rutas de backup (${rowData.length} Oracle + ${postgresData.length} PostgreSQL) para verificar conflictos`);
 
     let networkerResult = { conflicts: [] };
     try {
-      // Llamar a la función del backend para verificar conflictos
-      networkerResult = await window.electron.checkNetworkerConflicts(rowData);
-      console.log(`Resultado de verificación:`, networkerResult);
-    } catch (error) {
-      console.error('Error al verificar conflictos con Networker:', error);
-    }
+  // Llamar a la función del backend para verificar conflictos con todos los datos
+  networkerResult = await window.electron.checkNetworkerConflicts(allBackupData);
+  console.log(`Resultado de verificación:`, networkerResult);
+} catch (error) {
+  console.error('Error al verificar conflictos con Networker:', error);
+}
 
     const networkerConflicts = networkerResult.conflicts || [];
-    console.log(`Se encontraron ${networkerConflicts.length} conflictos con Networker`);
+console.log(`Se encontraron ${networkerConflicts.length} conflictos con Networker (Oracle + PostgreSQL)`);
 
-    // Generar contenido HTML para conflictos de Networker
-    let networkerConflictsContent = "";
-    if (networkerConflicts.length > 0) {
-      console.log("Generando contenido HTML para conflictos con Networker...");
+    // Generar contenido HTML para conflictos de Networker (ahora incluye ambos tipos)
+let networkerConflictsContent = "";
+if (networkerConflicts.length > 0) {
+  console.log("Generando contenido HTML para conflictos con Networker...");
 
-      // Agrupar conflictos por tipo
-      const dailyConflicts = networkerConflicts.filter(c => c.conflictType === "Diario");
-      const monthlyConflicts = networkerConflicts.filter(c => c.conflictType === "Mensual");
-      const encryptedConflicts = networkerConflicts.filter(c => c.conflictType === "Encriptación Mensual");
+  // Agrupar conflictos por tipo de conflicto
+  const dailyConflicts = networkerConflicts.filter(c => c.conflictType === "Diario");
+  const monthlyConflicts = networkerConflicts.filter(c => c.conflictType === "Mensual");
+  const encryptedConflicts = networkerConflicts.filter(c => c.conflictType === "Encriptación Mensual");
 
-      // Función para generar HTML para un tipo de conflicto
-      const generateConflictHTML = (conflicts, title, borderColor) => {
-        if (conflicts.length === 0) return '';
+  // Función para generar HTML para un tipo de conflicto (modificada para mostrar tipo de DB)
+  const generateConflictHTML = (conflicts, title, borderColor) => {
+    if (conflicts.length === 0) return '';
 
-        return `
-    <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 2px solid ${borderColor};">
-      <h4 style="margin-top: 0; color: #721c24;">${title} (${conflicts.length})</h4>
-      <ul style="margin-bottom: 0;">
-        ${conflicts.map(conflict => `
-          <li><strong>${conflict.serverName}</strong>
-            <br><span style="color: #721c24">Ruta completa: ${conflict.backupPath}</span>
-            <br><span style="color: #721c24">Ruta configurada: ${conflict.configuredPath}</span>
-            <br><span style="color: #721c24">Hora de fin del backup: ${new Date(conflict.backupEndTime).toLocaleString()}</span>
-            <br><span style="color: #721c24">Hora programada en Networker: ${new Date(conflict.networkerStartTime).toLocaleString()}</span>
-            <br><span style="color: #721c24">El backup termina ${conflict.minutesDifference} minutos después de iniciarse Networker</span>
-          </li>`).join('')}
-      </ul>
-    </div>`;
-      };
+    return `
+<div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 2px solid ${borderColor};">
+  <h4 style="margin-top: 0; color: #721c24;">${title} (${conflicts.length})</h4>
+  <ul style="margin-bottom: 0;">
+    ${conflicts.map(conflict => `
+      <li><strong>${conflict.serverName}</strong> 
+        <span style="background-color: ${conflict.backupType === 'Oracle' ? '#e3f2fd' : '#f3e5f5'}; 
+                     color: ${conflict.backupType === 'Oracle' ? '#1976d2' : '#7b1fa2'}; 
+                     padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-left: 5px;">
+          ${conflict.backupType}
+        </span>
+        <br><span style="color: #721c24">Ruta completa: ${conflict.backupPath}</span>
+        <br><span style="color: #721c24">Ruta configurada: ${conflict.configuredPath}</span>
+        <br><span style="color: #721c24">Hora de fin del backup: ${new Date(conflict.backupEndTime).toLocaleString()}</span>
+        <br><span style="color: #721c24">Hora programada en Networker: ${new Date(conflict.networkerStartTime).toLocaleString()}</span>
+        <br><span style="color: #721c24">El backup termina ${conflict.minutesDifference} minutos después de iniciarse Networker</span>
+      </li>`).join('')}
+  </ul>
+</div>`;
+  };
 
-      networkerConflictsContent = `
-  <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #f5c6cb;">
-    <h3 style="margin-top: 0; color: #721c24;">⚠️ Conflictos con programación de Networker</h3>
-    <p>Se detectaron ${networkerConflicts.length} conflicto(s) entre el fin del backup y el inicio del respaldo en Networker:</p>
-    
-    ${generateConflictHTML(dailyConflicts, "Conflictos con respaldo diario", "#dc3545")}
-    ${generateConflictHTML(monthlyConflicts, "Conflictos con respaldo mensual", "#fd7e14")}
-    ${generateConflictHTML(encryptedConflicts, "Conflictos con encriptación mensual", "#6f42c1")}
-  </div>
+  // Separar conflictos por tipo de base de datos para estadísticas
+  const oracleConflicts = networkerConflicts.filter(c => c.backupType === 'Oracle');
+  const postgresConflicts = networkerConflicts.filter(c => c.backupType === 'PostgreSQL');
+
+  networkerConflictsContent = `
+<div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #f5c6cb;">
+  <h3 style="margin-top: 0; color: #721c24;">⚠️ Conflictos con programación de Networker</h3>
+  <p>Se detectaron ${networkerConflicts.length} conflicto(s) entre el fin del backup y el inicio del respaldo en Networker:</p>
+  <p style="font-size: 14px; margin: 5px 0;">
+    • Oracle: ${oracleConflicts.length} conflicto(s)<br>
+    • PostgreSQL: ${postgresConflicts.length} conflicto(s)
+  </p>
+  
+  ${generateConflictHTML(dailyConflicts, "Conflictos con respaldo diario", "#dc3545")}
+  ${generateConflictHTML(monthlyConflicts, "Conflictos con respaldo mensual", "#fd7e14")}
+  ${generateConflictHTML(encryptedConflicts, "Conflictos con encriptación mensual", "#6f42c1")}
+</div>
 `;
-    }
+}
 
     // *** NUEVO CÓDIGO: Detectar backups antiguos ***
     const outdatedBackups = [];
