@@ -2125,7 +2125,7 @@ ${last10LinesContent}
             }
           }
 
-          let formattedError = "No disponible";
+          let formattedError = "Sin errores";
           if (data.error_message) {
             const errorParts = data.error_message.split("\n");
             const fileName = errorParts[0];
