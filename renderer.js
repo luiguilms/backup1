@@ -511,7 +511,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function loadHistoryData(date, container) {
     try {
-      const historyData = await window.electron.getVerificationHistory(date);
+      // Llamar ambos handles en paralelo
+      const [oracleData, postgresData] = await Promise.all([
+        window.electron.getVerificationHistory(date),
+        window.electron.getPostgresHistory(date)
+      ]);
+
+      // Unir los datos
+      const historyData = oracleData.concat(postgresData);
+
+      // Ordenar por fecha descendente
+      historyData.sort((a, b) => new Date(b.executionDate) - new Date(a.executionDate));
+
       container.innerHTML = "";
       if (!historyData.length) {
         container.innerHTML = "<p>No hay verificaciones para esta fecha.</p>";
@@ -815,16 +826,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                 params.data.backupPath === "/disco6/BK_RMAN_CONTRADIGI") || (params.data.serverName === "BIOMETRIA" &&
                   params.data.backupPath === "/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL");
 
-            // Si es un servidor especial, usamos `error_message` como contenido del botón
-            if (isSpecialServer) {
-              button.innerHTML = "Ver error"; // Título del botón
+            // Es un backup de PostgreSQL si osType lo indica
+            const isPostgres = params.data.osType && params.data.osType.toLowerCase().includes('postgres');
+
+            // Si es PostgreSQL y hay error, mostrar botón para ver error
+            if (isPostgres && params.data.oraErrorMessage && params.data.oraErrorMessage !== "Sin errores") {
+              button.innerHTML = "Ver error";
+              button.addEventListener("click", () => {
+                showLast10LinesModal(params.data.oraErrorMessage);
+              });
+            }
+            // Si es un servidor especial RMAN de Oracle
+            else if (isSpecialServer) {
+              button.innerHTML = "Ver error";
               button.addEventListener("click", () => {
                 const errorMessage =
-                  params.data.oraErrorMessage || "Sin errores detectados"; // `oraErrorMessage` o mensaje por defecto
-                showLast10LinesModal(errorMessage); // Llamada al modal con `error_message`
+                  params.data.oraErrorMessage || "Sin errores detectados";
+                showLast10LinesModal(errorMessage);
               });
             } else {
-              // Caso general: comprobamos si `groupControlInfo` tiene "Job" para determinar el título
+              // Caso general Oracle
               if (
                 params.data.groupControlInfo &&
                 params.data.groupControlInfo.includes("Job")
@@ -833,15 +854,14 @@ document.addEventListener("DOMContentLoaded", async () => {
               } else {
                 button.innerHTML = "Ver advertencias";
               }
-
-              // Lógica para el caso general: mostrar `groupControlInfo`
               button.addEventListener("click", () => {
                 const contentToShow =
-                  params.data.groupControlInfo || "No disponible";
+                  params.data.groupControlInfo ||
+                  params.data.oraErrorMessage ||
+                  "No disponible";
                 showLast10LinesModal(contentToShow);
               });
             }
-
             return button;
           },
         },
@@ -991,6 +1011,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statusClass =
       serverData.success === 1 ? "status-success" : "status-failure";
 
+    // DETECTAR SI ES POSTGRESQL
+    const isPostgres = serverData.osType && serverData.osType.toLowerCase().includes('postgres');
+
     // Verificar si el servidor es Bantotal y si el backupPath contiene alguna de las subcarpetas especificadas
     const subcarpetas = [
       "ESQ_USRREPBI",
@@ -1024,6 +1047,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (isSpecialServer) {
       // Para servidores RMAN, cambiar el título según el estado
       last10LinesTitle = serverData.success === 1 ? "Estado RMAN" : "Error RMAN";
+    } else if (isPostgres) {
+      // Para PostgreSQL, mostrar título específico
+      last10LinesTitle = serverData.success === 1 ? "Estado PostgreSQL" : "Error PostgreSQL";
     } else {
       // Para servidores normales, usar la lógica original
       last10LinesTitle = containsJob ? "Ver última línea del log" : "Advertencia:";
@@ -1048,7 +1074,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     <p><strong>Hora de Inicio:</strong> ${formattedHoraINI || "No disponible"
       }</p>
     <p><strong>Hora de Fin:</strong> ${formattedHoraFIN || "No disponible"}</p>
-    <p><strong>Duración:</strong> ${serverData.duration || "No disponible"}</p>
+    ${!isPostgres ? `<p><strong>Duración:</strong> ${serverData.duration || "No disponible"}</p>` : ''}
     <p><strong>Exitoso?:</strong> 
       <span id="success-status" class="${statusClass}" style="cursor: pointer;">
         ${successStatus || "No disponible"}
@@ -1057,8 +1083,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     <p style="word-wrap: break-word; white-space: normal; max-width: 100%; overflow-wrap: break-word;">
     <strong>Ruta de Backup:</strong> ${serverData.backupPath || "No disponible"}
     </p>
+    </p>
     ${isSpecialServer
         ? ""
+        : isPostgres
+        ? `<p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || "No disponible"}</p>`
         : `
         <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"}</p>
         <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || "No disponible"}</p>

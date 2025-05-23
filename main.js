@@ -253,15 +253,15 @@ app.whenReady().then(() => {
     const server = servers.find((s) => s.ip === ip);
     const serverName = server ? server.name : "N/A";
     if (server) {
-  console.log(`Servidor encontrado: ${serverName}, DB Engine: ${server.db_engine}`);
-  if (server.db_engine === 'postgresql') {
-    console.log(`>>> Procesando ruta PostgreSQL para servidor ${serverName} (IP: ${ip})`);
-  } else {
-    console.log(`>>> Procesando ruta para otro motor de BD: ${server.db_engine}`);
-  }
-} else {
-  console.log(`No se encontró servidor para IP: ${ip}`);
-}
+      console.log(`Servidor encontrado: ${serverName}, DB Engine: ${server.db_engine}`);
+      if (server.db_engine === 'postgresql') {
+        console.log(`>>> Procesando ruta PostgreSQL para servidor ${serverName} (IP: ${ip})`);
+      } else {
+        console.log(`>>> Procesando ruta para otro motor de BD: ${server.db_engine}`);
+      }
+    } else {
+      console.log(`No se encontró servidor para IP: ${ip}`);
+    }
     if (serverName === "EBS" || serverName === "BI") {
       if (firstDay && !isMensualRoute) {
         console.log(
@@ -298,8 +298,8 @@ app.whenReady().then(() => {
         sftp.end();
         conn.end();
         return {
-            ...postgresResult,
-            dbEngine: 'postgresql' // Asegurar que está presente
+          ...postgresResult,
+          dbEngine: 'postgresql' // Asegurar que está presente
         };
       }
       const directoryExists = await new Promise((resolve) => {
@@ -1524,23 +1524,23 @@ app.whenReady().then(() => {
                 decryptedPassword,
                 osType
               );
-              
+
               // Si logDetails es null, significa que la ruta fue excluida
               if (logDetails === null) {
                 console.log(`Ruta ${backupPath} excluida para el servidor ${serverName}`);
                 continue; // Saltar esta ruta y pasar a la siguiente
               }
               // Si es PostgreSQL, agregar dbEngine al resultado principal
-        if (logDetails.dbEngine === 'postgresql') {
-            results.push({
-                serverName,
-                ip,
-                backupPath,
-                ...logDetails, // Incluye dbEngine, estado_backup, etc.
-                error: null
-            });
-            continue;
-        }
+              if (logDetails.dbEngine === 'postgresql') {
+                results.push({
+                  serverName,
+                  ip,
+                  backupPath,
+                  ...logDetails, // Incluye dbEngine, estado_backup, etc.
+                  error: null
+                });
+                continue;
+              }
 
               // Verificar si logDetails está vacío o contiene un error
               if (!logDetails || (Array.isArray(logDetails) && logDetails.length === 0)) {
@@ -2756,6 +2756,65 @@ ipcMain.handle("get-verification-history", async (event, date) => {
     }
   }
 });
+ipcMain.handle("get-postgres-history", async (event, date) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+
+    const result = await connection.execute(`
+      SELECT
+        id,
+        DBMS_LOB.SUBSTR(logNames, 4000, 1) AS logNames,
+        fecha_inicio,
+        fecha_fin,
+        CASE WHEN estado = 'Éxito' THEN 1 ELSE 0 END AS success,
+        executionDate,
+        DBMS_LOB.SUBSTR(errorMessage, 4000, 1) AS errorMessage,
+        totalFolderSize,
+        serverName,
+        ip,
+        BackupPath
+      FROM PostgresBackupLogs
+      WHERE TRUNC(executionDate) = TO_DATE(:selectedDate, 'YYYY-MM-DD')
+      ORDER BY executionDate DESC
+    `, { selectedDate: date }, {
+      fetchInfo: {
+        errorMessage: { type: oracledb.STRING },
+        logNames: { type: oracledb.STRING }
+      }
+    });
+
+    return result.rows.map(row => ({
+      id: row[0],
+      logFileName: row[1],        // logNames → logFileName
+      horaINI: row[2],
+      horaFIN: row[3],
+      duration: "N/A",            // No hay duración en Postgres
+      success: row[4],            // Estado como 1 o 0
+      executionDate: row[5],
+      oraErrorMessage: row[6] || "Sin errores",
+      totalFolderSize: row[7],
+      serverName: row[8],
+      ip: row[9],
+      backupPath: row[10],
+      dumpFileSize: "N/A",         // No aplica para Postgres, enviar null
+      osType: "PostgreSQL"        // Para identificar tipo en frontend
+    }));
+  } catch (error) {
+    console.error("Error al obtener historial Postgres:", error);
+    return [];
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error cerrando conexión:", err);
+      }
+    }
+  }
+});
+
+
 
 function formatOracleDate(date) {
   if (!date || isNaN(date.getTime())) {
@@ -3174,8 +3233,8 @@ async function processPostgresBackupLogs(sftp, directoryPath, serverName, ip) {
       });
     });
 
-    // Detectar palabras 'error' o 'errors' (case insensitive)
-    const regexError = /\berror\b/i;
+    // Detectar palabras 'error' o 'fatal' (case insensitive)
+    const regexError = /(error|fatal)/i;
     if (regexError.test(content)) {
       estadoBackup = 'Fallo';
       const errorLines = content.split('\n').filter(line => regexError.test(line));
@@ -3188,28 +3247,28 @@ async function processPostgresBackupLogs(sftp, directoryPath, serverName, ip) {
 
   // El archivo más antiguo determina la fecha de inicio
   const earliestDate = fileDetails.length > 0 ? fileDetails[0].mtime : new Date();
-  
+
   // El archivo más reciente determina la fecha de fin
   const latestDate = fileDetails.length > 0 ? fileDetails[fileDetails.length - 1].mtime : new Date();
 
   // Convertir las fechas a formato legible (con hora, minutos y segundos en formato 24h)
   const formattedStartDate = earliestDate.toLocaleString('es-PE', {
-    year: 'numeric', 
-    month: '2-digit', 
-    day: '2-digit', 
-    hour: '2-digit', 
-    minute: '2-digit', 
-    second: '2-digit', 
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
     hour12: false // No AM/PM, formato 24h
   });
 
   const formattedEndDate = latestDate.toLocaleString('es-PE', {
-    year: 'numeric', 
-    month: '2-digit', 
-    day: '2-digit', 
-    hour: '2-digit', 
-    minute: '2-digit', 
-    second: '2-digit', 
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
     hour12: false // No AM/PM, formato 24h
   });
 
@@ -3217,7 +3276,7 @@ async function processPostgresBackupLogs(sftp, directoryPath, serverName, ip) {
   let formattedFolderSize;
 
   // Convertir bytes a MB
-  let totalFolderSizeMB = totalFolderSize / (1024 * 1024); 
+  let totalFolderSizeMB = totalFolderSize / (1024 * 1024);
 
   // Si el tamaño supera 1000MB, lo convertimos a GB
   if (totalFolderSizeMB >= 1000) {

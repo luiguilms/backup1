@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld("electron", {
   deleteBackupRoute: (ip, backupPath) =>
     ipcRenderer.invoke("deleteBackupRoute", ip, backupPath),
   getVerificationHistory: (date) => ipcRenderer.invoke("get-verification-history", date),
+  getPostgresHistory: (date) => ipcRenderer.invoke("get-postgres-history", date),
   send: (channel, data) => ipcRenderer.send(channel, data),
   sendEmailWithImages: (data) => ipcRenderer.invoke('send-email-with-images', data),
   checkNetworkerConflicts: (backupData) => 
