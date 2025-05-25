@@ -3233,8 +3233,8 @@ async function processPostgresBackupLogs(sftp, directoryPath, serverName, ip) {
       });
     });
 
-    // Detectar palabras 'error' o 'fatal' (case insensitive)
-    const regexError = /(error|fatal)/i;
+    // Detectar palabras exactas 'error' o 'fatal' (case insensitive)
+    const regexError = /\b(error|fatal)\b/i;
     if (regexError.test(content)) {
       estadoBackup = 'Fallo';
       const errorLines = content.split('\n').filter(line => regexError.test(line));
