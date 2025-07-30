@@ -1087,8 +1087,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     ${isSpecialServer
         ? ""
         : isPostgres
-        ? `<p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || "No disponible"}</p>`
-        : `
+          ? `<p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || "No disponible"}</p>`
+          : `
         <p><strong>Estado de Backup:</strong> ${serverData.backupStatus || "No disponible"}</p>
         <p><strong>Peso total del archivo .dmp:</strong> ${serverData.dumpFileSize || "No disponible"}</p>
         <p><strong>Tamaño total de carpeta:</strong> ${serverData.totalFolderSize || "No disponible"}</p>
@@ -1863,6 +1863,41 @@ ${last10LinesContent}
 
       return 0;
     });
+    const requiredFoldersBantotal = [
+  "ESQ_USRREPBI",
+  "BK_ANTES2",
+  "APP_ESQUEMAS",
+  "BK_MD_ANTES",
+  "BK_JAQL546_FPAE71",
+  "BK_ANTES",
+  "RENIEC"
+];
+
+const missingFoldersWarnings = [];
+
+// ✅ SOLUCIÓN: Ejecutar la verificación solo UNA vez, fuera del bucle
+const bantotalRecords = rowData.filter(d => d.serverName === "Bantotal" && d.backupPath);
+
+if (bantotalRecords.length > 0) {
+  // Extraer todas las carpetas existentes de Bantotal
+  const existingFolders = bantotalRecords.map(d => d.backupPath.split('/').pop());
+  
+  // Buscar cuáles carpetas requeridas no están presentes
+  const missing = requiredFoldersBantotal.filter(req =>
+    !existingFolders.some(folder => folder.startsWith(req))
+  );
+
+  // Solo agregar UNA entrada si hay carpetas faltantes
+  if (missing.length > 0) {
+    missingFoldersWarnings.push({
+      serverName: "Bantotal",
+      expected: requiredFoldersBantotal,
+      found: existingFolders,
+      missing: missing
+    });
+  }
+}
+
     // Generar contenido HTML para PostgreSQL
     function convertPostgresToStandardDate(postgresDate) {
       if (!postgresDate || typeof postgresDate !== 'string') {
@@ -2169,6 +2204,22 @@ ${last10LinesContent}
       `;
     }
 
+    let missingFoldersContent = "";
+
+if (missingFoldersWarnings.length > 0) {
+  missingFoldersContent = `
+    <div style="background-color: #fff3cd; color: #856404; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #ffeeba;">
+      <h3 style="margin-top: 0;">⚠️ Advertencia: Backups Faltantes en BANTOTAL</h3>
+      ${missingFoldersWarnings.map(w => `
+        <p><strong>${w.serverName}</strong> tiene <strong>${w.missing.length}</strong> backup(s) faltante(s) - Por favor revisar:</p>
+        <ul>
+          ${w.missing.map(f => `<li>${f}</li>`).join('')}
+        </ul>
+      `).join('')}
+    </div>
+  `;
+}
+
     // **MODIFICAR: Usar los backups combinados para el resumen de errores**
     const allFailedBackups = allBackups.filter(backup => backup.isError);
 
@@ -2366,7 +2417,7 @@ ${last10LinesContent}
           
           <!-- Resumen de Errores Oracle -->
           ${summaryContent}
-          
+          ${missingFoldersContent}
           <!-- Otra información importante -->
           ${pendingContent}
           ${outdatedContent}

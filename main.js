@@ -645,9 +645,9 @@ app.whenReady().then(() => {
                       hasWarning: logInfo ? logInfo.hasWarning : false,
                       warningNumber: logInfo ? logInfo.warningNumber : null,
                       lastLine: lastLine, // Añadimos la última línea aquí
-                      backupIncomplete: targetOS === "solaris" && !isBackupComplete, // Solo para Solaris
-                      expectedFolders: targetOS === "solaris" ? 7 : null, // Solo para Solaris
-                      foundFolders: targetOS === "solaris" ? directories.length : null, // Solo para Solaris
+                      backupIncomplete: targetOS === "linux" && !isBackupComplete, // Solo para Solaris
+                      expectedFolders: targetOS === "linux" ? 7 : null, // Solo para Solaris
+                      foundFolders: targetOS === "linux" ? directories.length : null, // Solo para Solaris
                       backupVoid: false,
                       groupNumber: logDetails && logDetails.groupNumber,
                     });
@@ -1587,14 +1587,12 @@ app.whenReady().then(() => {
               ];
 
               if (serverName === "Bantotal" && logDetails && logDetails.backupIncomplete) {
-                // Encuentra las subcarpetas existentes en `directories`
-                const existingSubfolders = directories.map(folder => folder.split('/').pop()); // Obtener solo el nombre de la carpeta
-
-                // Filtrar las subcarpetas requeridas que no están presentes
-                const missingSubfolders = requiredSubfolders.filter(required =>
-                  !existingSubfolders.includes(required) // Comparación exacta
-                );
-
+                const missingSubfolders = requiredSubfolders.filter(required => {
+                  // Buscar si hay alguna carpeta que empieza con el nombre requerido
+                  const match = directories.find(dir => dir.filename.startsWith(required));
+                  // Si no se encontró o si el tamaño es 0, se considera faltante
+                  return !match || match.attrs.size === 0;
+                });
                 // Mensaje para el modal
                 let warningMessage = `Backup Incompleto: Se esperaban 7 carpetas, pero se encontraron ${logDetails.foundFolders}.`;
                 if (missingSubfolders.length > 0) {
