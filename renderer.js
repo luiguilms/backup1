@@ -1821,15 +1821,15 @@ ${last10LinesContent}
   }
 
   // Función para generar contenido HTML de las alertas
-function generateDurationAlertsHTML(alertsResult) {
-  if (!alertsResult || alertsResult.alerts.length === 0) {
-    return ''
-  }
-  
-  const criticalAlerts = alertsResult.alerts.filter(a => a.severity === 'CRÍTICO');
-  const warningAlerts = alertsResult.alerts.filter(a => a.severity === 'ADVERTENCIA');
-  
-  return `
+  function generateDurationAlertsHTML(alertsResult) {
+    if (!alertsResult || alertsResult.alerts.length === 0) {
+      return ''
+    }
+
+    const criticalAlerts = alertsResult.alerts.filter(a => a.severity === 'CRÍTICO');
+    const warningAlerts = alertsResult.alerts.filter(a => a.severity === 'ADVERTENCIA');
+
+    return `
     <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 2px solid #dc3545;">
       <h3 style="margin-top: 0; color: #721c24;">⏰ Alertas de Duración Anómala de Backups</h3>
       <p>Se detectaron <strong>${alertsResult.alerts.length}</strong> backup(s) con duración superior al promedio + 1 hora:</p>
@@ -1855,10 +1855,10 @@ function generateDurationAlertsHTML(alertsResult) {
             
             <div style="font-size: 14px; line-height: 1.4;">
               <p style="margin: 4px 0;"><strong>Tipo:</strong> 
-                <span style="background-color: ${alert.backupType === 'ORACLE_DMP' ? '#e3f2fd' : 
-                                                  alert.backupType === 'ORACLE_RMAN' ? '#fff3e0' : '#f3e5f5'}; 
-                             color: ${alert.backupType === 'ORACLE_DMP' ? '#1976d2' : 
-                                      alert.backupType === 'ORACLE_RMAN' ? '#f57c00' : '#7b1fa2'}; 
+                <span style="background-color: ${alert.backupType === 'ORACLE_DMP' ? '#e3f2fd' :
+        alert.backupType === 'ORACLE_RMAN' ? '#fff3e0' : '#f3e5f5'}; 
+                             color: ${alert.backupType === 'ORACLE_DMP' ? '#1976d2' :
+        alert.backupType === 'ORACLE_RMAN' ? '#f57c00' : '#7b1fa2'}; 
                              padding: 2px 6px; border-radius: 3px; font-size: 11px;">
                   ${alert.backupType}
                 </span>
@@ -1883,39 +1883,39 @@ function generateDurationAlertsHTML(alertsResult) {
       </div>
     </div>
   `;
-}
+  }
 
-// Función para integrar las alertas en el email existente
-async function integrateBackupDurationAlerts() {
-  try {
-    console.log("🚀 Integrando alertas de duración en el reporte...");
-    
-    // Ejecutar análisis de duración usando IPC
-    const alertsResult = await window.electron.checkBackupDurationAlerts(7);
-    
-    // Generar HTML de alertas
-    const alertsHTML = generateDurationAlertsHTML(alertsResult);
-    
-    console.log(`✅ Alertas de duración integradas: ${alertsResult.alerts.length} alertas`);
-    
-    return {
-      alertsHTML: alertsHTML,
-      alertsData: alertsResult
-    };
-    
-  } catch (error) {
-    console.error("❌ Error integrando alertas de duración:", error);
-    return {
-      alertsHTML: `
+  // Función para integrar las alertas en el email existente
+  async function integrateBackupDurationAlerts() {
+    try {
+      console.log("🚀 Integrando alertas de duración en el reporte...");
+
+      // Ejecutar análisis de duración usando IPC
+      const alertsResult = await window.electron.checkBackupDurationAlerts(7);
+
+      // Generar HTML de alertas
+      const alertsHTML = generateDurationAlertsHTML(alertsResult);
+
+      console.log(`✅ Alertas de duración integradas: ${alertsResult.alerts.length} alertas`);
+
+      return {
+        alertsHTML: alertsHTML,
+        alertsData: alertsResult
+      };
+
+    } catch (error) {
+      console.error("❌ Error integrando alertas de duración:", error);
+      return {
+        alertsHTML: `
         <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #f5c6cb;">
           <h3 style="margin-top: 0;">❌ Error en Análisis de Duración</h3>
           <p>No se pudo completar el análisis de duración de backups. Error: ${error.message}</p>
         </div>
       `,
-      alertsData: null
-    };
+        alertsData: null
+      };
+    }
   }
-}
 
   async function sendServerDetails(mainGridApi) {
     let rowData = [];
@@ -1965,39 +1965,392 @@ async function integrateBackupDurationAlerts() {
       return 0;
     });
     const requiredFoldersBantotal = [
-  "ESQ_USRREPBI",
-  "BK_ANTES2",
-  "APP_ESQUEMAS",
-  "BK_MD_ANTES",
-  "BK_JAQL546_FPAE71",
-  "BK_ANTES",
-  "RENIEC"
-];
+      "ESQ_USRREPBI",
+      "BK_ANTES2",
+      "APP_ESQUEMAS",
+      "BK_MD_ANTES",
+      "BK_JAQL546_FPAE71",
+      "BK_ANTES",
+      "RENIEC"
+    ];
 
-const missingFoldersWarnings = [];
+    const missingFoldersWarnings = [];
 
-// ✅ SOLUCIÓN: Ejecutar la verificación solo UNA vez, fuera del bucle
-const bantotalRecords = rowData.filter(d => d.serverName === "Bantotal" && d.backupPath);
+    // ✅ SOLUCIÓN: Ejecutar la verificación solo UNA vez, fuera del bucle
+    const bantotalRecords = rowData.filter(d => d.serverName === "Bantotal" && d.backupPath);
 
-if (bantotalRecords.length > 0) {
-  // Extraer todas las carpetas existentes de Bantotal
-  const existingFolders = bantotalRecords.map(d => d.backupPath.split('/').pop());
-  
-  // Buscar cuáles carpetas requeridas no están presentes
-  const missing = requiredFoldersBantotal.filter(req =>
-    !existingFolders.some(folder => folder.startsWith(req))
-  );
+    if (bantotalRecords.length > 0) {
+      // Extraer todas las carpetas existentes de Bantotal
+      const existingFolders = bantotalRecords.map(d => d.backupPath.split('/').pop());
 
-  // Solo agregar UNA entrada si hay carpetas faltantes
-  if (missing.length > 0) {
-    missingFoldersWarnings.push({
-      serverName: "Bantotal",
-      expected: requiredFoldersBantotal,
-      found: existingFolders,
-      missing: missing
-    });
-  }
-}
+      // Buscar cuáles carpetas requeridas no están presentes
+      const missing = requiredFoldersBantotal.filter(req =>
+        !existingFolders.some(folder => folder.startsWith(req))
+      );
+
+      // Solo agregar UNA entrada si hay carpetas faltantes
+      if (missing.length > 0) {
+        missingFoldersWarnings.push({
+          serverName: "Bantotal",
+          expected: requiredFoldersBantotal,
+          found: existingFolders,
+          missing: missing
+        });
+      }
+    }
+    const requiredFoldersEBS = [
+      "APPLSYS",
+      "XLA",
+      "GL",
+      "EBS_GENERIC" // Para identificar la carpeta genérica BK_EBS_YYYY_MM_DD_HHMM
+    ];
+
+    const missingFoldersEBSWarnings = [];
+
+    // Verificación para EBS - ejecutar solo UNA vez
+    const ebsRecords = rowData.filter(d => d.serverName === "EBS" && d.backupPath);
+
+    if (ebsRecords.length > 0) {
+      console.log(`Verificando carpetas EBS. Encontrados ${ebsRecords.length} registros`);
+
+      // Extraer nombres de carpetas y clasificarlas
+      const foundFolders = {
+        APPLSYS: false,
+        XLA: false,
+        GL: false,
+        EBS_GENERIC: false
+      };
+
+      const allFolderNames = [];
+
+      ebsRecords.forEach(record => {
+        const folderName = record.backupPath.split('/').pop();
+        allFolderNames.push(folderName);
+
+        console.log(`Analizando carpeta EBS: ${folderName} desde ruta: ${record.backupPath}`);
+
+        // Patrones dinámicos con fecha/hora flexible
+        // Patrón para APPLSYS: BK_EBS_APPLSYS_YYYY_MM_DD_HHMM
+        const applsysPattern = /^BK_EBS_APPLSYS_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        // Patrón para XLA: BK_EBS_XLA_YYYY_MM_DD_HHMM  
+        const xlaPattern = /^BK_EBS_XLA_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        // Patrón para GL: BK_EBS_GL_YYYY_MM_DD_HHMM
+        const glPattern = /^BK_EBS_GL_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        // Patrón para carpeta genérica: BK_EBS_YYYY_MM_DD_HHMM (sin identificador específico)
+        const genericPattern = /^BK_EBS_\d{4}_\d{2}_\d{2}_\d{4}$/;
+
+        // Verificar cada tipo de carpeta con patrones dinámicos
+        if (applsysPattern.test(folderName)) {
+          foundFolders.APPLSYS = true;
+          console.log('✓ Carpeta APPLSYS encontrada:', folderName);
+        } else if (xlaPattern.test(folderName)) {
+          foundFolders.XLA = true;
+          console.log('✓ Carpeta XLA encontrada:', folderName);
+        } else if (glPattern.test(folderName)) {
+          foundFolders.GL = true;
+          console.log('✓ Carpeta GL encontrada:', folderName);
+        } else if (genericPattern.test(folderName)) {
+          foundFolders.EBS_GENERIC = true;
+          console.log('✓ Carpeta EBS genérica encontrada:', folderName);
+        } else {
+          console.log('⚠️ Carpeta EBS no reconocida:', folderName);
+        }
+      });
+
+      // Identificar carpetas faltantes
+      const missingEBS = [];
+      Object.keys(foundFolders).forEach(folderType => {
+        if (!foundFolders[folderType]) {
+          // Mapear nombres técnicos a nombres amigables
+          const friendlyNames = {
+            'APPLSYS': 'BK_EBS_APPLSYS_*',
+            'XLA': 'BK_EBS_XLA_*',
+            'GL': 'BK_EBS_GL_*',
+            'EBS_GENERIC': 'BK_EBS_YYYY_MM_DD_HHMM (carpeta principal)'
+          };
+          missingEBS.push(friendlyNames[folderType]);
+        }
+      });
+
+      // Solo agregar advertencia si hay carpetas faltantes
+      if (missingEBS.length > 0) {
+        missingFoldersEBSWarnings.push({
+          serverName: "EBS",
+          expected: requiredFoldersEBS.map(folder => {
+            const friendlyNames = {
+              'APPLSYS': 'BK_EBS_APPLSYS_*',
+              'XLA': 'BK_EBS_XLA_*',
+              'GL': 'BK_EBS_GL_*',
+              'EBS_GENERIC': 'BK_EBS_YYYY_MM_DD_HHMM'
+            };
+            return friendlyNames[folder];
+          }),
+          found: allFolderNames,
+          missing: missingEBS
+        });
+
+        console.log(`⚠️ EBS: Faltan ${missingEBS.length} carpeta(s):`, missingEBS);
+      } else {
+        console.log('✅ EBS: Todas las carpetas requeridas están presentes');
+      }
+    }
+
+    // Agregar después de la verificación de EBS (línea ~135 aproximadamente)
+
+    const requiredFoldersDATAWH = [
+      "MD",
+      "DATAWH_GENERIC" // Para identificar la carpeta genérica BK_DATAWH_YYYY_MM_DD_HHMM
+    ];
+
+    const missingFoldersDATAWHWarnings = [];
+
+    // Verificación para DATAWH - ejecutar solo UNA vez
+    const datawhRecords = rowData.filter(d => d.serverName === "DATAWH" && d.backupPath);
+
+    if (datawhRecords.length > 0) {
+      console.log(`Verificando carpetas DATAWH. Encontrados ${datawhRecords.length} registros`);
+
+      // Extraer nombres de carpetas y clasificarlas
+      const foundFolders = {
+        MD: false,
+        DATAWH_GENERIC: false
+      };
+
+      const allFolderNames = [];
+
+      datawhRecords.forEach(record => {
+        const folderName = record.backupPath.split('/').pop();
+        allFolderNames.push(folderName);
+
+        console.log(`Analizando carpeta DATAWH: ${folderName} desde ruta: ${record.backupPath}`);
+
+        // Patrones dinámicos con fecha/hora flexible
+        // Patrón para MD: BK_DATAWH_MD_YYYY_MM_DD_HHMM
+        const mdPattern = /^BK_DATAWH_MD_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        // Patrón para carpeta genérica: BK_DATAWH_YYYY_MM_DD_HHMM (sin identificador específico)
+        const genericPattern = /^BK_DATAWH_\d{4}_\d{2}_\d{2}_\d{4}$/;
+
+        // Verificar cada tipo de carpeta con patrones dinámicos
+        if (mdPattern.test(folderName)) {
+          foundFolders.MD = true;
+          console.log('✓ Carpeta MD encontrada:', folderName);
+        } else if (genericPattern.test(folderName)) {
+          foundFolders.DATAWH_GENERIC = true;
+          console.log('✓ Carpeta DATAWH genérica encontrada:', folderName);
+        } else {
+          console.log('⚠️ Carpeta DATAWH no reconocida:', folderName);
+        }
+      });
+
+      // Identificar carpetas faltantes
+      const missingDATAWH = [];
+      Object.keys(foundFolders).forEach(folderType => {
+        if (!foundFolders[folderType]) {
+          // Mapear nombres técnicos a nombres amigables
+          const friendlyNames = {
+            'MD': 'BK_DATAWH_MD_*',
+            'DATAWH_GENERIC': 'BK_DATAWH_YYYY_MM_DD_HHMM (carpeta principal)'
+          };
+          missingDATAWH.push(friendlyNames[folderType]);
+        }
+      });
+
+      // Solo agregar advertencia si hay carpetas faltantes
+      if (missingDATAWH.length > 0) {
+        missingFoldersDATAWHWarnings.push({
+          serverName: "DATAWH",
+          expected: requiredFoldersDATAWH.map(folder => {
+            const friendlyNames = {
+              'MD': 'BK_DATAWH_MD_*',
+              'DATAWH_GENERIC': 'BK_DATAWH_YYYY_MM_DD_HHMM'
+            };
+            return friendlyNames[folder];
+          }),
+          found: allFolderNames,
+          missing: missingDATAWH
+        });
+
+        console.log(`⚠️ DATAWH: Faltan ${missingDATAWH.length} carpeta(s):`, missingDATAWH);
+      } else {
+        console.log('✅ DATAWH: Todas las carpetas requeridas están presentes');
+      }
+    }
+
+    const requiredFoldersContratacion = [
+      "CONTRAT_GENERIC",      // Para BK_CONTRAT_YYYY_MM_DD_HHMM (genérica)
+      "CONTRAT_MD_ALL",       // Para BK_CONTRAT_MD_ALL_YYYY_MM_DD_HHMM  
+      "BK_RMAN_CONTRADIGI"    // Carpeta fija, siempre igual
+    ];
+
+    const missingFoldersContratacionWarnings = [];
+
+    // Verificación para Contratacion digital - ejecutar solo UNA vez
+    const contratacionRecords = rowData.filter(d => d.serverName === "Contratacion digital" && d.backupPath);
+
+    if (contratacionRecords.length > 0) {
+      console.log(`Verificando carpetas Contratacion digital. Encontrados ${contratacionRecords.length} registros`);
+
+      // Extraer nombres de carpetas y clasificarlas
+      const foundFolders = {
+        CONTRAT_GENERIC: false,
+        CONTRAT_MD_ALL: false,
+        BK_RMAN_CONTRADIGI: false
+      };
+
+      const allFolderNames = [];
+
+      contratacionRecords.forEach(record => {
+        const folderName = record.backupPath.split('/').pop();
+        allFolderNames.push(folderName);
+
+        console.log(`Analizando carpeta Contratacion digital: ${folderName} desde ruta: ${record.backupPath}`);
+
+        // Patrones dinámicos con fecha/hora flexible + carpeta fija
+        // Patrón para MD_ALL: BK_CONTRAT_MD_ALL_YYYY_MM_DD_HHMM
+        const mdAllPattern = /^BK_CONTRAT_MD_ALL_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        // Patrón para carpeta genérica: BK_CONTRAT_YYYY_MM_DD_HHMM (sin MD_ALL)
+        const genericPattern = /^BK_CONTRAT_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        // Carpeta fija RMAN (coincidencia exacta)
+        const rmanName = "BK_RMAN_CONTRADIGI";
+
+        // Verificar cada tipo de carpeta con patrones dinámicos
+        if (mdAllPattern.test(folderName)) {
+          foundFolders.CONTRAT_MD_ALL = true;
+          console.log('✓ Carpeta MD_ALL encontrada:', folderName);
+        } else if (genericPattern.test(folderName)) {
+          foundFolders.CONTRAT_GENERIC = true;
+          console.log('✓ Carpeta CONTRAT genérica encontrada:', folderName);
+        } else if (folderName === rmanName) {
+          foundFolders.BK_RMAN_CONTRADIGI = true;
+          console.log('✓ Carpeta RMAN encontrada:', folderName);
+        } else {
+          console.log('⚠️ Carpeta Contratacion digital no reconocida:', folderName);
+        }
+      });
+
+      // Identificar carpetas faltantes
+      const missingContratacion = [];
+      Object.keys(foundFolders).forEach(folderType => {
+        if (!foundFolders[folderType]) {
+          // Mapear nombres técnicos a nombres amigables
+          const friendlyNames = {
+            'CONTRAT_GENERIC': 'BK_CONTRAT_YYYY_MM_DD_HHMM (carpeta principal)',
+            'CONTRAT_MD_ALL': 'BK_CONTRAT_MD_ALL_*',
+            'BK_RMAN_CONTRADIGI': 'BK_RMAN_CONTRADIGI (carpeta fija)'
+          };
+          missingContratacion.push(friendlyNames[folderType]);
+        }
+      });
+
+      // Solo agregar advertencia si hay carpetas faltantes
+      if (missingContratacion.length > 0) {
+        missingFoldersContratacionWarnings.push({
+          serverName: "Contratacion digital",
+          expected: requiredFoldersContratacion.map(folder => {
+            const friendlyNames = {
+              'CONTRAT_GENERIC': 'BK_CONTRAT_YYYY_MM_DD_HHMM',
+              'CONTRAT_MD_ALL': 'BK_CONTRAT_MD_ALL_*',
+              'BK_RMAN_CONTRADIGI': 'BK_RMAN_CONTRADIGI'
+            };
+            return friendlyNames[folder];
+          }),
+          found: allFolderNames,
+          missing: missingContratacion
+        });
+
+        console.log(`⚠️ Contratacion digital: Faltan ${missingContratacion.length} carpeta(s):`, missingContratacion);
+      } else {
+        console.log('✅ Contratacion digital: Todas las carpetas requeridas están presentes');
+      }
+    }
+
+    const requiredFoldersBiometria = [
+      "BIOME_GENERIC",        // Para BK_BIOME_YYYY_MM_DD_HHMM (genérica)
+      "BIOME_MD_ALL",         // Para BK_BIOME_MD_ALL_YYYY_MM_DD_HHMM  
+      "BK_RMAN_FULL"          // Carpeta fija, siempre igual
+    ];
+
+    const missingFoldersBiometriaWarnings = [];
+
+    // Verificación para BIOMETRIA - ejecutar solo UNA vez
+    const biometriaRecords = rowData.filter(d => d.serverName === "BIOMETRIA" && d.backupPath);
+
+    if (biometriaRecords.length > 0) {
+      console.log(`Verificando carpetas BIOMETRIA. Encontrados ${biometriaRecords.length} registros`);
+
+      // Extraer nombres de carpetas y clasificarlas
+      const foundFolders = {
+        BIOME_GENERIC: false,
+        BIOME_MD_ALL: false,
+        BK_RMAN_FULL: false
+      };
+
+      const allFolderNames = [];
+
+      biometriaRecords.forEach(record => {
+        const folderName = record.backupPath.split('/').pop();
+        allFolderNames.push(folderName);
+
+        console.log(`Analizando carpeta BIOMETRIA: ${folderName} desde ruta: ${record.backupPath}`);
+
+        // Patrones dinámicos con fecha/hora flexible + carpeta fija
+        // Patrón para MD_ALL: BK_BIOME_MD_ALL_YYYY_MM_DD_HHMM
+        const mdAllPattern = /^BK_BIOME_MD_ALL_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        // Patrón para carpeta genérica: BK_BIOME_YYYY_MM_DD_HHMM (sin MD_ALL)
+        const genericPattern = /^BK_BIOME_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        // Carpeta fija RMAN (coincidencia exacta)
+        const rmanName = "BK_RMAN_FULL";
+
+        // Verificar cada tipo de carpeta con patrones dinámicos
+        if (mdAllPattern.test(folderName)) {
+          foundFolders.BIOME_MD_ALL = true;
+          console.log('✓ Carpeta BIOME MD_ALL encontrada:', folderName);
+        } else if (genericPattern.test(folderName)) {
+          foundFolders.BIOME_GENERIC = true;
+          console.log('✓ Carpeta BIOME genérica encontrada:', folderName);
+        } else if (folderName === rmanName) {
+          foundFolders.BK_RMAN_FULL = true;
+          console.log('✓ Carpeta RMAN_FULL encontrada:', folderName);
+        } else {
+          console.log('⚠️ Carpeta BIOMETRIA no reconocida:', folderName);
+        }
+      });
+
+      // Identificar carpetas faltantes
+      const missingBiometria = [];
+      Object.keys(foundFolders).forEach(folderType => {
+        if (!foundFolders[folderType]) {
+          // Mapear nombres técnicos a nombres amigables
+          const friendlyNames = {
+            'BIOME_GENERIC': 'BK_BIOME_YYYY_MM_DD_HHMM (carpeta principal)',
+            'BIOME_MD_ALL': 'BK_BIOME_MD_ALL_*',
+            'BK_RMAN_FULL': 'BK_RMAN_FULL (carpeta fija)'
+          };
+          missingBiometria.push(friendlyNames[folderType]);
+        }
+      });
+
+      // Solo agregar advertencia si hay carpetas faltantes
+      if (missingBiometria.length > 0) {
+        missingFoldersBiometriaWarnings.push({
+          serverName: "BIOMETRIA",
+          expected: requiredFoldersBiometria.map(folder => {
+            const friendlyNames = {
+              'BIOME_GENERIC': 'BK_BIOME_YYYY_MM_DD_HHMM',
+              'BIOME_MD_ALL': 'BK_BIOME_MD_ALL_*',
+              'BK_RMAN_FULL': 'BK_RMAN_FULL'
+            };
+            return friendlyNames[folder];
+          }),
+          found: allFolderNames,
+          missing: missingBiometria
+        });
+
+        console.log(`⚠️ BIOMETRIA: Faltan ${missingBiometria.length} carpeta(s):`, missingBiometria);
+      } else {
+        console.log('✅ BIOMETRIA: Todas las carpetas requeridas están presentes');
+      }
+    }
 
     // Generar contenido HTML para PostgreSQL
     function convertPostgresToStandardDate(postgresDate) {
@@ -2305,21 +2658,35 @@ if (bantotalRecords.length > 0) {
       `;
     }
 
+    // Modificar la generación del contenido HTML para incluir EBS
     let missingFoldersContent = "";
 
-if (missingFoldersWarnings.length > 0) {
-  missingFoldersContent = `
+    // Combinar advertencias de BANTOTAL y EBS
+    const allMissingFolderWarnings = [
+      ...missingFoldersWarnings,
+      ...missingFoldersEBSWarnings,
+      ...missingFoldersDATAWHWarnings,
+      ...missingFoldersContratacionWarnings,
+      ...missingFoldersBiometriaWarnings
+    ];
+    if (allMissingFolderWarnings.length > 0) {
+      missingFoldersContent = `
     <div style="background-color: #fff3cd; color: #856404; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #ffeeba;">
-      <h3 style="margin-top: 0;">⚠️ Advertencia: Backups Faltantes en BANTOTAL</h3>
-      ${missingFoldersWarnings.map(w => `
-        <p><strong>${w.serverName}</strong> tiene <strong>${w.missing.length}</strong> backup(s) faltante(s) - Por favor revisar:</p>
-        <ul>
-          ${w.missing.map(f => `<li>${f}</li>`).join('')}
-        </ul>
+      <h3 style="margin-top: 0;">⚠️ Advertencia: Backups Faltantes</h3>
+      ${allMissingFolderWarnings.map(w => `
+        <div style="margin-bottom: 15px;">
+          <p><strong>${w.serverName}</strong> tiene <strong>${w.missing.length}</strong> backup(s) faltante(s):</p>
+          <ul style="margin-left: 20px;">
+            ${w.missing.map(f => `<li style="color: #d35400;"><strong>${f}</strong></li>`).join('')}
+          </ul>
+          <p style="font-size: 12px; color: #666; margin-top: 5px;">
+            <strong>Carpetas encontradas:</strong> ${w.found.join(', ')}
+          </p>
+        </div>
       `).join('')}
     </div>
   `;
-}
+    }
 
     // **MODIFICAR: Usar los backups combinados para el resumen de errores**
     const allFailedBackups = allBackups.filter(backup => backup.isError);
@@ -2541,7 +2908,7 @@ if (missingFoldersWarnings.length > 0) {
       } else {
         console.log('📧 Email enviado - Todas las duraciones de backup están dentro de parámetros normales');
       }
-      
+
       console.log('Email enviado exitosamente');
     } catch (error) {
       console.error('Error enviando email:', error);
@@ -3679,68 +4046,68 @@ if (missingFoldersWarnings.length > 0) {
     console.log("Modal de estadísticas creado");
   }
   function convertDurationToMinutes(duration) {
-  if (!duration) return 0; // Manejar null/undefined/empty
-  
-  try {
-    // Convertir a string y limpiar
-    const durationStr = String(duration).trim();
-    
-    // 1. Formato HH:mm:ss (Oracle estándar y PostgreSQL calculado)
-    const hhmmssPattern = /^(\d{1,3}):(\d{2}):(\d{2})$/;
-    
-    // 2. Formato con días (Oracle para duraciones largas)
-    const daysPattern = /^(\d+)\s+days?\s+(\d{1,2}):(\d{2}):(\d{2})$/i;
-    
-    // 3. Formato solo minutos (alternativa)
-    const minsPattern = /^(\d+(?:\.\d+)?)\s*min$/i;
-    
-    // 4. Formato solo segundos 
-    const secsPattern = /^(\d+(?:\.\d+)?)\s*sec$/i;
-    
-    // 5. Formato de Oracle INTERVAL
-    const intervalPattern = /^\+?(\d{2,})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/;
-    
-    let match;
-    
-    // Caso 1: Formato HH:mm:ss
-    if ((match = durationStr.match(hhmmssPattern))) {
-      const hours = parseInt(match[1]);
-      const minutes = parseInt(match[2]);
-      const seconds = parseInt(match[3]);
-      return hours * 60 + minutes + seconds / 60;
-    } 
-    // Caso 2: Formato con días
-    else if ((match = durationStr.match(daysPattern))) {
-      const days = parseInt(match[1]);
-      const hours = parseInt(match[2]);
-      const minutes = parseInt(match[3]);
-      const seconds = parseInt(match[4]);
-      return (days * 1440) + (hours * 60) + minutes + (seconds / 60);
+    if (!duration) return 0; // Manejar null/undefined/empty
+
+    try {
+      // Convertir a string y limpiar
+      const durationStr = String(duration).trim();
+
+      // 1. Formato HH:mm:ss (Oracle estándar y PostgreSQL calculado)
+      const hhmmssPattern = /^(\d{1,3}):(\d{2}):(\d{2})$/;
+
+      // 2. Formato con días (Oracle para duraciones largas)
+      const daysPattern = /^(\d+)\s+days?\s+(\d{1,2}):(\d{2}):(\d{2})$/i;
+
+      // 3. Formato solo minutos (alternativa)
+      const minsPattern = /^(\d+(?:\.\d+)?)\s*min$/i;
+
+      // 4. Formato solo segundos 
+      const secsPattern = /^(\d+(?:\.\d+)?)\s*sec$/i;
+
+      // 5. Formato de Oracle INTERVAL
+      const intervalPattern = /^\+?(\d{2,})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/;
+
+      let match;
+
+      // Caso 1: Formato HH:mm:ss
+      if ((match = durationStr.match(hhmmssPattern))) {
+        const hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        const seconds = parseInt(match[3]);
+        return hours * 60 + minutes + seconds / 60;
+      }
+      // Caso 2: Formato con días
+      else if ((match = durationStr.match(daysPattern))) {
+        const days = parseInt(match[1]);
+        const hours = parseInt(match[2]);
+        const minutes = parseInt(match[3]);
+        const seconds = parseInt(match[4]);
+        return (days * 1440) + (hours * 60) + minutes + (seconds / 60);
+      }
+      // Caso 3: Formato en minutos
+      else if ((match = durationStr.match(minsPattern))) {
+        return parseFloat(match[1]);
+      }
+      // Caso 4: Formato en segundos
+      else if ((match = durationStr.match(secsPattern))) {
+        return parseFloat(match[1]) / 60;
+      }
+      // Caso 5: Formato INTERVAL de Oracle
+      else if ((match = durationStr.match(intervalPattern))) {
+        const days = parseInt(match[1]);
+        const hours = parseInt(match[2]);
+        const minutes = parseInt(match[3]);
+        const seconds = parseInt(match[4]);
+        return (days * 1440) + (hours * 60) + minutes + (seconds / 60);
+      }
+
+      console.warn(`Formato de duración no reconocido: "${durationStr}"`);
+      return 0;
+    } catch (e) {
+      console.error(`Error al convertir duración: "${duration}"`, e);
+      return 0;
     }
-    // Caso 3: Formato en minutos
-    else if ((match = durationStr.match(minsPattern))) {
-      return parseFloat(match[1]);
-    }
-    // Caso 4: Formato en segundos
-    else if ((match = durationStr.match(secsPattern))) {
-      return parseFloat(match[1]) / 60;
-    }
-    // Caso 5: Formato INTERVAL de Oracle
-    else if ((match = durationStr.match(intervalPattern))) {
-      const days = parseInt(match[1]);
-      const hours = parseInt(match[2]);
-      const minutes = parseInt(match[3]);
-      const seconds = parseInt(match[4]);
-      return (days * 1440) + (hours * 60) + minutes + (seconds / 60);
-    }
-    
-    console.warn(`Formato de duración no reconocido: "${durationStr}"`);
-    return 0;
-  } catch (e) {
-    console.error(`Error al convertir duración: "${duration}"`, e);
-    return 0;
   }
-}
 
   async function showStatistics() {
     const loadingIndicator = document.createElement('div');
