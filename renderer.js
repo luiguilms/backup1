@@ -1819,6 +1819,104 @@ ${last10LinesContent}
       });
     }
   }
+
+  // Función para generar contenido HTML de las alertas
+function generateDurationAlertsHTML(alertsResult) {
+  if (!alertsResult || alertsResult.alerts.length === 0) {
+    return ''
+  }
+  
+  const criticalAlerts = alertsResult.alerts.filter(a => a.severity === 'CRÍTICO');
+  const warningAlerts = alertsResult.alerts.filter(a => a.severity === 'ADVERTENCIA');
+  
+  return `
+    <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 2px solid #dc3545;">
+      <h3 style="margin-top: 0; color: #721c24;">⏰ Alertas de Duración Anómala de Backups</h3>
+      <p>Se detectaron <strong>${alertsResult.alerts.length}</strong> backup(s) con duración superior al promedio + 1 hora:</p>
+      <p style="font-size: 14px; margin: 5px 0;">
+        • <span style="color: #dc3545; font-weight: bold;">Críticos</span>: ${criticalAlerts.length} (>2 horas adicionales)<br>
+        • <span style="color: #fd7e14; font-weight: bold;">Advertencias</span>: ${warningAlerts.length} (1-2 horas adicionales)
+      </p>
+      
+      <div style="margin-top: 15px;">
+        ${alertsResult.alerts.map(alert => `
+          <div style="background-color: ${alert.severity === 'CRÍTICO' ? '#f5c6cb' : '#fff3cd'}; 
+                      color: ${alert.severity === 'CRÍTICO' ? '#721c24' : '#856404'}; 
+                      padding: 12px; margin: 8px 0; border-radius: 6px; 
+                      border-left: 4px solid ${alert.severity === 'CRÍTICO' ? '#dc3545' : '#ffc107'};">
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <strong style="font-size: 16px;">${alert.serverName}</strong>
+              <span style="background-color: ${alert.severity === 'CRÍTICO' ? '#dc3545' : '#ffc107'}; 
+                           color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">
+                ${alert.severity}
+              </span>
+            </div>
+            
+            <div style="font-size: 14px; line-height: 1.4;">
+              <p style="margin: 4px 0;"><strong>Tipo:</strong> 
+                <span style="background-color: ${alert.backupType === 'ORACLE_DMP' ? '#e3f2fd' : 
+                                                  alert.backupType === 'ORACLE_RMAN' ? '#fff3e0' : '#f3e5f5'}; 
+                             color: ${alert.backupType === 'ORACLE_DMP' ? '#1976d2' : 
+                                      alert.backupType === 'ORACLE_RMAN' ? '#f57c00' : '#7b1fa2'}; 
+                             padding: 2px 6px; border-radius: 3px; font-size: 11px;">
+                  ${alert.backupType}
+                </span>
+              </p>
+              <p style="margin: 4px 0;"><strong>IP:</strong> ${alert.ip}</p>
+              <p style="margin: 4px 0; word-break: break-all;"><strong>Ruta:</strong> ${alert.backupPath}</p>
+              <p style="margin: 4px 0;"><strong>Fecha del backup:</strong> ${alert.backupDate ? new Date(alert.backupDate).toLocaleString() : 'No disponible'}</p>
+              
+              <div style="background-color: rgba(255,255,255,0.3); padding: 8px; margin: 8px 0; border-radius: 4px;">
+                <p style="margin: 2px 0;"><strong>⏱️ Duración actual:</strong> <span style="font-weight: bold; color: #dc3545;">${alert.currentDuration}</span></p>
+                <p style="margin: 2px 0;"><strong>📊 Promedio histórico:</strong> ${alert.averageDuration}</p>
+                <p style="margin: 2px 0;"><strong>⚠️ Tiempo excedido:</strong> <span style="font-weight: bold; color: #dc3545;">${alert.excessTime}</span></p>
+                <p style="margin: 2px 0; font-size: 12px; opacity: 0.8;"><strong>Datos históricos:</strong> ${alert.historicalCount} backups analizados</p>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      
+      <div style="margin-top: 15px; padding: 10px; background-color: rgba(255,255,255,0.2); border-radius: 4px; font-size: 13px;">
+        <strong>💡 Recomendación:</strong> Revisar los logs de estos backups para identificar posibles causas del incremento en tiempo de ejecución (problemas de red, aumento de datos, recursos del servidor, etc.).
+      </div>
+    </div>
+  `;
+}
+
+// Función para integrar las alertas en el email existente
+async function integrateBackupDurationAlerts() {
+  try {
+    console.log("🚀 Integrando alertas de duración en el reporte...");
+    
+    // Ejecutar análisis de duración usando IPC
+    const alertsResult = await window.electron.checkBackupDurationAlerts(7);
+    
+    // Generar HTML de alertas
+    const alertsHTML = generateDurationAlertsHTML(alertsResult);
+    
+    console.log(`✅ Alertas de duración integradas: ${alertsResult.alerts.length} alertas`);
+    
+    return {
+      alertsHTML: alertsHTML,
+      alertsData: alertsResult
+    };
+    
+  } catch (error) {
+    console.error("❌ Error integrando alertas de duración:", error);
+    return {
+      alertsHTML: `
+        <div style="background-color: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #f5c6cb;">
+          <h3 style="margin-top: 0;">❌ Error en Análisis de Duración</h3>
+          <p>No se pudo completar el análisis de duración de backups. Error: ${error.message}</p>
+        </div>
+      `,
+      alertsData: null
+    };
+  }
+}
+
   async function sendServerDetails(mainGridApi) {
     let rowData = [];
     mainGridApi.forEachNode(node => {
@@ -1832,6 +1930,9 @@ ${last10LinesContent}
         if (node.data) postgresData.push(node.data);
       });
     }
+    // **NUEVA FUNCIONALIDAD: Integrar alertas de duración**
+    console.log("🔍 Ejecutando análisis de duración de backups...");
+    const durationAlerts = await integrateBackupDurationAlerts();
 
     // **CAMBIO PRINCIPAL: Combinar y ordenar todos los backups juntos**
     // Marcar el tipo de backup para poder identificarlos después
@@ -2414,7 +2515,7 @@ if (missingFoldersWarnings.length > 0) {
               (Oracle: ${rowData.length}, PostgreSQL: ${postgresData.length})
             </p>
           </div>
-          
+          ${durationAlerts.alertsHTML}
           <!-- Resumen de Errores Oracle -->
           ${summaryContent}
           ${missingFoldersContent}
@@ -2425,11 +2526,22 @@ if (missingFoldersWarnings.length > 0) {
           ${generateUnifiedContent(allBackups)}
         </div>
       `,
-      date: new Date().toLocaleDateString()
+      date: new Date().toLocaleDateString(),
+      durationAlerts: durationAlerts.alertsData
     };
 
     try {
       await window.electron.sendEmailWithImages(emailData);
+      // **NUEVO: Log adicional de alertas**
+      if (durationAlerts.alertsData && durationAlerts.alertsData.alerts.length > 0) {
+        console.log(`📧 Email enviado con ${durationAlerts.alertsData.alerts.length} alerta(s) de duración`);
+        durationAlerts.alertsData.alerts.forEach(alert => {
+          console.log(`   🚨 ${alert.severity}: ${alert.serverName} - Exceso: ${alert.excessTime}`);
+        });
+      } else {
+        console.log('📧 Email enviado - Todas las duraciones de backup están dentro de parámetros normales');
+      }
+      
       console.log('Email enviado exitosamente');
     } catch (error) {
       console.error('Error enviando email:', error);
@@ -3567,11 +3679,68 @@ if (missingFoldersWarnings.length > 0) {
     console.log("Modal de estadísticas creado");
   }
   function convertDurationToMinutes(duration) {
-    const match = duration.match(/^(\d+):(\d+):(\d+)$/); // HH:mm:ss
-    if (!match) return 0; // Retornar 0 si el formato es inválido
-    const [_, hours, minutes, seconds] = match.map(Number);
-    return hours * 60 + minutes + seconds / 60; // Convertir todo a minutos
+  if (!duration) return 0; // Manejar null/undefined/empty
+  
+  try {
+    // Convertir a string y limpiar
+    const durationStr = String(duration).trim();
+    
+    // 1. Formato HH:mm:ss (Oracle estándar y PostgreSQL calculado)
+    const hhmmssPattern = /^(\d{1,3}):(\d{2}):(\d{2})$/;
+    
+    // 2. Formato con días (Oracle para duraciones largas)
+    const daysPattern = /^(\d+)\s+days?\s+(\d{1,2}):(\d{2}):(\d{2})$/i;
+    
+    // 3. Formato solo minutos (alternativa)
+    const minsPattern = /^(\d+(?:\.\d+)?)\s*min$/i;
+    
+    // 4. Formato solo segundos 
+    const secsPattern = /^(\d+(?:\.\d+)?)\s*sec$/i;
+    
+    // 5. Formato de Oracle INTERVAL
+    const intervalPattern = /^\+?(\d{2,})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/;
+    
+    let match;
+    
+    // Caso 1: Formato HH:mm:ss
+    if ((match = durationStr.match(hhmmssPattern))) {
+      const hours = parseInt(match[1]);
+      const minutes = parseInt(match[2]);
+      const seconds = parseInt(match[3]);
+      return hours * 60 + minutes + seconds / 60;
+    } 
+    // Caso 2: Formato con días
+    else if ((match = durationStr.match(daysPattern))) {
+      const days = parseInt(match[1]);
+      const hours = parseInt(match[2]);
+      const minutes = parseInt(match[3]);
+      const seconds = parseInt(match[4]);
+      return (days * 1440) + (hours * 60) + minutes + (seconds / 60);
+    }
+    // Caso 3: Formato en minutos
+    else if ((match = durationStr.match(minsPattern))) {
+      return parseFloat(match[1]);
+    }
+    // Caso 4: Formato en segundos
+    else if ((match = durationStr.match(secsPattern))) {
+      return parseFloat(match[1]) / 60;
+    }
+    // Caso 5: Formato INTERVAL de Oracle
+    else if ((match = durationStr.match(intervalPattern))) {
+      const days = parseInt(match[1]);
+      const hours = parseInt(match[2]);
+      const minutes = parseInt(match[3]);
+      const seconds = parseInt(match[4]);
+      return (days * 1440) + (hours * 60) + minutes + (seconds / 60);
+    }
+    
+    console.warn(`Formato de duración no reconocido: "${durationStr}"`);
+    return 0;
+  } catch (e) {
+    console.error(`Error al convertir duración: "${duration}"`, e);
+    return 0;
   }
+}
 
   async function showStatistics() {
     const loadingIndicator = document.createElement('div');

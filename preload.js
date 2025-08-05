@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld("electron", {
   getBackupStatistics: () => ipcRenderer.invoke("get-backup-statistics"),
   exportToExcel: (data) => ipcRenderer.invoke("export-to-excel", data),
   getDmpSizeData: (days) => ipcRenderer.invoke('get-dmp-size-data', days),
+  checkBackupDurationAlerts: (days) => ipcRenderer.invoke('check-backup-duration-alerts', days),
   addBackupRoute: (ip, backupPath) =>
     ipcRenderer.invoke("addBackupRoute", ip, backupPath),
   updateBackupRoute: (ip, oldPath, newPath) =>

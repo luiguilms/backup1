@@ -2457,111 +2457,225 @@ async function getDmpSizeData(days = 15) {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
-    // Obtener todos los servidores y rutas con posible ajuste por cambio de IP
+    console.log(`🔍 Obteniendo datos de los últimos ${days} días...`);
+
+    // 1. Obtener todos los servidores y rutas (SIMPLIFICADO)
     const allServersAndRoutesResult = await connection.execute(`
       SELECT DISTINCT 
-        COALESCE(
-          si.ServerName, 
-          si2.ServerName, 
-          REGEXP_SUBSTR(DBMS_LOB.SUBSTR(ta.old_values, 4000, 1), 'ServerName: ([^,]+)', 1, 1, NULL, 1), 
-          'Desconocido'
-        ) AS serverName,
+        COALESCE(si.ServerName, 'Desconocido') AS serverName,
         lb.ip, 
         lb.backupPath
       FROM LogBackup lb
       LEFT JOIN ServerInfo si ON lb.ip = si.IP
-      LEFT JOIN TableAudit ta ON ta.table_name = 'ServerInfo' 
-                               AND ta.operation_type = 'UPDATE' 
-                               AND DBMS_LOB.SUBSTR(ta.new_values, 4000, 1) LIKE '%' || lb.ip || '%'
-      LEFT JOIN ServerInfo si2 ON DBMS_LOB.SUBSTR(ta.old_values, 4000, 1) LIKE '%' || si2.IP || '%'
+      
+      UNION
+      
+      SELECT DISTINCT
+        COALESCE(si.ServerName, 'Desconocido') AS serverName,
+        rbl.ip,
+        rbl.ruta_backup as backupPath
+      FROM rman_backup_logs rbl
+      LEFT JOIN ServerInfo si ON rbl.ip = si.IP
+      
+      UNION
+      
+      SELECT DISTINCT
+        COALESCE(si.ServerName, pbl.serverName, 'Desconocido') AS serverName,
+        pbl.ip,
+        pbl.BackupPath as backupPath
+      FROM PostgresBackupLogs pbl
+      LEFT JOIN ServerInfo si ON pbl.ip = si.IP
     `);
 
-    // Obtener los datos de backup
-    const dataResult = await connection.execute(
-      `
-      SELECT
-        COALESCE(
-          si.ServerName, 
-          si2.ServerName, 
-          REGEXP_SUBSTR(DBMS_LOB.SUBSTR(ta.old_values, 4000, 1), 'ServerName: ([^,]+)', 1, 1, NULL, 1), 
-          'Desconocido'
-        ) AS serverName,
+    // 2. Consulta SIMPLIFICADA para backups Oracle DMP (SIN TableAudit)
+    const oracleDmpData = await connection.execute(
+      `SELECT DISTINCT
+        COALESCE(si.ServerName, 'Desconocido') AS serverName,
         lb.ip,
         lb.backupPath,
         lb.horaFIN as fecha,
         lb.dumpFileSize,
-        lb.duration
-      FROM LogBackup lb
-      LEFT JOIN ServerInfo si ON lb.ip = si.IP
-      LEFT JOIN TableAudit ta ON ta.table_name = 'ServerInfo' 
-                               AND ta.operation_type = 'UPDATE' 
-                               AND DBMS_LOB.SUBSTR(ta.new_values, 4000, 1) LIKE '%' || lb.ip || '%'
-      LEFT JOIN ServerInfo si2 ON DBMS_LOB.SUBSTR(ta.old_values, 4000, 1) LIKE '%' || si2.IP || '%'
-      WHERE lb.horaFIN >= SYSDATE - :days
-      ORDER BY serverName, lb.ip, lb.backupPath, lb.horaFIN
-    `,
+        lb.duration,
+        'ORACLE_DMP' as backup_type,
+        lb.id as record_id
+       FROM LogBackup lb
+       LEFT JOIN ServerInfo si ON lb.ip = si.IP
+       WHERE lb.horaFIN >= SYSDATE - :days
+       AND lb.horaFIN IS NOT NULL
+       ORDER BY lb.horaFIN DESC`,
       { days: days }
     );
 
-    console.log("Todos los servidores y rutas:", allServersAndRoutesResult.rows);
-    console.log("Datos obtenidos para el período seleccionado:", dataResult.rows);
+    // 3. Consulta para backups RMAN (sin cambios)
+    const rmanData = await connection.execute(
+      `SELECT 
+        COALESCE(si.ServerName, rbl.servidor, 'Desconocido') as serverName,
+        rbl.ip,
+        rbl.ruta_backup as backupPath,
+        rbl.fecha_fin as fecha,
+        NULL as dumpFileSize,
+        rbl.duracion as duration,
+        'ORACLE_RMAN' as backup_type,
+        rbl.rmanID as record_id
+       FROM rman_backup_logs rbl
+       LEFT JOIN ServerInfo si ON rbl.ip = si.IP
+       WHERE rbl.fecha_fin >= SYSDATE - :days
+       AND rbl.fecha_fin IS NOT NULL
+       ORDER BY rbl.fecha_fin DESC`,
+      { days: days }
+    );
 
-    // Función para convertir el tamaño a GB
+    // 4. Consulta para backups PostgreSQL (sin cambios)
+    const postgresData = await connection.execute(
+      `SELECT 
+        COALESCE(si.ServerName, pbl.serverName, 'Desconocido') as serverName,
+        pbl.ip,
+        pbl.BackupPath as backupPath,
+        pbl.fecha_fin as fecha,
+        pbl.totalFolderSize as dumpFileSize,
+        CASE 
+          WHEN pbl.fecha_inicio IS NOT NULL AND pbl.fecha_fin IS NOT NULL THEN
+            LPAD(TRUNC((pbl.fecha_fin - pbl.fecha_inicio) * 24), 2, '0') || ':' ||
+            LPAD(TRUNC(MOD((pbl.fecha_fin - pbl.fecha_inicio) * 24 * 60, 60)), 2, '0') || ':' ||
+            LPAD(TRUNC(MOD((pbl.fecha_fin - pbl.fecha_inicio) * 24 * 60 * 60, 60)), 2, '0')
+          ELSE 
+            '00:00:00'
+        END as duration,
+        'POSTGRES' as backup_type,
+        pbl.id as record_id
+       FROM PostgresBackupLogs pbl
+       LEFT JOIN ServerInfo si ON pbl.ip = si.IP
+       WHERE pbl.fecha_fin >= SYSDATE - :days
+       AND pbl.fecha_fin IS NOT NULL
+       ORDER BY pbl.fecha_fin DESC`,
+      { days: days }
+    );
+
+    // Debug: Mostrar datos en consola
+    console.log(`📊 Datos Oracle DMP: ${oracleDmpData.rows.length} registros`);
+    console.log(`📊 Datos RMAN: ${rmanData.rows.length} registros`);
+    console.log(`📊 Datos PostgreSQL: ${postgresData.rows.length} registros`);
+
+    // Mostrar muestra de datos Oracle DMP para debug
+    if (oracleDmpData.rows.length > 0) {
+      console.log('🔍 Primeros 3 registros Oracle DMP:');
+      oracleDmpData.rows.slice(0, 3).forEach((row, index) => {
+        console.log(`  ${index + 1}. ID: ${row[7]}, Fecha: ${row[3]}, IP: ${row[1]}, Duración: ${row[5]}`);
+      });
+    }
+
+    // Combinar todos los resultados
+    const combinedResults = [
+      ...oracleDmpData.rows,
+      ...rmanData.rows,
+      ...postgresData.rows
+    ];
+
+    console.log(`📈 Total registros combinados: ${combinedResults.length}`);
+
+    // Función de conversión a GB
     const convertToGB = (size) => {
-      const match = size.match(/^(\d+(\.\d+)?)\s*(MB|GB)$/i);
+      if (!size) return 0;
+      
+      const sizeStr = String(size).trim();
+      const match = sizeStr.match(/^(\d+(?:\.\d+)?)\s*(MB|GB|KB|BYTES?|M|G|K)?$/i);
       if (match) {
         const value = parseFloat(match[1]);
-        const unit = match[3].toUpperCase();
-        return unit === "GB" ? value : value / 1024;
+        const unit = (match[2] || '').toUpperCase();
+        
+        switch(unit) {
+          case 'GB':
+          case 'G':
+            return value;
+          case 'MB':
+          case 'M':
+            return value / 1024;
+          case 'KB':
+          case 'K':
+            return value / (1024 * 1024);
+          case 'BYTES':
+          case 'BYTE':
+          case '':
+            return value / (1024 * 1024 * 1024);
+          default:
+            return value / (1024 * 1024 * 1024);
+        }
       }
+      
+      const numValue = parseFloat(sizeStr);
+      if (!isNaN(numValue)) {
+        return numValue / (1024 * 1024 * 1024);
+      }
+      
       return 0;
     };
-    // Agrupar los datos por IP y los primeros 12 caracteres del backupPath
-    const groupedData = dataResult.rows.reduce((acc, row) => {
-      // Usar IP + primeros 12 caracteres de backupPath para agrupar solo dentro del mismo servidor
+
+    // Agrupar los datos combinados con mejor detección de duplicados
+    const groupedData = combinedResults.reduce((acc, row) => {
       const identifier = getConstantIdentifier(row[2], row[1], 12);
       if (!acc[identifier]) {
         acc[identifier] = {
           identifier,
           serverName: row[0],
           ip: row[1],
+          backupType: row[6],
           data: [],
         };
       }
-      acc[identifier].data.push({
-        backupPath: row[2],
-        fecha: row[3],
-        tamanoDMP: convertToGB(row[4]),
-        duracion: row[5]
-      });
+      
+      // Crear un ID único más específico
+      const fechaStr = row[3] ? new Date(row[3]).toISOString() : 'no-fecha';
+      const uniqueId = `${row[7]}-${row[6]}-${fechaStr}`;
+      
+      // Verificar si ya existe este registro específico
+      const existingRecord = acc[identifier].data.find(d => d.uniqueId === uniqueId);
+      
+      if (!existingRecord) {
+        acc[identifier].data.push({
+          uniqueId: uniqueId,
+          backupPath: row[2],
+          fecha: row[3],
+          tamanoDMP: convertToGB(row[4]),
+          duracion: row[5],
+          backupType: row[6],
+          recordId: row[7]
+        });
+      } else {
+        console.warn(`⚠️ Registro duplicado detectado y omitido: ${uniqueId}`);
+      }
+      
       return acc;
     }, {});
 
-    const processedData = Object.values(groupedData);
-
-    console.log("Datos procesados:", processedData);
-
-    // Usar allServersAndRoutesResult para la lista de todos los servidores
-    const allServers = allServersAndRoutesResult.rows.map((row) => ({
-      serverName: row[0],
-      ip: row[1],
-    }));
+    // Debug: Mostrar agrupamiento final
+    console.log(`🗂️ Grupos creados: ${Object.keys(groupedData).length}`);
+    Object.values(groupedData).forEach(group => {
+      console.log(`📋 ${group.identifier}: ${group.data.length} registros (${group.backupType})`);
+      
+      // Mostrar fechas para detectar duplicados
+      const fechas = group.data.map(d => d.fecha ? new Date(d.fecha).toLocaleDateString() : 'sin-fecha');
+      const fechasUnicas = [...new Set(fechas)];
+      console.log(`  📅 Fechas: ${fechasUnicas.join(', ')}`);
+      
+      if (group.data.length > fechasUnicas.length) {
+        console.warn(`⚠️ Posibles duplicados en ${group.identifier}: ${group.data.length} registros, ${fechasUnicas.length} fechas únicas`);
+      }
+    });
 
     return {
-      data: processedData,
-      allServersAndRoutes: allServers,
+      data: Object.values(groupedData),
+      allServersAndRoutes: allServersAndRoutesResult.rows.map(row => ({
+        serverName: row[0],
+        ip: row[1],
+        backupPath: row[2]
+      })),
     };
+
   } catch (err) {
-    console.error("Error obteniendo datos de tamaño DMP:", err);
+    console.error("❌ Error obteniendo datos de backups:", err);
     throw err;
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
-        console.error("Error al cerrar la conexión:", err);
-      }
-    }
+    if (connection) await connection.close();
   }
 }
 ipcMain.handle("addBackupRoute", async (event, ip, backupPath) => {
@@ -3357,3 +3471,191 @@ async function savePostgresBackupLogs(data) {
     }
   }
 }
+// Función para convertir minutos de vuelta a formato HH:MM:SS
+function minutesToDuration(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.floor(minutes % 60);
+  const secs = Math.round((minutes % 1) * 60);
+  
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Función para convertir duración a minutos (usa la misma lógica que tu renderer.js)
+function convertDurationToMinutes(duration) {
+  if (!duration) return 0; // Manejar null/undefined/empty
+     
+  try {
+    // Convertir a string y limpiar
+    const durationStr = String(duration).trim();
+         
+    // 1. Formato HH:mm:ss (Oracle estándar y PostgreSQL calculado)
+    const hhmmssPattern = /^(\d{1,3}):(\d{2}):(\d{2})$/;
+         
+    // 2. Formato con días (Oracle para duraciones largas)
+    const daysPattern = /^(\d+)\s+days?\s+(\d{1,2}):(\d{2}):(\d{2})$/i;
+         
+    // 3. Formato solo minutos (alternativa)
+    const minsPattern = /^(\d+(?:\.\d+)?)\s*min$/i;
+         
+    // 4. Formato solo segundos     
+    const secsPattern = /^(\d+(?:\.\d+)?)\s*sec$/i;
+         
+    // 5. Formato de Oracle INTERVAL
+    const intervalPattern = /^\+?(\d{2,})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/;
+         
+    let match;
+         
+    // Caso 1: Formato HH:mm:ss
+    if ((match = durationStr.match(hhmmssPattern))) {
+      const hours = parseInt(match[1]);
+      const minutes = parseInt(match[2]);
+      const seconds = parseInt(match[3]);
+      return hours * 60 + minutes + seconds / 60;
+    }
+     
+    // Caso 2: Formato con días
+    else if ((match = durationStr.match(daysPattern))) {
+      const days = parseInt(match[1]);
+      const hours = parseInt(match[2]);
+      const minutes = parseInt(match[3]);
+      const seconds = parseInt(match[4]);
+      return (days * 1440) + (hours * 60) + minutes + (seconds / 60);
+    }
+    // Caso 3: Formato en minutos
+    else if ((match = durationStr.match(minsPattern))) {
+      return parseFloat(match[1]);
+    }
+    // Caso 4: Formato en segundos
+    else if ((match = durationStr.match(secsPattern))) {
+      return parseFloat(match[1]) / 60;
+    }
+    // Caso 5: Formato INTERVAL de Oracle
+    else if ((match = durationStr.match(intervalPattern))) {
+      const days = parseInt(match[1]);
+      const hours = parseInt(match[2]);
+      const minutes = parseInt(match[3]);
+      const seconds = parseInt(match[4]);
+      return (days * 1440) + (hours * 60) + minutes + (seconds / 60);
+    }
+         
+    console.warn(`Formato de duración no reconocido: "${durationStr}"`);
+    return 0;
+  } catch (e) {
+    console.error(`Error al convertir duración: "${duration}"`, e);
+    return 0;
+  }
+}
+
+// Función principal para detectar backups con duración anómala
+async function checkBackupDurationAlerts(days = 15) {
+  try {
+    console.log("🔍 Iniciando análisis de duración de backups...");
+    
+    // Obtener datos usando la función existente
+    const backupData = await getDmpSizeData(days);
+    
+    const alerts = [];
+    const ALERT_THRESHOLD_MINUTES = 60; // 1 hora adicional al promedio
+    
+    // Analizar cada grupo de backups
+    backupData.data.forEach(group => {
+      console.log(`📊 Analizando grupo: ${group.identifier} (${group.data.length} registros)`);
+      
+      // Filtrar solo los registros que tienen duración válida
+      const backupsWithDuration = group.data.filter(backup => {
+        const durationMinutes = convertDurationToMinutes(backup.duracion);
+        return durationMinutes > 0; // Solo considerar backups con duración válida
+      });
+      
+      if (backupsWithDuration.length < 2) {
+        console.log(`⚠️ Grupo ${group.identifier}: Pocos datos históricos (${backupsWithDuration.length}), omitiendo análisis`);
+        return; // Necesitamos al menos 2 registros para calcular promedio
+      }
+      
+      // Convertir duraciones a minutos y calcular estadísticas
+      const durations = backupsWithDuration.map(backup => convertDurationToMinutes(backup.duracion));
+      const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
+      const averageDuration = totalDuration / durations.length;
+      
+      // Calcular desviación estándar para detectar variaciones extremas
+      const variance = durations.reduce((sum, duration) => sum + Math.pow(duration - averageDuration, 2), 0) / durations.length;
+      const standardDeviation = Math.sqrt(variance);
+      
+      console.log(`📈 ${group.identifier}:`);
+      console.log(`   Promedio: ${minutesToDuration(averageDuration)} (${averageDuration.toFixed(1)} min)`);
+      console.log(`   Desviación estándar: ${standardDeviation.toFixed(1)} min`);
+      
+      // Encontrar el backup más reciente
+      const sortedBackups = backupsWithDuration.sort((a, b) => {
+        if (!a.fecha || !b.fecha) return 0;
+        return new Date(b.fecha) - new Date(a.fecha);
+      });
+      
+      const latestBackup = sortedBackups[0];
+      if (!latestBackup) return;
+      
+      const latestDurationMinutes = convertDurationToMinutes(latestBackup.duracion);
+      const alertThreshold = averageDuration + ALERT_THRESHOLD_MINUTES;
+      
+      console.log(`🎯 Backup más reciente: ${minutesToDuration(latestDurationMinutes)} (${latestDurationMinutes} min)`);
+      console.log(`🚨 Umbral de alerta: ${minutesToDuration(alertThreshold)} (${alertThreshold.toFixed(1)} min)`);
+      
+      // Generar alerta si excede el umbral
+      if (latestDurationMinutes > alertThreshold) {
+        const excessMinutes = latestDurationMinutes - averageDuration;
+        const severityLevel = excessMinutes > (2 * ALERT_THRESHOLD_MINUTES) ? 'CRÍTICO' : 'ADVERTENCIA';
+        
+        const alert = {
+          severity: severityLevel,
+          serverName: group.serverName,
+          ip: group.ip,
+          backupType: group.backupType,
+          backupPath: latestBackup.backupPath,
+          currentDuration: latestBackup.duracion,
+          currentDurationMinutes: latestDurationMinutes,
+          averageDuration: minutesToDuration(averageDuration),
+          averageDurationMinutes: averageDuration,
+          excessTime: minutesToDuration(excessMinutes),
+          excessMinutes: excessMinutes,
+          backupDate: latestBackup.fecha,
+          historicalCount: backupsWithDuration.length,
+          standardDeviation: standardDeviation,
+          // Información adicional para contexto
+          identifier: group.identifier,
+          recordId: latestBackup.recordId
+        };
+        
+        alerts.push(alert);
+        
+        console.log(`🚨 ALERTA ${severityLevel}: ${group.serverName} - Duración excesiva detectada`);
+        console.log(`   Duración actual: ${latestBackup.duracion} vs Promedio: ${minutesToDuration(averageDuration)}`);
+        console.log(`   Exceso: ${minutesToDuration(excessMinutes)}`);
+      } else {
+        console.log(`✅ ${group.identifier}: Duración dentro de parámetros normales`);
+      }
+    });
+    
+    console.log(`🏁 Análisis completado. ${alerts.length} alerta(s) generada(s)`);
+    
+    return {
+      alerts: alerts,
+      totalGroups: backupData.data.length,
+      alertCount: alerts.length,
+      analysisDate: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    console.error("❌ Error en análisis de duración de backups:", error);
+    throw error;
+  }
+}
+
+// Agregar el manejador IPC al final de tu main.js
+ipcMain.handle("check-backup-duration-alerts", async (event, days) => {
+  try {
+    return await checkBackupDurationAlerts(days);
+  } catch (error) {
+    console.error("Error al verificar alertas de duración:", error);
+    throw error;
+  }
+});
