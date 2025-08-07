@@ -1966,36 +1966,119 @@ ${last10LinesContent}
     });
     const requiredFoldersBantotal = [
       "ESQ_USRREPBI",
-      "BK_ANTES2",
       "APP_ESQUEMAS",
-      "BK_MD_ANTES",
+      "BK_ANTES2",
       "BK_JAQL546_FPAE71",
       "BK_ANTES",
-      "RENIEC"
+      "RENIEC",
+      "BK_MD_ANTES"
     ];
 
-    const missingFoldersWarnings = [];
+    const missingFoldersBantotalWarnings = [];
 
-    // ✅ SOLUCIÓN: Ejecutar la verificación solo UNA vez, fuera del bucle
+    // Verificación para Bantotal - ejecutar solo UNA vez
     const bantotalRecords = rowData.filter(d => d.serverName === "Bantotal" && d.backupPath);
 
     if (bantotalRecords.length > 0) {
-      // Extraer todas las carpetas existentes de Bantotal
-      const existingFolders = bantotalRecords.map(d => d.backupPath.split('/').pop());
+      console.log(`Verificando carpetas Bantotal. Encontrados ${bantotalRecords.length} registros`);
 
-      // Buscar cuáles carpetas requeridas no están presentes
-      const missing = requiredFoldersBantotal.filter(req =>
-        !existingFolders.some(folder => folder.startsWith(req))
-      );
+      // Extraer nombres de carpetas y clasificarlas
+      const foundFolders = {
+        ESQ_USRREPBI: false,
+        APP_ESQUEMAS: false,
+        BK_ANTES2: false,
+        BK_JAQL546_FPAE71: false,
+        BK_ANTES: false,
+        RENIEC: false,
+        BK_MD_ANTES: false
+      };
 
-      // Solo agregar UNA entrada si hay carpetas faltantes
-      if (missing.length > 0) {
-        missingFoldersWarnings.push({
+      const allFolderNames = [];
+
+      bantotalRecords.forEach(record => {
+        const folderName = record.backupPath.split('/').pop();
+        allFolderNames.push(folderName);
+
+        console.log(`Analizando carpeta Bantotal: ${folderName} desde ruta: ${record.backupPath}`);
+
+        // Patrones dinámicos con fecha/hora flexible para Bantotal
+        // Formato: NOMBRE_YYYY_MM_DD_HHMM
+        const esqUsrrepbiPattern = /^ESQ_USRREPBI_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        const appEsquemasPattern = /^APP_ESQUEMAS_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        const bkAntes2Pattern = /^BK_ANTES2_\d{4}_\d{2}_\d{2}_\d{4}$/;           // MUY ESPECÍFICO
+        const bkJaqlPattern = /^BK_JAQL546_FPAE71_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        const bkAntesPattern = /^BK_ANTES_\d{4}_\d{2}_\d{2}_\d{4}$/;             // DIFERENTE A BK_ANTES2
+        const reniecPattern = /^RENIEC_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        const bkMdAntesPattern = /^BK_MD_ANTES_\d{4}_\d{2}_\d{2}_\d{4}$/;
+
+        // Verificar cada tipo de carpeta con patrones específicos
+        if (esqUsrrepbiPattern.test(folderName)) {
+          foundFolders.ESQ_USRREPBI = true;
+          console.log('✓ Carpeta ESQ_USRREPBI encontrada:', folderName);
+        } else if (appEsquemasPattern.test(folderName)) {
+          foundFolders.APP_ESQUEMAS = true;
+          console.log('✓ Carpeta APP_ESQUEMAS encontrada:', folderName);
+        } else if (bkAntes2Pattern.test(folderName)) {
+          foundFolders.BK_ANTES2 = true;
+          console.log('✓ Carpeta BK_ANTES2 encontrada:', folderName);
+        } else if (bkJaqlPattern.test(folderName)) {
+          foundFolders.BK_JAQL546_FPAE71 = true;
+          console.log('✓ Carpeta BK_JAQL546_FPAE71 encontrada:', folderName);
+        } else if (bkAntesPattern.test(folderName)) {
+          foundFolders.BK_ANTES = true;
+          console.log('✓ Carpeta BK_ANTES encontrada:', folderName);
+        } else if (reniecPattern.test(folderName)) {
+          foundFolders.RENIEC = true;
+          console.log('✓ Carpeta RENIEC encontrada:', folderName);
+        } else if (bkMdAntesPattern.test(folderName)) {
+          foundFolders.BK_MD_ANTES = true;
+          console.log('✓ Carpeta BK_MD_ANTES encontrada:', folderName);
+        } else {
+          console.log('⚠️ Carpeta Bantotal no reconocida:', folderName);
+        }
+      });
+
+      // Identificar carpetas faltantes
+      const missingBantotal = [];
+      Object.keys(foundFolders).forEach(folderType => {
+        if (!foundFolders[folderType]) {
+          // Mapear nombres técnicos a nombres amigables
+          const friendlyNames = {
+            'ESQ_USRREPBI': 'ESQ_USRREPBI_*',
+            'APP_ESQUEMAS': 'APP_ESQUEMAS_*',
+            'BK_ANTES2': 'BK_ANTES2_*',
+            'BK_JAQL546_FPAE71': 'BK_JAQL546_FPAE71_*',
+            'BK_ANTES': 'BK_ANTES_*',
+            'RENIEC': 'RENIEC_*',
+            'BK_MD_ANTES': 'BK_MD_ANTES_*'
+          };
+          missingBantotal.push(friendlyNames[folderType]);
+        }
+      });
+
+      // Solo agregar advertencia si hay carpetas faltantes
+      if (missingBantotal.length > 0) {
+        missingFoldersBantotalWarnings.push({
           serverName: "Bantotal",
-          expected: requiredFoldersBantotal,
-          found: existingFolders,
-          missing: missing
+          expected: requiredFoldersBantotal.map(folder => {
+            const friendlyNames = {
+              'ESQ_USRREPBI': 'ESQ_USRREPBI_*',
+              'APP_ESQUEMAS': 'APP_ESQUEMAS_*',
+              'BK_ANTES2': 'BK_ANTES2_*',
+              'BK_JAQL546_FPAE71': 'BK_JAQL546_FPAE71_*',
+              'BK_ANTES': 'BK_ANTES_*',
+              'RENIEC': 'RENIEC_*',
+              'BK_MD_ANTES': 'BK_MD_ANTES_*'
+            };
+            return friendlyNames[folder];
+          }),
+          found: allFolderNames,
+          missing: missingBantotal
         });
+
+        console.log(`⚠️ Bantotal: Faltan ${missingBantotal.length} carpeta(s):`, missingBantotal);
+      } else {
+        console.log('✅ Bantotal: Todas las carpetas requeridas están presentes');
       }
     }
     const requiredFoldersEBS = [
@@ -2352,6 +2435,121 @@ ${last10LinesContent}
       }
     }
 
+    const requiredFoldersBI = {
+      daily: [
+        "BK_BDBI_MD",
+        "BK_BDBI_RESTO",
+        "BK_BDBI_BIHIST"
+      ],
+      monthly: [
+        "BK_BDBI_MD",
+        "BK_BDBI_RESTO",
+        "BK_BDBI_BIHIST",
+        "BK_BDBI_DL3"  // Solo en mensual
+      ]
+    };
+
+    const missingFoldersBIWarnings = [];
+
+    // Verificación para BI - ejecutar solo UNA vez
+    const biRecords = rowData.filter(d => d.serverName === "BI" && d.backupPath);
+
+    if (biRecords.length > 0) {
+      console.log(`Verificando carpetas BI. Encontrados ${biRecords.length} registros`);
+
+      // DETECTAR AUTOMÁTICAMENTE SI ES DIARIO O MENSUAL
+      // Buscar indicadores en las rutas para determinar el modo
+      const hasMonthlyIndicators = biRecords.some(record =>
+        record.backupPath.includes('_MENSUAL') ||
+        record.backupPath.includes('/nube/')
+      );
+
+      const isMonthlyMode = hasMonthlyIndicators;
+      const currentMode = isMonthlyMode ? 'monthly' : 'daily';
+      const requiredFolders = requiredFoldersBI[currentMode];
+
+      console.log(`🔍 Modo detectado para BI: ${currentMode.toUpperCase()}`);
+      console.log(`📋 Carpetas requeridas para modo ${currentMode}:`, requiredFolders);
+
+      // Extraer nombres de carpetas y clasificarlas
+      const foundFolders = {
+        BK_BDBI_MD: false,
+        BK_BDBI_RESTO: false,
+        BK_BDBI_BIHIST: false,
+        BK_BDBI_DL3: false  // Solo se requiere en modo mensual
+      };
+
+      const allFolderNames = [];
+
+      biRecords.forEach(record => {
+        const folderName = record.backupPath.split('/').pop();
+        allFolderNames.push(folderName);
+
+        console.log(`Analizando carpeta BI: ${folderName} desde ruta: ${record.backupPath}`);
+
+        // Patrones dinámicos con fecha/hora flexible para BI
+        const bkBdbiMdPattern = /^BK_BDBI_MD_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        const bkBdbiRestoPattern = /^BK_BDBI_RESTO_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        const bkBdbibiHistPattern = /^BK_BDBI_BIHIST_\d{4}_\d{2}_\d{2}_\d{4}$/;
+        const bkBdbiDl3Pattern = /^BK_BDBI_DL3_\d{4}_\d{2}_\d{2}_\d{4}$/;  // Solo mensual
+
+        // Verificar cada tipo de carpeta con patrones específicos
+        if (bkBdbiMdPattern.test(folderName)) {
+          foundFolders.BK_BDBI_MD = true;
+          console.log('✓ Carpeta BK_BDBI_MD encontrada:', folderName);
+        } else if (bkBdbiRestoPattern.test(folderName)) {
+          foundFolders.BK_BDBI_RESTO = true;
+          console.log('✓ Carpeta BK_BDBI_RESTO encontrada:', folderName);
+        } else if (bkBdbibiHistPattern.test(folderName)) {
+          foundFolders.BK_BDBI_BIHIST = true;
+          console.log('✓ Carpeta BK_BDBI_BIHIST encontrada:', folderName);
+        } else if (bkBdbiDl3Pattern.test(folderName)) {
+          foundFolders.BK_BDBI_DL3 = true;
+          console.log('✓ Carpeta BK_BDBI_DL3 encontrada:', folderName);
+        } else {
+          console.log('⚠️ Carpeta BI no reconocida:', folderName);
+        }
+      });
+
+      // Identificar carpetas faltantes SEGÚN EL MODO DETECTADO
+      const missingBI = [];
+      requiredFolders.forEach(folderType => {
+        if (!foundFolders[folderType]) {
+          // Mapear nombres técnicos a nombres amigables
+          const friendlyNames = {
+            'BK_BDBI_MD': 'BK_BDBI_MD_*',
+            'BK_BDBI_RESTO': 'BK_BDBI_RESTO_*',
+            'BK_BDBI_BIHIST': 'BK_BDBI_BIHIST_*',
+            'BK_BDBI_DL3': 'BK_BDBI_DL3_* (solo mensual)'
+          };
+          missingBI.push(friendlyNames[folderType]);
+        }
+      });
+
+      // Solo agregar advertencia si hay carpetas faltantes
+      if (missingBI.length > 0) {
+        missingFoldersBIWarnings.push({
+          serverName: "BI",
+          mode: currentMode,
+          expected: requiredFolders.map(folder => {
+            const friendlyNames = {
+              'BK_BDBI_MD': 'BK_BDBI_MD_*',
+              'BK_BDBI_RESTO': 'BK_BDBI_RESTO_*',
+              'BK_BDBI_BIHIST': 'BK_BDBI_BIHIST_*',
+              'BK_BDBI_DL3': 'BK_BDBI_DL3_*'
+            };
+            return friendlyNames[folder];
+          }),
+          found: allFolderNames,
+          missing: missingBI
+        });
+
+        console.log(`⚠️ BI (${currentMode}): Faltan ${missingBI.length} carpeta(s):`, missingBI);
+      } else {
+        console.log(`✅ BI (${currentMode}): Todas las carpetas requeridas están presentes`);
+      }
+    }
+
     // Generar contenido HTML para PostgreSQL
     function convertPostgresToStandardDate(postgresDate) {
       if (!postgresDate || typeof postgresDate !== 'string') {
@@ -2663,11 +2861,12 @@ ${last10LinesContent}
 
     // Combinar advertencias de BANTOTAL y EBS
     const allMissingFolderWarnings = [
-      ...missingFoldersWarnings,
+      ...missingFoldersBantotalWarnings,
       ...missingFoldersEBSWarnings,
       ...missingFoldersDATAWHWarnings,
       ...missingFoldersContratacionWarnings,
-      ...missingFoldersBiometriaWarnings
+      ...missingFoldersBiometriaWarnings,
+      ...missingFoldersBIWarnings
     ];
     if (allMissingFolderWarnings.length > 0) {
       missingFoldersContent = `
