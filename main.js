@@ -2459,7 +2459,7 @@ async function getDmpSizeData(days = 15) {
 
     console.log(`🔍 Obteniendo datos de los últimos ${days} días...`);
 
-    // 1. Obtener todos los servidores y rutas (SIMPLIFICADO)
+    // 1. Obtener todos los servidores y rutas (SIN CAMBIOS)
     const allServersAndRoutesResult = await connection.execute(`
       SELECT DISTINCT 
         COALESCE(si.ServerName, 'Desconocido') AS serverName,
@@ -2467,18 +2467,14 @@ async function getDmpSizeData(days = 15) {
         lb.backupPath
       FROM LogBackup lb
       LEFT JOIN ServerInfo si ON lb.ip = si.IP
-      
       UNION
-      
       SELECT DISTINCT
         COALESCE(si.ServerName, 'Desconocido') AS serverName,
         rbl.ip,
         rbl.ruta_backup as backupPath
       FROM rman_backup_logs rbl
       LEFT JOIN ServerInfo si ON rbl.ip = si.IP
-      
       UNION
-      
       SELECT DISTINCT
         COALESCE(si.ServerName, pbl.serverName, 'Desconocido') AS serverName,
         pbl.ip,
@@ -2487,51 +2483,51 @@ async function getDmpSizeData(days = 15) {
       LEFT JOIN ServerInfo si ON pbl.ip = si.IP
     `);
 
-    // 2. Consulta SIMPLIFICADA para backups Oracle DMP (SIN TableAudit)
+    // 2. Consulta para backups Oracle DMP, AHORA BASADA EN EXECUTIONDATE
     const oracleDmpData = await connection.execute(
       `SELECT DISTINCT
         COALESCE(si.ServerName, 'Desconocido') AS serverName,
         lb.ip,
         lb.backupPath,
-        lb.horaFIN as fecha,
+        lb.executionDate as fecha, -- <<< CAMBIO AQUÍ: Usamos executionDate como la fecha principal
         lb.dumpFileSize,
         lb.duration,
         'ORACLE_DMP' as backup_type,
         lb.id as record_id
        FROM LogBackup lb
        LEFT JOIN ServerInfo si ON lb.ip = si.IP
-       WHERE lb.horaFIN >= SYSDATE - :days
-       AND lb.horaFIN IS NOT NULL
-       ORDER BY lb.horaFIN DESC`,
+       WHERE lb.executionDate >= SYSDATE - :days -- <<< CAMBIO AQUÍ: Filtramos por fecha de ejecución
+       AND lb.executionDate IS NOT NULL
+       ORDER BY lb.executionDate DESC`,
       { days: days }
     );
 
-    // 3. Consulta para backups RMAN (sin cambios)
+    // 3. Consulta para backups RMAN, AHORA BASADA EN EXECUTIONDATE
     const rmanData = await connection.execute(
       `SELECT 
         COALESCE(si.ServerName, rbl.servidor, 'Desconocido') as serverName,
         rbl.ip,
         rbl.ruta_backup as backupPath,
-        rbl.fecha_fin as fecha,
+        rbl.executionDate as fecha, -- <<< CAMBIO AQUÍ: Usamos executionDate como la fecha principal
         NULL as dumpFileSize,
         rbl.duracion as duration,
         'ORACLE_RMAN' as backup_type,
         rbl.rmanID as record_id
        FROM rman_backup_logs rbl
        LEFT JOIN ServerInfo si ON rbl.ip = si.IP
-       WHERE rbl.fecha_fin >= SYSDATE - :days
-       AND rbl.fecha_fin IS NOT NULL
-       ORDER BY rbl.fecha_fin DESC`,
+       WHERE rbl.executionDate >= SYSDATE - :days -- <<< CAMBIO AQUÍ: Filtramos por fecha de ejecución
+       AND rbl.executionDate IS NOT NULL
+       ORDER BY rbl.executionDate DESC`,
       { days: days }
     );
 
-    // 4. Consulta para backups PostgreSQL (sin cambios)
+    // 4. Consulta para backups PostgreSQL, AHORA BASADA EN EXECUTIONDATE
     const postgresData = await connection.execute(
       `SELECT 
         COALESCE(si.ServerName, pbl.serverName, 'Desconocido') as serverName,
         pbl.ip,
         pbl.BackupPath as backupPath,
-        pbl.fecha_fin as fecha,
+        pbl.executionDate as fecha, -- <<< CAMBIO AQUÍ: Usamos executionDate como la fecha principal
         pbl.totalFolderSize as dumpFileSize,
         CASE 
           WHEN pbl.fecha_inicio IS NOT NULL AND pbl.fecha_fin IS NOT NULL THEN
@@ -2545,9 +2541,9 @@ async function getDmpSizeData(days = 15) {
         pbl.id as record_id
        FROM PostgresBackupLogs pbl
        LEFT JOIN ServerInfo si ON pbl.ip = si.IP
-       WHERE pbl.fecha_fin >= SYSDATE - :days
-       AND pbl.fecha_fin IS NOT NULL
-       ORDER BY pbl.fecha_fin DESC`,
+       WHERE pbl.executionDate >= SYSDATE - :days -- <<< CAMBIO AQUÍ: Filtramos por fecha de ejecución
+       AND pbl.executionDate IS NOT NULL
+       ORDER BY pbl.executionDate DESC`,
       { days: days }
     );
 
