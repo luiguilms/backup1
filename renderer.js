@@ -3606,9 +3606,7 @@ ${last10LinesContent}
           const status = serverResult.error ? "Error" : logDetail.logDetails?.success ? "Éxito" : "Fallo";
           const statusClass = status === "Fallo" ? "status-failure" : status === "Éxito" ? "status-success" : "status-error";
           const successClass = logDetail.logDetails?.success ? "" : "error-box";
-          const totalDmpSize = Array.isArray(logDetail.dumpFileInfo)
-            ? logDetail.dumpFileInfo.reduce((sum, file) => sum + (file.fileSize || 0), 0)
-            : 0;
+          const totalDmpSize = parseFloat(logDetail.totalDmpSize) || 0;
           const formattedDmpSize = formatFileSize(totalDmpSize);
           const formattedFolderSize = logDetail.totalFolderSize
             ? formatFileSize(parseFloat(logDetail.totalFolderSize))

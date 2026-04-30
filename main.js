@@ -238,20 +238,17 @@ app.whenReady().then(() => {
   }
   // Función que encapsula la lógica de get-log-details
   async function getLogDetailsLogic(
-    directoryPath,
-    ip,
-    port,
-    username,
-    password,
-    targetOS
+    directoryPath, ip, port, username, password, targetOS
   ) {
     let allLogDetails = [];
     const isMensualRoute = directoryPath.includes("MENSUAL");
     const firstDay = isFirstDayOfMonth();
+    
     // Obtener el nombre del servidor
-    const servers = await getServers(); // Usa la función que ya tienes
+    const servers = await getServers(); 
     const server = servers.find((s) => s.ip === ip);
     const serverName = server ? server.name : "N/A";
+    
     if (server) {
       console.log(`Servidor encontrado: ${serverName}, DB Engine: ${server.db_engine}`);
       if (server.db_engine === 'postgresql') {
@@ -262,23 +259,20 @@ app.whenReady().then(() => {
     } else {
       console.log(`No se encontró servidor para IP: ${ip}`);
     }
+    
     if (serverName === "EBS" || serverName === "BI") {
       if (firstDay && !isMensualRoute) {
-        console.log(
-          `Ruta normal excluida el primer día del mes: ${directoryPath} (Servidor: ${serverName})`
-        );
+        console.log(`Ruta normal excluida el primer día del mes: ${directoryPath} (Servidor: ${serverName})`);
         return null; // Excluir rutas normales el primer día del mes
       }
       if (!firstDay && isMensualRoute) {
-        console.log(
-          `Ruta mensual excluida fuera del primer día del mes: ${directoryPath} (Servidor: ${serverName})`
-        );
+        console.log(`Ruta mensual excluida fuera del primer día del mes: ${directoryPath} (Servidor: ${serverName})`);
         return null; // Excluir rutas mensuales fuera del primer día
       }
     }
     console.log(`Procesando ruta: ${directoryPath} (Servidor: ${serverName})`);
+    
     try {
-      //console.log(`Fetching log details from directory: ${directoryPath}`);
       // Initialize SSH connection
       const conn = await createSSHClient(ip, port, username, password);
       // Initialize SFTP connection
@@ -292,19 +286,21 @@ app.whenReady().then(() => {
           resolve(sftp);
         });
       });
-      // Aquí el check para PostgreSQL
+
+      // Check para PostgreSQL
       if (server && server.db_engine === 'postgresql') {
         const postgresResult = await processPostgresBackupLogs(sftp, directoryPath, serverName, ip);
         sftp.end();
         conn.end();
         return {
           ...postgresResult,
-          dbEngine: 'postgresql' // Asegurar que está presente
+          dbEngine: 'postgresql'
         };
       }
+
       const directoryExists = await new Promise((resolve) => {
         sftp.stat(directoryPath, (err) => {
-          resolve(!err); // Devuelve `false` si hay un error (no existe), `true` si existe
+          resolve(!err); 
         });
       });
 
@@ -317,50 +313,42 @@ app.whenReady().then(() => {
           backupPath: directoryPath
         };
       }
-      // Si es `WebContent`, aplicar lógica específica de RMAN
+
+      // Si es `WebContent` o servidor especial, aplicar lógica de RMAN
       if (serverName === 'WebContent' || (serverName === 'Contratacion digital' && directoryPath === '/disco6/BK_RMAN_CONTRADIGI') || (serverName === 'BIOMETRIA' && directoryPath === '/adicional_new/BK_RMAN_BIOME/BK_RMAN_FULL')) {
-        // Obtiene archivos de log en el directorio para WebContent
         const files = await new Promise((resolve, reject) => {
           sftp.readdir(directoryPath, (err, files) => {
             if (err) {
               console.error("Readdir error:", err);
-              sftp.end();
-              conn.end();
+              sftp.end(); conn.end();
               return reject(new Error(`Failed to read directory: ${err.message}`));
             }
             resolve(files);
           });
         });
 
-        // Filtra los archivos de log para obtener solo el archivo de RMAN
         const rmanLogFiles = files.filter(file => file.filename.includes("bk_rman_full") && file.filename.endsWith(".log"));
 
-        // Procesar cada archivo de log de RMAN
         for (const logFile of rmanLogFiles) {
           const logFilePath = joinPath(directoryPath, logFile.filename, targetOS);
           const logData = await new Promise((resolve, reject) => {
             sftp.readFile(logFilePath, "utf8", (err, data) => {
               if (err) {
                 console.error("ReadFile error:", err);
-                sftp.end();
-                conn.end();
+                sftp.end(); conn.end();
                 return reject(new Error(`Failed to read log file: ${err.message}`));
               }
               resolve(data);
             });
           });
 
-          // Extrae los detalles específicos del log de RMAN
           const rmanLogDetails = extractRmanLogDetails(logData);
-
-          // Guarda los detalles en la base de datos
           await saveRmanLogToDatabase({
             ...rmanLogDetails,
             rutaBackup: directoryPath,
-            logFileName: logFile.filename  // Aquí pasamos directoryPath como rutaBackup
+            logFileName: logFile.filename 
           }, serverName, ip);
 
-          // Agrega los detalles a la lista de todos los logs
           allLogDetails.push({
             logDetails: rmanLogDetails,
             logFileName: logFile.filename,
@@ -372,581 +360,309 @@ app.whenReady().then(() => {
         }
         sftp.end();
         conn.end();
-        return allLogDetails; // Retorna los detalles específicos de RMAN para `WebContent`
+        return allLogDetails; 
       }
-      // Llamada a getFolderSize para Solaris, Linux, y Windows
-      let folderSizes = await getFolderSize(
-        conn,
-        directoryPath,
-        targetOS,
-        sftp
-      );
-      //console.log("Tamaños de las subcarpetas:", folderSizes);
-      if (targetOS === "solaris" || targetOS === "linux") {
-        // Asegurarse de que folderSizes sea un arreglo solo para Solaris
-        let folderSizeInfo;
 
-        if (Array.isArray(folderSizes)) {
-          // Si es un arreglo, busca el tamaño correspondiente a cada subcarpeta
-          folderSizeInfo = folderSizes.find((folder) =>
-            folder.folderPath.includes(file.filename)
-          );
-        } else if (typeof folderSizes === "number") {
-          // Si es un número, simplemente asigna el tamaño directamente
-          console.warn(
-            "folderSizes es un número, asignando directamente:",
-            folderSizes
-          );
-          folderSizeInfo = { sizeInMB: folderSizes }; // Tratar como un objeto con el tamaño
-        } else {
-          console.error(
-            "folderSizes tiene un formato inesperado:",
-            folderSizes
-          );
-          folderSizeInfo = { sizeInMB: "N/A" }; // Manejo de error si el tipo es inesperado
-        }
-
-        const files = await new Promise((resolve, reject) => {
-          sftp.readdir(directoryPath, (err, files) => {
-            if (err) {
-              console.error("Readdir error:", err);
-              sftp.end();
-              conn.end();
-              return reject(new Error(`Failed to read directory: ${err.message}`));
-            }
-            resolve(files);
-          });
-        });
-        // Filtrar los subdirectorios
-        const directories = files.filter(
-          (file) => file.attrs && (file.attrs.mode & 0o40000) === 0o40000
-        );
-        // Mostrar los subdirectorios en la consola
-        console.log("Subdirectorios encontrados:", directories.map(dir => dir.filename));
-
-        const isBackupComplete = directories.length >= 7; // Considerado completo si hay 7 o más carpetas
-        if (targetOS === "linux") {
-          // Solo para linux, verificar el backup incompleto
-          const isBackupComplete = directories.length >= 7; // Considerado completo si hay 7 o más carpetas
-          if (!isBackupComplete) {
-            // Solo activar si hay menos de 7 carpetas
-            allLogDetails.backupIncomplete = true;
-            allLogDetails.expectedFolders = 7;
-            allLogDetails.foundFolders = directories.length;
+      // LECTURA DEL DIRECTORIO PRINCIPAL
+      const files = await new Promise((resolve, reject) => {
+        sftp.readdir(directoryPath, (err, files) => {
+          if (err) {
+            console.error("Readdir error:", err);
+            sftp.end(); conn.end();
+            return reject(new Error(`Failed to read directory: ${err.message}`));
           }
+          resolve(files);
+        });
+      });
 
+      // =========================================================
+      // RAMA 1: SOLARIS O LINUX (USANDO TAMAÑOS EN MEMORIA)
+      // =========================================================
+      if (targetOS === "solaris" || targetOS === "linux") {
+        const directories = files.filter(file => file.attrs && (file.attrs.mode & 0o40000) === 0o40000);
+        const isBackupComplete = directories.length >= 7; 
+        
+        if (targetOS === "linux" && !isBackupComplete) {
+          allLogDetails.backupIncomplete = true;
+          allLogDetails.expectedFolders = 7;
+          allLogDetails.foundFolders = directories.length;
         }
+
         const isBackupVoid = directories.length === 0;
         if (isBackupVoid) {
-          // No marcar como vacía si es el servidor BANTOTAL
           if (serverName === "Bantotal") {
             console.log(`Ignorando alerta de carpeta vacía para BANTOTAL: ${directoryPath}`);
             conn.end();
-            return {
-              backupVoid: false, // No marcamos como vacía aunque lo esté
-              backupPath: directoryPath,
-              ip,
-              serverName,
-              skippedEmptyCheck: true // Indicador de que se omitió la verificación
-            };
+            return { backupVoid: false, backupPath: directoryPath, ip, serverName, skippedEmptyCheck: true };
           }
-
-          // Para el resto de servidores, continuar con la lógica normal
           conn.end();
-          return {
-            backupVoid: true,
-            backupPath: directoryPath,
-            ip,
-            serverName
-          };
+          return [];
         }
-        for (const file of files) {
-          if (file.attrs.isDirectory()) {
-            const subDirPath = joinPath(directoryPath, file.filename, targetOS);
-            console.log(`Processing subdirectory: ${subDirPath}`);
-            try {
-              const subDirFiles = await new Promise((resolve, reject) => {
-                sftp.readdir(subDirPath, (err, files) => {
-                  if (err) {
-                    console.error("Readdir error:", err);
-                    sftp.end();
-                    conn.end();
-                    return reject(
-                      new Error(`Failed to read subdirectory: ${err.message}`)
-                    );
-                  }
-                  resolve(files);
-                });
-              });
-              // Verifica si el subdirectorio está vacío
-              const isSubDirEmpty = subDirFiles.length === 0;
 
-              // Si el subdirectorio está vacío, añade una entrada a `allLogDetails` con `backupVoid: true`
-              if (isSubDirEmpty) {
-                allLogDetails.push({
-                  logDetails: null,
-                  dumpFileInfo: [],
-                  logFileName: null,
-                  ip,
-                  backupPath: subDirPath,
-                  os: targetOS,
-                  totalDmpSize: 0,
-                  totalFolderSize: "0 MB",
-                  serverName: serverName,
-                  last10Lines: [],
-                  hasWarning: false,
-                  warningNumber: null,
-                  lastLine: null,
-                  backupIncomplete: !isBackupComplete,
-                  expectedFolders: 7,
-                  foundFolders: directories.length,
-                  backupVoid: true, // Indica que este subdirectorio está vacío
-                  groupNumber: logDetails && logDetails.groupNumber,
-                });
-                continue; // Salta al siguiente subdirectorio
-              }
-              const folderSize = await getFolderSize(
-                conn,
-                subDirPath,
-                targetOS,
-                sftp
-              );
-              const totalFolderSize = `${folderSize} MB`;
-              //console.log(
-              //   "Tamaño total de la carpeta (totalFolderSize):",
-              //  totalFolderSize
-              //    );
-              const logFiles = subDirFiles.filter(
-                (file) => path.extname(file.filename) === ".log"
-              );
-              let dumpFileInfo = []; // Reinicia para cada subdirectorio
-              let totalDmpSize = 0; // Reinicia para cada subdirectorio
-              let logDetails = null;
-              let logFileName = null;
-              let logInfo = null; // Reemplaza last10Lines y has95Warning
-              let logLines = null;
-              let lastLine = null; // Añadimos la última línea aquí
-              for (let i = 0; i < logFiles.length; i += 10) {
-                await Promise.all(
-                  logFiles.slice(i, i + 10).map(async (logFile) => {
-                    logFileName = logFile.filename;
-                    const logFilePath = joinPath(
-                      subDirPath,
-                      logFileName,
-                      targetOS
-                    );
-                    await new Promise((resolve, reject) => {
-                      sftp.stat(logFilePath, (err, stats) => {
-                        if (err) {
-                          console.error("Stat error:", err);
-                          sftp.end();
-                          conn.end();
-                          return reject(
-                            new Error(`Failed to stat log file: ${err.message}`)
-                          );
-                        }
-                        resolve(stats);
-                      });
-                    });
-                    const logData = await new Promise((resolve, reject) => {
-                      sftp.readFile(logFilePath, "utf8", (err, data) => {
-                        if (err) {
-                          console.error("ReadFile error:", err);
-                          sftp.end();
-                          conn.end();
-                          return reject(
-                            new Error(`Failed to read log file: ${err.message}`)
-                          );
-                        }
-                        resolve(data);
-                      });
-                    });
-
-                    logLines = logData.trim().split("\n");
-                    lastLine = logLines[logLines.length - 1].trim();
-                    logInfo = getLast10LogLines(logData, globalThreshold);
-                    logDetails = parseLogLine(logData);
-
-                    if (logInfo.hasWarning) {
-                      const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
-                        }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
-                          "\n"
-                        )}`;
-                      await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
-                    }
-                    logDetails = parseLogLine(logData);
-                    const validExtensions = [".dmp", ".DMP", ".dmp.gz", ".gz", ".err"];
-                    const dumpFiles = subDirFiles.filter((file) => {
-                      const filename = file.filename.toLowerCase();
-                      // Verificar si el nombre del archivo termina con alguna de las extensiones válidas
-                      const isValidFile = validExtensions.some(ext => filename.endsWith(ext));
-                      if (!isValidFile) {
-                        console.warn(`Archivo no válido encontrado: ${file.filename}`);
-                        return false; // Excluye archivos que no son válidos
-                      }
-                      return true; // Incluye archivos válidos
-                    });
-
-                    for (let i = 0; i < dumpFiles.length; i += 10) {
-                      await Promise.all(
-                        dumpFiles.slice(i, i + 10).map(async (dumpFile) => {
-                          const dumpFilePath = joinPath(
-                            subDirPath,
-                            dumpFile.filename,
-                            targetOS
-                          );
-                          const dumpStats = await new Promise(
-                            (resolve, reject) => {
-                              sftp.stat(dumpFilePath, (err, stats) => {
-                                if (err) {
-                                  console.error("Stat error:", err);
-                                  sftp.end();
-                                  conn.end();
-                                  return reject(
-                                    new Error(
-                                      `Failed to stat dump file: ${err.message}`
-                                    )
-                                  );
-                                }
-                                resolve(stats);
-                              });
-                            }
-                          );
-                          // Agrega esta línea para imprimir el tamaño de cada archivo .dmp
-                          //console.log(
-                          //  `Carpeta: ${subDirPath}, Tamaño del archivo ${dumpFile.filename
-                          //   }: ${(dumpStats.size / (1024 * 1024)).toFixed(2)} MB`
-                          // );
-
-                          const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
-                          totalDmpSize += dumpFileSizeInMB;
-                          dumpFileInfo.push({
-                            filePath: dumpFilePath,
-                            fileSize:
-                              dumpFileSizeInMB > 0
-                                ? parseFloat(dumpFileSizeInMB.toFixed(2))
-                                : 0,
-                          });
-                        })
-                      );
-                    }
-                    allLogDetails.push({
-                      logDetails,
-                      dumpFileInfo,
-                      logFileName,
-                      ip,
-                      backupPath: subDirPath,
-                      os: targetOS,
-                      totalDmpSize:
-                        totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
-                      totalFolderSize,
-                      serverName: serverName,
-                      last10Lines: logInfo ? logInfo.relevantLines : [],
-                      hasWarning: logInfo ? logInfo.hasWarning : false,
-                      warningNumber: logInfo ? logInfo.warningNumber : null,
-                      lastLine: lastLine, // Añadimos la última línea aquí
-                      backupIncomplete: targetOS === "linux" && !isBackupComplete, // Solo para Solaris
-                      expectedFolders: targetOS === "linux" ? 7 : null, // Solo para Solaris
-                      foundFolders: targetOS === "linux" ? directories.length : null, // Solo para Solaris
-                      backupVoid: false,
-                      groupNumber: logDetails && logDetails.groupNumber,
-                    });
-                  })
-                );
-              }
-            } catch (error) {
-              console.warn(`Error procesando subdirectorio ${subDirPath}:`, error);
-              continue;
-            }
-          }
-        }
-        //console.log("Detalles completos de log (incluyendo vacíos):", allLogDetails);
-        //console.log("lastLine en getLogDetailsLogic antes de retornar:", allLogDetails.map(detail => detail.lastLine));
-        return allLogDetails;
-      } else {
-        if (typeof folderSizes !== "number") {
-          throw new Error("folderSizes debe ser un número para /Windows.");
-        }
-        // Logic for other OS (Windows, )
-        const files = await new Promise((resolve, reject) => {
-          sftp.readdir(directoryPath, (err, files) => {
-            if (err) {
-              console.error("Readdir error:", err);
-              sftp.end();
-              conn.end();
-              return reject(
-                new Error(`Failed to read directory: ${err.message}`)
-              );
-            }
-            resolve(files);
-          });
-        });
-        // Check if there are subdirectories
-        const subdirectories = files.filter((file) => file.attrs.isDirectory());
-        // Si no hay subdirectorios, marcar el backup como vacío
-        const isBackupVoid = subdirectories.length === 0;
-
-        if (isBackupVoid) {
-          console.log(`La carpeta principal ${directoryPath} está vacía.`);
-          sftp.end();
-          conn.end();
-          return {
-            backupVoid: true,
-            backupPath: directoryPath,
-            ip,
-            serverName,
-          };
-        }
-        if (subdirectories.length > 0) {
-          // Process each subdirectory
-          let allSubdirResults = [];
-          for (const subdir of subdirectories) {
-            const subDirPath = joinPath(
-              directoryPath,
-              subdir.filename,
-              targetOS
-            );
-            // Read subdirectory contents
+        for (const file of directories) { 
+          const subDirPath = joinPath(directoryPath, file.filename, targetOS);
+          console.log(`Processing subdirectory: ${subDirPath}`);
+          
+          try {
             const subDirFiles = await new Promise((resolve, reject) => {
               sftp.readdir(subDirPath, (err, files) => {
                 if (err) {
                   console.error("Readdir error:", err);
-                  return reject(
-                    new Error(`Failed to read subdirectory: ${err.message}`)
-                  );
+                  return reject(new Error(`Failed to read subdirectory: ${err.message}`));
                 }
                 resolve(files);
               });
             });
-            // Process log files in subdirectory
-            const logFiles = subDirFiles.filter(
-              (file) => path.extname(file.filename) === ".log"
-            );
-            if (logFiles.length > 0) {
-              const latestLogFile = logFiles.reduce((latest, file) =>
-                file.attrs.mtime > latest.attrs.mtime ? file : latest
-              );
-              let logFileName = latestLogFile.filename;
-              const logFilePath = joinPath(subDirPath, logFileName, targetOS);
-              //console.log("Attempting to read log file:", logFilePath);
-              await new Promise((resolve, reject) => {
-                sftp.stat(logFilePath, (err, stats) => {
-                  if (err) {
-                    console.error("Stat error:", err);
-                    sftp.end();
-                    conn.end();
-                    return reject(
-                      new Error(`Failed to stat log file: ${err.message}`)
-                    );
-                  }
-                  resolve(stats);
+
+            // --- 1. CALCULAMOS TODO EL TAMAÑO Y LOS DMPs (EN MEMORIA) ---
+            let totalFolderSizeBytes = 0;
+            let totalDmpSizeMB = 0;
+            let dumpFileInfo = [];
+            const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"]; 
+
+            for (const subFile of subDirFiles) {
+              const fileSizeBytes = subFile.attrs ? subFile.attrs.size : 0;
+              totalFolderSizeBytes += fileSizeBytes;
+
+              const filenameLower = subFile.filename.toLowerCase();
+              if (validExtensions.some(ext => filenameLower.endsWith(ext))) {
+                const fileSizeMB = fileSizeBytes / (1024 * 1024);
+                totalDmpSizeMB += fileSizeMB;
+                dumpFileInfo.push({
+                  filePath: joinPath(subDirPath, subFile.filename, targetOS),
+                  fileSize: fileSizeMB > 0 ? parseFloat(fileSizeMB.toFixed(2)) : 0,
                 });
-              });
+              }
+            }
+
+            const totalFolderSize = `${(totalFolderSizeBytes / (1024 * 1024)).toFixed(2)} MB`;
+            const formattedTotalDmpSize = totalDmpSizeMB > 0 ? totalDmpSizeMB.toFixed(2) : 0;
+
+            // --- 2. PROCESAMOS LOS LOGS ---
+            const logFiles = subDirFiles.filter((f) => path.extname(f.filename) === ".log");
+            
+            for (const logFile of logFiles) {
+              const logFileName = logFile.filename;
+              const logFilePath = joinPath(subDirPath, logFileName, targetOS);
+              
               const logData = await new Promise((resolve, reject) => {
                 sftp.readFile(logFilePath, "utf8", (err, data) => {
-                  if (err) {
-                    console.error("ReadFile error:", err);
-                    sftp.end();
-                    conn.end();
-                    return reject(
-                      new Error(`Failed to read log file: ${err.message}`)
-                    );
-                  }
+                  if (err) return reject(new Error(`Failed to read log file: ${err.message}`));
                   resolve(data);
                 });
               });
+
               const logLines = logData.trim().split("\n");
               const lastLine = logLines[logLines.length - 1].trim();
               const logInfo = getLast10LogLines(logData, globalThreshold);
+              const logDetails = parseLogLine(logData);
 
               if (logInfo.hasWarning) {
-                const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
-                  }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
-                    "\n"
-                  )}`;
+                const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber}% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join("\n")}`;
                 await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
               }
-              const logDetails = parseLogLine(logData, "Pago Institucional");
-              const validExtensions = [".dmp", ".DMP", ".dmp.gz", ".gz", ".err"];
-              let dumpFileInfo = [];
-              const dumpFiles = subDirFiles.filter((file) => {
-                const filename = file.filename.toLowerCase();
-                // Verificar si el nombre del archivo termina con alguna de las extensiones válidas
-                const isValidFile = validExtensions.some(ext => filename.endsWith(ext));
-                if (!isValidFile) {
-                  console.warn(`Archivo no válido encontrado: ${file.filename}`);
-                  return false; // Excluye archivos que no son válidos
-                }
-                return true; // Incluye archivos válidos
-              });
 
-              let totalDmpSize = 0;
-              //console.log("Archivos DMP encontrados:", dumpFiles); // Verificación de archivos DMP
-
-              for (const dumpFile of dumpFiles) {
-                const dumpFilePath = joinPath(
-                  subDirPath,
-                  dumpFile.filename,
-                  targetOS
-                );
-
-                try {
-                  // Usar la promesa de sftp.stat para obtener las estadísticas del archivo
-                  const dumpStats = await new Promise((resolve, reject) => {
-                    sftp.stat(dumpFilePath, (err, stats) => {
-                      if (err) {
-                        console.error(`Error al obtener estadísticas del archivo: ${dumpFile.filename}`, err);
-                        reject(err); // Si hay error, rechaza la promesa
-                      } else {
-                        resolve(stats); // Si no hay error, resuelve la promesa
-                      }
-                    });
-                  });
-
-                  // Verificar si dumpStats está definido antes de acceder a 'size'
-                  if (dumpStats && dumpStats.size) {
-                    const dumpFileSizeInMB = dumpStats.size / (1024 * 1024); // Convertir tamaño a MB
-                    totalDmpSize += dumpFileSizeInMB; // Acumular el tamaño total
-                    dumpFileInfo.push({
-                      filePath: dumpFilePath,
-                      fileSize: dumpFileSizeInMB > 0 ? parseFloat(dumpFileSizeInMB.toFixed(2)) : 0,
-                    });
-                  } else {
-                    console.warn(`El archivo ${dumpFile.filename} no tiene tamaño o no es accesible.`);
-                  }
-                } catch (err) {
-                  console.error(`Error al obtener las estadísticas del archivo: ${dumpFile.filename}`, err);
-                }
-              }
-
-              console.log("Tamaño total de DMP acumulado:", totalDmpSize);
-              allSubdirResults.push({
+              // --- 3. ARMAMOS EL RESULTADO ---
+              allLogDetails.push({
                 logDetails,
                 dumpFileInfo,
                 logFileName,
                 ip,
                 backupPath: subDirPath,
                 os: targetOS,
-                totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
-                totalFolderSize: `${folderSizes} MB`,
+                totalDmpSize: formattedTotalDmpSize,
+                totalFolderSize: totalFolderSize,
                 serverName: serverName,
-                last10Lines: logInfo.relevantLines,
-                hasWarning: logInfo.hasWarning,
-                warningNumber: logInfo.warningNumber,
-                lastLine: lastLine, // Añadimos la última línea aquí
+                last10Lines: logInfo ? logInfo.relevantLines : [],
+                hasWarning: logInfo ? logInfo.hasWarning : false,
+                warningNumber: logInfo ? logInfo.warningNumber : null,
+                lastLine: lastLine,
+                backupIncomplete: targetOS === "linux" && !isBackupComplete,
+                expectedFolders: targetOS === "linux" ? 7 : null,
+                foundFolders: targetOS === "linux" ? directories.length : null,
                 backupVoid: false,
                 groupNumber: logDetails && logDetails.groupNumber,
               });
             }
-          }
-          return allSubdirResults;
-        } else {
-          // No subdirectories, process the main directory
-          const logFiles = files.filter(
-            (file) => path.extname(file.filename) === ".log"
-          );
-          if (logFiles.length > 0) {
-            const latestLogFile = logFiles.reduce((latest, file) =>
-              file.attrs.mtime > latest.attrs.mtime ? file : latest
-            );
-            let logFileName = latestLogFile.filename;
-            const logFilePath = joinPath(directoryPath, logFileName, targetOS);
-            console.log("Attempting to read log file:", logFilePath);
-            await new Promise((resolve, reject) => {
-              sftp.stat(logFilePath, (err, stats) => {
-                if (err) {
-                  console.error("Stat error:", err);
-                  sftp.end();
-                  conn.end();
-                  return reject(
-                    new Error(`Failed to stat log file: ${err.message}`)
-                  );
-                }
-                resolve(stats);
-              });
-            });
-            const logData = await new Promise((resolve, reject) => {
-              sftp.readFile(logFilePath, "utf8", (err, data) => {
-                if (err) {
-                  console.error("ReadFile error:", err);
-                  sftp.end();
-                  conn.end();
-                  return reject(
-                    new Error(`Failed to read log file: ${err.message}`)
-                  );
-                }
-                resolve(data);
-              });
-            });
-            const logLines = logData.trim().split("\n");
-            const lastLine = logLines[logLines.length - 1].trim();
-            const logInfo = getLast10LogLines(logData, globalThreshold);
-
-            if (logInfo.hasWarning) {
-              const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber
-                }% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join(
-                  "\n"
-                )}`;
-              await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
-            }
-            const logDetails = parseLogLine(logData, "Pago Institucional");
-            const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
-            let dumpFileInfo = [];
-            const dumpFiles = subDirFiles.filter((file) => {
-              const filename = file.filename.toLowerCase();
-              // Verificar si el nombre del archivo termina con alguna de las extensiones válidas
-              const isValidFile = validExtensions.some(ext => filename.endsWith(ext));
-              if (!isValidFile) {
-                console.warn(`Archivo no válido encontrado: ${file.filename}`);
-                return false; // Excluye archivos que no son válidos
-              }
-              return true; // Incluye archivos válidos
-            });
-
-            let totalDmpSize = 0;
-            //console.log("Archivos DMP encontrados:", dumpFiles); // Verificación de archivos DMP
-
-            for (const dumpFile of dumpFiles) {
-              const dumpFilePath = joinPath(
-                subDirPath,
-                dumpFile.filename,
-                targetOS
-              );
-
-              try {
-                const dumpStats = await sftp.stat(dumpFilePath);
-                const dumpFileSizeInMB = dumpStats.size / (1024 * 1024);
-                dumpFileInfo.push({
-                  filePath: dumpFilePath,
-                  fileSize: dumpFileSizeInMB > 0 ? parseFloat(dumpFileSizeInMB.toFixed(2)) : 0,
-                });
-              } catch (err) {
-                console.error(`Error al obtener estadísticas del archivo: ${dumpFile.filename}`, err);
-              }
-            }
-
-            console.log("Tamaño total de DMP acumulado:", totalDmpSize);
-            return [
-              {
-                logDetails,
-                dumpFileInfo,
-                logFileName,
-                ip,
-                backupPath: directoryPath,
-                os: targetOS,
-                totalDmpSize: totalDmpSize > 0 ? totalDmpSize.toFixed(2) : 0,
-                totalFolderSize: `${folderSizes} MB`,
-                serverName: serverName,
-                last10Lines: logInfo.relevantLines,
-                hasWarning: logInfo.hasWarning,
-                warningNumber: logInfo.warningNumber,
-                lastLine: lastLine, // Añadimos la última línea aquí
-              },
-            ];
+          } catch (error) {
+            console.warn(`Error procesando subdirectorio ${subDirPath}:`, error);
+            continue;
           }
         }
         sftp.end();
         conn.end();
+        return allLogDetails;
+      } 
+      
+      // =========================================================
+      // RAMA 2: WINDOWS Y OTROS SO (USANDO TAMAÑOS EN MEMORIA)
+      // =========================================================
+      else {
+        const subdirectories = files.filter((file) => file.attrs && file.attrs.isDirectory());
+        const isBackupVoid = subdirectories.length === 0;
+
+        // --- WINDOWS SIN SUBDIRECTORIOS ---
+        if (isBackupVoid) {
+          const logFiles = files.filter((f) => path.extname(f.filename) === ".log");
+          if (logFiles.length === 0) {
+            console.log(`La carpeta principal ${directoryPath} está vacía.`);
+            sftp.end(); conn.end();
+            return { backupVoid: true, backupPath: directoryPath, ip, serverName };
+          }
+
+          let totalFolderSizeBytes = 0;
+          let totalDmpSizeMB = 0;
+          let dumpFileInfo = [];
+          const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
+
+          for (const file of files) {
+            const fileSizeBytes = file.attrs ? file.attrs.size : 0;
+            totalFolderSizeBytes += fileSizeBytes;
+
+            const filenameLower = file.filename.toLowerCase();
+            if (validExtensions.some(ext => filenameLower.endsWith(ext))) {
+              const fileSizeMB = fileSizeBytes / (1024 * 1024);
+              totalDmpSizeMB += fileSizeMB;
+              dumpFileInfo.push({
+                filePath: joinPath(directoryPath, file.filename, targetOS),
+                fileSize: fileSizeMB > 0 ? parseFloat(fileSizeMB.toFixed(2)) : 0,
+              });
+            }
+          }
+
+          const totalFolderSize = `${(totalFolderSizeBytes / (1024 * 1024)).toFixed(2)} MB`;
+          const formattedTotalDmpSize = totalDmpSizeMB > 0 ? totalDmpSizeMB.toFixed(2) : 0;
+
+          const latestLogFile = logFiles.reduce((latest, f) => f.attrs.mtime > latest.attrs.mtime ? f : latest);
+          let logFileName = latestLogFile.filename;
+          const logFilePath = joinPath(directoryPath, logFileName, targetOS);
+          
+          console.log("Attempting to read log file:", logFilePath);
+          const logData = await new Promise((resolve, reject) => {
+            sftp.readFile(logFilePath, "utf8", (err, data) => {
+              if (err) return reject(new Error(`Failed to read log file: ${err.message}`));
+              resolve(data);
+            });
+          });
+
+          const logLines = logData.trim().split("\n");
+          const lastLine = logLines[logLines.length - 1].trim();
+          const logInfo = getLast10LogLines(logData, globalThreshold);
+
+          if (logInfo.hasWarning) {
+            const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber}% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join("\n")}`;
+            await sendEmailAlert(ip, serverName, directoryPath, warningMessage);
+          }
+
+          const logDetails = parseLogLine(logData, "Pago Institucional");
+
+          sftp.end(); conn.end();
+          return [{
+            logDetails,
+            dumpFileInfo,
+            logFileName,
+            ip,
+            backupPath: directoryPath,
+            os: targetOS,
+            totalDmpSize: formattedTotalDmpSize,
+            totalFolderSize: totalFolderSize,
+            serverName: serverName,
+            last10Lines: logInfo.relevantLines,
+            hasWarning: logInfo.hasWarning,
+            warningNumber: logInfo.warningNumber,
+            lastLine: lastLine,
+            backupVoid: false,
+            groupNumber: logDetails && logDetails.groupNumber,
+          }];
+        }
+
+        // --- WINDOWS CON SUBDIRECTORIOS ---
+        if (subdirectories.length > 0) {
+          let allSubdirResults = [];
+          for (const subdir of subdirectories) {
+            const subDirPath = joinPath(directoryPath, subdir.filename, targetOS);
+            
+            try {
+              const subDirFiles = await new Promise((resolve, reject) => {
+                sftp.readdir(subDirPath, (err, files) => {
+                  if (err) return reject(new Error(`Failed to read subdirectory: ${err.message}`));
+                  resolve(files);
+                });
+              });
+
+              let totalFolderSizeBytes = 0;
+              let totalDmpSizeMB = 0;
+              let dumpFileInfo = [];
+              const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
+
+              for (const subFile of subDirFiles) {
+                const fileSizeBytes = subFile.attrs ? subFile.attrs.size : 0;
+                totalFolderSizeBytes += fileSizeBytes;
+
+                const filenameLower = subFile.filename.toLowerCase();
+                if (validExtensions.some(ext => filenameLower.endsWith(ext))) {
+                  const fileSizeMB = fileSizeBytes / (1024 * 1024);
+                  totalDmpSizeMB += fileSizeMB;
+                  dumpFileInfo.push({
+                    filePath: joinPath(subDirPath, subFile.filename, targetOS),
+                    fileSize: fileSizeMB > 0 ? parseFloat(fileSizeMB.toFixed(2)) : 0,
+                  });
+                }
+              }
+
+              const totalFolderSize = `${(totalFolderSizeBytes / (1024 * 1024)).toFixed(2)} MB`;
+              const formattedTotalDmpSize = totalDmpSizeMB > 0 ? totalDmpSizeMB.toFixed(2) : 0;
+
+              const logFiles = subDirFiles.filter((f) => path.extname(f.filename) === ".log");
+              if (logFiles.length > 0) {
+                const latestLogFile = logFiles.reduce((latest, f) => f.attrs.mtime > latest.attrs.mtime ? f : latest);
+                let logFileName = latestLogFile.filename;
+                const logFilePath = joinPath(subDirPath, logFileName, targetOS);
+                
+                const logData = await new Promise((resolve, reject) => {
+                  sftp.readFile(logFilePath, "utf8", (err, data) => {
+                    if (err) return reject(new Error(`Failed to read log file: ${err.message}`));
+                    resolve(data);
+                  });
+                });
+
+                const logLines = logData.trim().split("\n");
+                const lastLine = logLines[logLines.length - 1].trim();
+                const logInfo = getLast10LogLines(logData, globalThreshold);
+
+                if (logInfo.hasWarning) {
+                  const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber}% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join("\n")}`;
+                  await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
+                }
+
+                const logDetails = parseLogLine(logData, "Pago Institucional");
+
+                allSubdirResults.push({
+                  logDetails,
+                  dumpFileInfo,
+                  logFileName,
+                  ip,
+                  backupPath: subDirPath,
+                  os: targetOS,
+                  totalDmpSize: formattedTotalDmpSize,
+                  totalFolderSize: totalFolderSize,
+                  serverName: serverName,
+                  last10Lines: logInfo.relevantLines,
+                  hasWarning: logInfo.hasWarning,
+                  warningNumber: logInfo.warningNumber,
+                  lastLine: lastLine,
+                  backupVoid: false,
+                  groupNumber: logDetails && logDetails.groupNumber,
+                });
+              }
+            } catch (err) {
+              console.error(`Error procesando subdirectorio de Windows ${subDirPath}:`, err);
+            }
+          }
+          sftp.end();
+          conn.end();
+          return allSubdirResults;
+        }
       }
     } catch (error) {
       console.error("Error fetching log details:", error);
