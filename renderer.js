@@ -1951,19 +1951,56 @@ ${last10LinesContent}
     // Combinar todos los backups
     const allBackups = [...oracleBackups, ...postgresBackups];
 
-    // Ordenar: primero todos los errores (Oracle y PostgreSQL), luego los exitosos
     allBackups.sort((a, b) => {
-      // Primero ordenar por error/éxito
-      if (a.isError && !b.isError) return -1;
-      if (!a.isError && b.isError) return 1;
+  // 1. Primero: errores antes que éxitos (esto siempre manda)
+  if (a.isError && !b.isError) return -1;
+  if (!a.isError && b.isError) return 1;
 
-      // Si ambos tienen el mismo estado, mantener orden por tipo (opcional)
-      if (a.backupType !== b.backupType) {
-        return a.backupType === 'Oracle' ? -1 : 1;
-      }
+  // 2. Segundo: Separar por motor (Oracle primero, luego PostgreSQL)
+  if (a.backupType !== b.backupType) {
+    return a.backupType === 'Oracle' ? -1 : 1;
+  }
 
-      return 0;
-    });
+  // 3. Tercero: Orden personalizado de servidores CORE
+  // Definimos la prioridad (mientras menor el número, más arriba aparece)
+  const serverPriority = {
+    "Bantotal": 1,
+    "EBS": 2,
+    "BI": 3,
+    "DATAWH": 4
+  };
+
+  // Obtenemos la prioridad de cada servidor (si no está en la lista, le damos prioridad 99)
+  const priorityA = serverPriority[a.serverName] || 99;
+  const priorityB = serverPriority[b.serverName] || 99;
+
+  if (priorityA !== priorityB) {
+    return priorityA - priorityB; // Ordena por el número de prioridad
+  }
+
+  // 4. Cuarto: Si tienen la misma prioridad (ej. ambos son de los "demás" con 99), 
+  // los agrupamos alfabéticamente para que los backups del mismo servidor no se separen
+  if (a.serverName < b.serverName) return -1;
+  if (a.serverName > b.serverName) return 1;
+
+  // 5. Quinto: Dentro del mismo servidor, ordenar cronológicamente (más antiguo a más reciente)
+  const getStartTime = (item) => {
+    const raw = item.startTime || item.fecha_inicio || null;
+    if (!raw) return 0;
+    
+    // Formato PostgreSQL: "21/05/2026, 20:35:10"
+    if (typeof raw === 'string' && raw.includes('/')) {
+      const [datePart, timePart] = raw.split(', ');
+      const [day, month, year] = datePart.split('/');
+      return new Date(`${year}-${month}-${day}T${timePart}`).getTime();
+    }
+    
+    // Formato Oracle: "2026-05-21 20:35:10"
+    return new Date(raw.replace(' ', 'T')).getTime();
+  };
+
+  return getStartTime(a) - getStartTime(b);
+});
     const requiredFoldersBantotal = [
       "ESQ_USRREPBI",
       "APP_ESQUEMAS",
@@ -2995,10 +3032,10 @@ ${last10LinesContent}
                     </p>
                     <p style="word-break: break-all;"><strong>Ruta del backup:</strong> ${data.backupPath || "N/A"}</p>
                     <p>
-     <strong style="background-color:rgb(192, 255, 206); padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
-       Máximo Grupo: <span style="color:rgb(4, 102, 48);">${data.groupNumber || "1"}</span>
-     </strong>
-     </p>
+                    <strong style="background-color:${(data.groupNumber || 1) > 90 ? 'rgb(200, 0, 0)' : 'rgb(192, 255, 206)'}; color:${(data.groupNumber || 1) > 90 ? 'white' : 'black'}; padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
+                      Máximo Grupo: <span style="color:${(data.groupNumber || 1) > 90 ? 'white' : 'rgb(4, 102, 48)'};">${data.groupNumber || "1"}</span>
+                    </strong>
+                    </p>
                 </div>
                 
                 ${errorContent}
