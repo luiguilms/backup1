@@ -1952,55 +1952,55 @@ ${last10LinesContent}
     const allBackups = [...oracleBackups, ...postgresBackups];
 
     allBackups.sort((a, b) => {
-  // 1. Primero: errores antes que éxitos (esto siempre manda)
-  if (a.isError && !b.isError) return -1;
-  if (!a.isError && b.isError) return 1;
+      // 1. Primero: errores antes que éxitos (esto siempre manda)
+      if (a.isError && !b.isError) return -1;
+      if (!a.isError && b.isError) return 1;
 
-  // 2. Segundo: Separar por motor (Oracle primero, luego PostgreSQL)
-  if (a.backupType !== b.backupType) {
-    return a.backupType === 'Oracle' ? -1 : 1;
-  }
+      // 2. Segundo: Separar por motor (Oracle primero, luego PostgreSQL)
+      if (a.backupType !== b.backupType) {
+        return a.backupType === 'Oracle' ? -1 : 1;
+      }
 
-  // 3. Tercero: Orden personalizado de servidores CORE
-  // Definimos la prioridad (mientras menor el número, más arriba aparece)
-  const serverPriority = {
-    "Bantotal": 1,
-    "EBS": 2,
-    "BI": 3,
-    "DATAWH": 4
-  };
+      // 3. Tercero: Orden personalizado de servidores CORE
+      // Definimos la prioridad (mientras menor el número, más arriba aparece)
+      const serverPriority = {
+        "Bantotal": 1,
+        "EBS": 2,
+        "BI": 3,
+        "DATAWH": 4
+      };
 
-  // Obtenemos la prioridad de cada servidor (si no está en la lista, le damos prioridad 99)
-  const priorityA = serverPriority[a.serverName] || 99;
-  const priorityB = serverPriority[b.serverName] || 99;
+      // Obtenemos la prioridad de cada servidor (si no está en la lista, le damos prioridad 99)
+      const priorityA = serverPriority[a.serverName] || 99;
+      const priorityB = serverPriority[b.serverName] || 99;
 
-  if (priorityA !== priorityB) {
-    return priorityA - priorityB; // Ordena por el número de prioridad
-  }
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB; // Ordena por el número de prioridad
+      }
 
-  // 4. Cuarto: Si tienen la misma prioridad (ej. ambos son de los "demás" con 99), 
-  // los agrupamos alfabéticamente para que los backups del mismo servidor no se separen
-  if (a.serverName < b.serverName) return -1;
-  if (a.serverName > b.serverName) return 1;
+      // 4. Cuarto: Si tienen la misma prioridad (ej. ambos son de los "demás" con 99), 
+      // los agrupamos alfabéticamente para que los backups del mismo servidor no se separen
+      if (a.serverName < b.serverName) return -1;
+      if (a.serverName > b.serverName) return 1;
 
-  // 5. Quinto: Dentro del mismo servidor, ordenar cronológicamente (más antiguo a más reciente)
-  const getStartTime = (item) => {
-    const raw = item.startTime || item.fecha_inicio || null;
-    if (!raw) return 0;
-    
-    // Formato PostgreSQL: "21/05/2026, 20:35:10"
-    if (typeof raw === 'string' && raw.includes('/')) {
-      const [datePart, timePart] = raw.split(', ');
-      const [day, month, year] = datePart.split('/');
-      return new Date(`${year}-${month}-${day}T${timePart}`).getTime();
-    }
-    
-    // Formato Oracle: "2026-05-21 20:35:10"
-    return new Date(raw.replace(' ', 'T')).getTime();
-  };
+      // 5. Quinto: Dentro del mismo servidor, ordenar cronológicamente (más antiguo a más reciente)
+      const getStartTime = (item) => {
+        const raw = item.startTime || item.fecha_inicio || null;
+        if (!raw) return 0;
 
-  return getStartTime(a) - getStartTime(b);
-});
+        // Formato PostgreSQL: "21/05/2026, 20:35:10"
+        if (typeof raw === 'string' && raw.includes('/')) {
+          const [datePart, timePart] = raw.split(', ');
+          const [day, month, year] = datePart.split('/');
+          return new Date(`${year}-${month}-${day}T${timePart}`).getTime();
+        }
+
+        // Formato Oracle: "2026-05-21 20:35:10"
+        return new Date(raw.replace(' ', 'T')).getTime();
+      };
+
+      return getStartTime(a) - getStartTime(b);
+    });
     const requiredFoldersBantotal = [
       "ESQ_USRREPBI",
       "APP_ESQUEMAS",
@@ -2946,10 +2946,14 @@ ${last10LinesContent}
       return backups.map(data => {
         if (data.backupType === 'Oracle') {
           // Lógica existente para Oracle
-          const successStatus = data.status === "Fallo" ? "Fallo" : "Éxito";
+          const successStatus = data.status === "Fallo" ? "Fallo" : 
+                                data.status === "En Proceso" ? "En Proceso" : "Éxito";
+                                
           const statusStyle = data.status === "Fallo" ?
             'background-color: #f8d7da; color: #721c24; padding: 5px;' :
-            'background-color: #d4edda; color: #155724; padding: 5px;';
+            data.status === "En Proceso" ?
+              'background-color: #fff3cd; color: #856404; padding: 5px;' : // Color naranja/amarillo
+              'background-color: #d4edda; color: #155724; padding: 5px;';
 
           const isSpecialServer = data.serverName === "WebContent" ||
             (data.serverName === "Contratacion digital" &&
@@ -2971,10 +2975,14 @@ ${last10LinesContent}
               statusMessage = data.last10Lines || "Recovery Manager complete.";
             }
 
+            const innerBoxStyle = data.status === "Fallo" ? 
+                'background-color: #f8d7da; color: #721c24;' : 
+                data.status === "En Proceso" ? 
+                'background-color: #fff3cd; color: #856404;' : 
+                'background-color: #f5f5f5; color: #333333;';
+
             errorContent = `
-        <div style="${data.status === "Fallo" ?
-                'background-color: #f8d7da; color: #721c24;' :
-                'background-color: #f5f5f5; color: #333333;'}  
+        <div style="${innerBoxStyle}  
           padding: 10px; margin: 10px 0; border-radius: 4px;">
           <strong>${statusTitle}</strong><br>
           <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 5px 0; font-family: monospace; padding: 0;">${statusMessage.trim()}</pre>
@@ -3005,7 +3013,9 @@ ${last10LinesContent}
 
           const containerStyle = data.status === "Fallo" ?
             'border: 2px solid #dc3545;' :
-            'border: 1px solid #ddd;';
+            data.status === "En Proceso" ?
+              'border: 2px solid #ffc107;' :
+              'border: 1px solid #ddd;';
 
           return `
             <div style="${containerStyle} padding: 20px; margin-bottom: 30px; border-radius: 8px;">

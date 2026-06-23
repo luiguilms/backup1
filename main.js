@@ -243,12 +243,12 @@ app.whenReady().then(() => {
     let allLogDetails = [];
     const isMensualRoute = directoryPath.includes("MENSUAL");
     const firstDay = isFirstDayOfMonth();
-    
+
     // Obtener el nombre del servidor
-    const servers = await getServers(); 
+    const servers = await getServers();
     const server = servers.find((s) => s.ip === ip);
     const serverName = server ? server.name : "N/A";
-    
+
     if (server) {
       console.log(`Servidor encontrado: ${serverName}, DB Engine: ${server.db_engine}`);
       if (server.db_engine === 'postgresql') {
@@ -259,7 +259,7 @@ app.whenReady().then(() => {
     } else {
       console.log(`No se encontró servidor para IP: ${ip}`);
     }
-    
+
     if (serverName === "EBS" || serverName === "BI") {
       if (firstDay && !isMensualRoute) {
         console.log(`Ruta normal excluida el primer día del mes: ${directoryPath} (Servidor: ${serverName})`);
@@ -271,7 +271,7 @@ app.whenReady().then(() => {
       }
     }
     console.log(`Procesando ruta: ${directoryPath} (Servidor: ${serverName})`);
-    
+
     try {
       // Initialize SSH connection
       const conn = await createSSHClient(ip, port, username, password);
@@ -300,7 +300,7 @@ app.whenReady().then(() => {
 
       const directoryExists = await new Promise((resolve) => {
         sftp.stat(directoryPath, (err) => {
-          resolve(!err); 
+          resolve(!err);
         });
       });
 
@@ -346,7 +346,7 @@ app.whenReady().then(() => {
           await saveRmanLogToDatabase({
             ...rmanLogDetails,
             rutaBackup: directoryPath,
-            logFileName: logFile.filename 
+            logFileName: logFile.filename
           }, serverName, ip);
 
           allLogDetails.push({
@@ -360,7 +360,7 @@ app.whenReady().then(() => {
         }
         sftp.end();
         conn.end();
-        return allLogDetails; 
+        return allLogDetails;
       }
 
       // LECTURA DEL DIRECTORIO PRINCIPAL
@@ -380,8 +380,8 @@ app.whenReady().then(() => {
       // =========================================================
       if (targetOS === "solaris" || targetOS === "linux") {
         const directories = files.filter(file => file.attrs && (file.attrs.mode & 0o40000) === 0o40000);
-        const isBackupComplete = directories.length >= 7; 
-        
+        const isBackupComplete = directories.length >= 7;
+
         if (targetOS === "linux" && !isBackupComplete) {
           allLogDetails.backupIncomplete = true;
           allLogDetails.expectedFolders = 7;
@@ -399,10 +399,10 @@ app.whenReady().then(() => {
           return [];
         }
 
-        for (const file of directories) { 
+        for (const file of directories) {
           const subDirPath = joinPath(directoryPath, file.filename, targetOS);
           console.log(`Processing subdirectory: ${subDirPath}`);
-          
+
           try {
             const subDirFiles = await new Promise((resolve, reject) => {
               sftp.readdir(subDirPath, (err, files) => {
@@ -418,7 +418,7 @@ app.whenReady().then(() => {
             let totalFolderSizeBytes = 0;
             let totalDmpSizeMB = 0;
             let dumpFileInfo = [];
-            const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"]; 
+            const validExtensions = [".dmp", ".dmp.gz", ".gz", ".err"];
 
             for (const subFile of subDirFiles) {
               const fileSizeBytes = subFile.attrs ? subFile.attrs.size : 0;
@@ -440,11 +440,11 @@ app.whenReady().then(() => {
 
             // --- 2. PROCESAMOS LOS LOGS ---
             const logFiles = subDirFiles.filter((f) => path.extname(f.filename) === ".log");
-            
+
             for (const logFile of logFiles) {
               const logFileName = logFile.filename;
               const logFilePath = joinPath(subDirPath, logFileName, targetOS);
-              
+
               const logData = await new Promise((resolve, reject) => {
                 sftp.readFile(logFilePath, "utf8", (err, data) => {
                   if (err) return reject(new Error(`Failed to read log file: ${err.message}`));
@@ -458,7 +458,7 @@ app.whenReady().then(() => {
               const logDetails = parseLogLine(logData);
 
               if (logInfo.hasWarning) {
-                const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber}% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join("\n")}`;
+                const warningMessage = `Se detectó una cantidad inusual de archivos Data Pump (.dmp) asociados al subgrupo ${logInfo.warningNumber} en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join("\n")}`;
                 await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
               }
 
@@ -492,8 +492,8 @@ app.whenReady().then(() => {
         sftp.end();
         conn.end();
         return allLogDetails;
-      } 
-      
+      }
+
       // =========================================================
       // RAMA 2: WINDOWS Y OTROS SO (USANDO TAMAÑOS EN MEMORIA)
       // =========================================================
@@ -536,7 +536,7 @@ app.whenReady().then(() => {
           const latestLogFile = logFiles.reduce((latest, f) => f.attrs.mtime > latest.attrs.mtime ? f : latest);
           let logFileName = latestLogFile.filename;
           const logFilePath = joinPath(directoryPath, logFileName, targetOS);
-          
+
           console.log("Attempting to read log file:", logFilePath);
           const logData = await new Promise((resolve, reject) => {
             sftp.readFile(logFilePath, "utf8", (err, data) => {
@@ -550,7 +550,7 @@ app.whenReady().then(() => {
           const logInfo = getLast10LogLines(logData, globalThreshold);
 
           if (logInfo.hasWarning) {
-            const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber}% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join("\n")}`;
+            const warningMessage = `Se detectó una cantidad inusual de archivos Data Pump (.dmp) asociados al subgrupo ${logInfo.warningNumber} en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join("\n")}`;
             await sendEmailAlert(ip, serverName, directoryPath, warningMessage);
           }
 
@@ -581,7 +581,7 @@ app.whenReady().then(() => {
           let allSubdirResults = [];
           for (const subdir of subdirectories) {
             const subDirPath = joinPath(directoryPath, subdir.filename, targetOS);
-            
+
             try {
               const subDirFiles = await new Promise((resolve, reject) => {
                 sftp.readdir(subDirPath, (err, files) => {
@@ -618,7 +618,7 @@ app.whenReady().then(() => {
                 const latestLogFile = logFiles.reduce((latest, f) => f.attrs.mtime > latest.attrs.mtime ? f : latest);
                 let logFileName = latestLogFile.filename;
                 const logFilePath = joinPath(subDirPath, logFileName, targetOS);
-                
+
                 const logData = await new Promise((resolve, reject) => {
                   sftp.readFile(logFilePath, "utf8", (err, data) => {
                     if (err) return reject(new Error(`Failed to read log file: ${err.message}`));
@@ -631,7 +631,7 @@ app.whenReady().then(() => {
                 const logInfo = getLast10LogLines(logData, globalThreshold);
 
                 if (logInfo.hasWarning) {
-                  const warningMessage = `Se detectó una advertencia de espacio al ${logInfo.warningNumber}% en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join("\n")}`;
+                  const warningMessage = `Se detectó una cantidad inusual de archivos Data Pump (.dmp) asociados al subgrupo ${logInfo.warningNumber} en el servidor ${serverName} (IP: ${ip}).\n\n${logInfo.relevantLines.join("\n")}`;
                   await sendEmailAlert(ip, serverName, subDirPath, warningMessage);
                 }
 
@@ -2120,8 +2120,8 @@ async function sendCombinedAlerts() {
     // Crear el HTML para todas las alertas
     const alertsHtml = pendingAlerts.map(alert => `
       <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-        <h2 style="color: #d9534f;">Alerta de espacio en servidor ${alert.serverName}</h2>
-        <p>Se ha detectado una advertencia de espacio en el servidor <b>${alert.serverName}</b> (IP: ${alert.ip}).</p>
+        <h2 style="color: #d9534f;">Alerta en servidor ${alert.serverName}</h2>
+        <p>Se ha detectado una cantidad elevada de archivos .DMP en el servidor <b>${alert.serverName}</b> (IP: ${alert.ip}).</p>
         <p><b>Subcarpeta afectada:</b> ${alert.subfolderName}</p>
         <h4>Detalles del log:</h4>
         <pre style="background-color: #f8f9fa; padding: 10px; border-radius: 3px;">${alert.message.replace(/\n/g, '<br>')}</pre>
@@ -2131,10 +2131,10 @@ async function sendCombinedAlerts() {
     const mailOptions = {
       from: 'igs_llupacca@cajaarequipa.pe',
       to: 'igs_llupacca@cajaarequipa.pe, ehidalgom@cajaarequipa.pe, kcabrerac@cajaarequipa.pe',
-      subject: `Alertas de espacio en servidores (${pendingAlerts.length} alertas)`,
+      subject: `Alerta - Revisar cantidad de archivos .DMP - grupos (${pendingAlerts.length} alertas)`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h1>Resumen de Alertas de Espacio</h1>
+          <h1>Resumen de Alertas de grupos DMP</h1>
           ${alertsHtml}
           <p style="color: #666; font-size: 12px; margin-top: 20px;">
             Este es un mensaje automático generado por el sistema de monitoreo de backups.
@@ -2288,14 +2288,14 @@ async function getDmpSizeData(days = 15) {
     // Función de conversión a GB
     const convertToGB = (size) => {
       if (!size) return 0;
-      
+
       const sizeStr = String(size).trim();
       const match = sizeStr.match(/^(\d+(?:\.\d+)?)\s*(MB|GB|KB|BYTES?|M|G|K)?$/i);
       if (match) {
         const value = parseFloat(match[1]);
         const unit = (match[2] || '').toUpperCase();
-        
-        switch(unit) {
+
+        switch (unit) {
           case 'GB':
           case 'G':
             return value;
@@ -2313,12 +2313,12 @@ async function getDmpSizeData(days = 15) {
             return value / (1024 * 1024 * 1024);
         }
       }
-      
+
       const numValue = parseFloat(sizeStr);
       if (!isNaN(numValue)) {
         return numValue / (1024 * 1024 * 1024);
       }
-      
+
       return 0;
     };
 
@@ -2334,14 +2334,14 @@ async function getDmpSizeData(days = 15) {
           data: [],
         };
       }
-      
+
       // Crear un ID único más específico
       const fechaStr = row[3] ? new Date(row[3]).toISOString() : 'no-fecha';
       const uniqueId = `${row[7]}-${row[6]}-${fechaStr}`;
-      
+
       // Verificar si ya existe este registro específico
       const existingRecord = acc[identifier].data.find(d => d.uniqueId === uniqueId);
-      
+
       if (!existingRecord) {
         acc[identifier].data.push({
           uniqueId: uniqueId,
@@ -2355,7 +2355,7 @@ async function getDmpSizeData(days = 15) {
       } else {
         console.warn(`⚠️ Registro duplicado detectado y omitido: ${uniqueId}`);
       }
-      
+
       return acc;
     }, {});
 
@@ -2363,12 +2363,12 @@ async function getDmpSizeData(days = 15) {
     console.log(`🗂️ Grupos creados: ${Object.keys(groupedData).length}`);
     Object.values(groupedData).forEach(group => {
       console.log(`📋 ${group.identifier}: ${group.data.length} registros (${group.backupType})`);
-      
+
       // Mostrar fechas para detectar duplicados
       const fechas = group.data.map(d => d.fecha ? new Date(d.fecha).toLocaleDateString() : 'sin-fecha');
       const fechasUnicas = [...new Set(fechas)];
       console.log(`  📅 Fechas: ${fechasUnicas.join(', ')}`);
-      
+
       if (group.data.length > fechasUnicas.length) {
         console.warn(`⚠️ Posibles duplicados en ${group.identifier}: ${group.data.length} registros, ${fechasUnicas.length} fechas únicas`);
       }
@@ -2679,9 +2679,9 @@ function extractRmanLogDetails(logContent) {
   if (isComplete) {
     logDetails.errorMessage = "Recovery Manager complete.";
   } else {
-    // No hay mensaje de finalización correcta
-    logDetails.errorMessage = "INCOMPLETO";
-    logDetails.estadoBackup = 'Fallo'; // Marcar como fallido si no está completo
+    // No ha terminado, en proceso.
+    logDetails.errorMessage = "BACKUP EN EJECUCIÓN O INCOMPLETO SIN ERRORES";
+    logDetails.estadoBackup = 'En Proceso';
   }
 
   const startMatch = cleanedLogContent.match(startDateRegex);
@@ -2736,23 +2736,12 @@ function extractRmanLogDetails(logContent) {
   });
 
   if (errors.length > 0) {
-    logDetails.estadoBackup = 'Fallo';
+    logDetails.estadoBackup = 'Fallo'; // Sobreescribimos a Fallo porque SÍ hay errores reales
 
-    // Construir el mensaje de error con contexto
     const errorContext = [];
-
-    // Agregar línea anterior al primer error
-    if (firstErrorLineIndex > 0) {
-      errorContext.push(lines[firstErrorLineIndex - 1]);
-    }
-
-    // Agregar todas las líneas con errores
+    if (firstErrorLineIndex > 0) errorContext.push(lines[firstErrorLineIndex - 1]);
     errorContext.push(...errors);
-
-    // Agregar línea siguiente al último error
-    if (lastErrorLineIndex < lines.length - 1) {
-      errorContext.push(lines[lastErrorLineIndex + 1]);
-    }
+    if (lastErrorLineIndex < lines.length - 1) errorContext.push(lines[lastErrorLineIndex + 1]);
 
     logDetails.errorMessage = errorContext.join('\n');
   }
@@ -3188,35 +3177,35 @@ function minutesToDuration(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = Math.floor(minutes % 60);
   const secs = Math.round((minutes % 1) * 60);
-  
+
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
 // Función para convertir duración a minutos (usa la misma lógica que tu renderer.js)
 function convertDurationToMinutes(duration) {
   if (!duration) return 0; // Manejar null/undefined/empty
-     
+
   try {
     // Convertir a string y limpiar
     const durationStr = String(duration).trim();
-         
+
     // 1. Formato HH:mm:ss (Oracle estándar y PostgreSQL calculado)
     const hhmmssPattern = /^(\d{1,3}):(\d{2}):(\d{2})$/;
-         
+
     // 2. Formato con días (Oracle para duraciones largas)
     const daysPattern = /^(\d+)\s+days?\s+(\d{1,2}):(\d{2}):(\d{2})$/i;
-         
+
     // 3. Formato solo minutos (alternativa)
     const minsPattern = /^(\d+(?:\.\d+)?)\s*min$/i;
-         
+
     // 4. Formato solo segundos     
     const secsPattern = /^(\d+(?:\.\d+)?)\s*sec$/i;
-         
+
     // 5. Formato de Oracle INTERVAL
     const intervalPattern = /^\+?(\d{2,})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/;
-         
+
     let match;
-         
+
     // Caso 1: Formato HH:mm:ss
     if ((match = durationStr.match(hhmmssPattern))) {
       const hours = parseInt(match[1]);
@@ -3224,7 +3213,7 @@ function convertDurationToMinutes(duration) {
       const seconds = parseInt(match[3]);
       return hours * 60 + minutes + seconds / 60;
     }
-     
+
     // Caso 2: Formato con días
     else if ((match = durationStr.match(daysPattern))) {
       const days = parseInt(match[1]);
@@ -3249,7 +3238,7 @@ function convertDurationToMinutes(duration) {
       const seconds = parseInt(match[4]);
       return (days * 1440) + (hours * 60) + minutes + (seconds / 60);
     }
-         
+
     console.warn(`Formato de duración no reconocido: "${durationStr}"`);
     return 0;
   } catch (e) {
@@ -3262,61 +3251,61 @@ function convertDurationToMinutes(duration) {
 async function checkBackupDurationAlerts(days = 15) {
   try {
     console.log("🔍 Iniciando análisis de duración de backups...");
-    
+
     // Obtener datos usando la función existente
     const backupData = await getDmpSizeData(days);
-    
+
     const alerts = [];
     const ALERT_THRESHOLD_MINUTES = 60; // 1 hora adicional al promedio
-    
+
     // Analizar cada grupo de backups
     backupData.data.forEach(group => {
       console.log(`📊 Analizando grupo: ${group.identifier} (${group.data.length} registros)`);
-      
+
       // Filtrar solo los registros que tienen duración válida
       const backupsWithDuration = group.data.filter(backup => {
         const durationMinutes = convertDurationToMinutes(backup.duracion);
         return durationMinutes > 0; // Solo considerar backups con duración válida
       });
-      
+
       if (backupsWithDuration.length < 2) {
         console.log(`⚠️ Grupo ${group.identifier}: Pocos datos históricos (${backupsWithDuration.length}), omitiendo análisis`);
         return; // Necesitamos al menos 2 registros para calcular promedio
       }
-      
+
       // Convertir duraciones a minutos y calcular estadísticas
       const durations = backupsWithDuration.map(backup => convertDurationToMinutes(backup.duracion));
       const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
       const averageDuration = totalDuration / durations.length;
-      
+
       // Calcular desviación estándar para detectar variaciones extremas
       const variance = durations.reduce((sum, duration) => sum + Math.pow(duration - averageDuration, 2), 0) / durations.length;
       const standardDeviation = Math.sqrt(variance);
-      
+
       console.log(`📈 ${group.identifier}:`);
       console.log(`   Promedio: ${minutesToDuration(averageDuration)} (${averageDuration.toFixed(1)} min)`);
       console.log(`   Desviación estándar: ${standardDeviation.toFixed(1)} min`);
-      
+
       // Encontrar el backup más reciente
       const sortedBackups = backupsWithDuration.sort((a, b) => {
         if (!a.fecha || !b.fecha) return 0;
         return new Date(b.fecha) - new Date(a.fecha);
       });
-      
+
       const latestBackup = sortedBackups[0];
       if (!latestBackup) return;
-      
+
       const latestDurationMinutes = convertDurationToMinutes(latestBackup.duracion);
       const alertThreshold = averageDuration + ALERT_THRESHOLD_MINUTES;
-      
+
       console.log(`🎯 Backup más reciente: ${minutesToDuration(latestDurationMinutes)} (${latestDurationMinutes} min)`);
       console.log(`🚨 Umbral de alerta: ${minutesToDuration(alertThreshold)} (${alertThreshold.toFixed(1)} min)`);
-      
+
       // Generar alerta si excede el umbral
       if (latestDurationMinutes > alertThreshold) {
         const excessMinutes = latestDurationMinutes - averageDuration;
         const severityLevel = excessMinutes > (2 * ALERT_THRESHOLD_MINUTES) ? 'CRÍTICO' : 'ADVERTENCIA';
-        
+
         const alert = {
           severity: severityLevel,
           serverName: group.serverName,
@@ -3336,9 +3325,9 @@ async function checkBackupDurationAlerts(days = 15) {
           identifier: group.identifier,
           recordId: latestBackup.recordId
         };
-        
+
         alerts.push(alert);
-        
+
         console.log(`🚨 ALERTA ${severityLevel}: ${group.serverName} - Duración excesiva detectada`);
         console.log(`   Duración actual: ${latestBackup.duracion} vs Promedio: ${minutesToDuration(averageDuration)}`);
         console.log(`   Exceso: ${minutesToDuration(excessMinutes)}`);
@@ -3346,16 +3335,16 @@ async function checkBackupDurationAlerts(days = 15) {
         console.log(`✅ ${group.identifier}: Duración dentro de parámetros normales`);
       }
     });
-    
+
     console.log(`🏁 Análisis completado. ${alerts.length} alerta(s) generada(s)`);
-    
+
     return {
       alerts: alerts,
       totalGroups: backupData.data.length,
       alertCount: alerts.length,
       analysisDate: new Date().toISOString()
     };
-    
+
   } catch (error) {
     console.error("❌ Error en análisis de duración de backups:", error);
     throw error;
