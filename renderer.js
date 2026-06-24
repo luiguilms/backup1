@@ -1952,9 +1952,22 @@ ${last10LinesContent}
     const allBackups = [...oracleBackups, ...postgresBackups];
 
     allBackups.sort((a, b) => {
-      // 1. Primero: errores antes que éxitos (esto siempre manda)
-      if (a.isError && !b.isError) return -1;
-      if (!a.isError && b.isError) return 1;
+      const getStatusPriority = (item) => {
+        // Buscar el estado dependiendo si es Oracle o PostgreSQL
+        const status = item.backupType === 'Oracle' ? item.status : item.estado_backup;
+
+        if (status === "Fallo") return 1;
+        if (status === "En Proceso") return 2;
+        return 3; // Éxito u otros
+      };
+
+      const priorityAStatus = getStatusPriority(a);
+      const priorityBStatus = getStatusPriority(b);
+
+      // Si los estados son diferentes, mandamos arriba al que tenga menor número (Fallo -> En Proceso -> Éxito)
+      if (priorityAStatus !== priorityBStatus) {
+        return priorityAStatus - priorityBStatus;
+      }
 
       // 2. Segundo: Separar por motor (Oracle primero, luego PostgreSQL)
       if (a.backupType !== b.backupType) {
@@ -2941,14 +2954,33 @@ ${last10LinesContent}
         </div>
       `;
     }
+    const inProcessBackups = allBackups.filter(backup => {
+      const status = backup.backupType === 'Oracle' ? backup.status : backup.estado_backup;
+      return status === "En Proceso";
+    });
+
+    let inProcessContent = '';
+    if (inProcessBackups.length > 0) {
+      inProcessContent = `
+        <div style="background-color: #fff3cd; color: #856404; padding: 15px; margin-bottom: 30px; border-radius: 8px; border: 1px solid #ffeeba;">
+            <h3 style="margin-top: 0;">Backups en Ejecución</h3>
+            <p>Se encontraron ${inProcessBackups.length} servidor(es) cuyo backup aún se encuentra en proceso.</p>
+            <ul style="margin-bottom: 0;">
+                ${inProcessBackups.map(server => `
+                    <li><strong>${server.serverName}</strong> (${server.backupType}) - ${server.backupPath || 'Ruta no disponible'}</li>
+                `).join('')}
+            </ul>
+        </div>
+      `;
+    }
     // **FUNCIÓN PARA GENERAR CONTENIDO HTML UNIFICADO**
     const generateUnifiedContent = (backups) => {
       return backups.map(data => {
         if (data.backupType === 'Oracle') {
           // Lógica existente para Oracle
-          const successStatus = data.status === "Fallo" ? "Fallo" : 
-                                data.status === "En Proceso" ? "En Proceso" : "Éxito";
-                                
+          const successStatus = data.status === "Fallo" ? "Fallo" :
+            data.status === "En Proceso" ? "En Proceso" : "Éxito";
+
           const statusStyle = data.status === "Fallo" ?
             'background-color: #f8d7da; color: #721c24; padding: 5px;' :
             data.status === "En Proceso" ?
@@ -2975,10 +3007,10 @@ ${last10LinesContent}
               statusMessage = data.last10Lines || "Recovery Manager complete.";
             }
 
-            const innerBoxStyle = data.status === "Fallo" ? 
-                'background-color: #f8d7da; color: #721c24;' : 
-                data.status === "En Proceso" ? 
-                'background-color: #fff3cd; color: #856404;' : 
+            const innerBoxStyle = data.status === "Fallo" ?
+              'background-color: #f8d7da; color: #721c24;' :
+              data.status === "En Proceso" ?
+                'background-color: #fff3cd; color: #856404;' :
                 'background-color: #f5f5f5; color: #333333;';
 
             errorContent = `
@@ -3131,6 +3163,7 @@ ${last10LinesContent}
           ${durationAlerts.alertsHTML}
           <!-- Resumen de Errores Oracle -->
           ${summaryContent}
+          ${inProcessContent}
           ${missingFoldersContent}
           <!-- Otra información importante -->
           ${pendingContent}
